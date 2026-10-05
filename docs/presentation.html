@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backrooms: Quiet Exploration v0.8 — Computer Graphics Fundamentals</title>
+<style>
+:root{--ink:#1c1b17;--paper:#f0ebdc;--yellow:#cab571;--muted:#b2ad9e}*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#12120f;color:var(--paper);font-family:"Segoe UI",Arial,sans-serif}body{overflow:hidden}main{height:100%;display:flex;align-items:center;justify-content:center}.slide{display:none;width:min(100vw,177.778vh);height:min(100vh,56.25vw);padding:5% 6.5%;position:relative;overflow:hidden;background:var(--ink)}.slide.active{display:flex;flex-direction:column;justify-content:center}.slide.light{background:var(--paper);color:var(--ink)}h1,h2,p{margin:0}h1{font-weight:600;font-size:clamp(44px,7.5vw,128px);letter-spacing:-.055em;line-height:.94;max-width:80%}h2{font-size:clamp(27px,4.5vw,72px);font-weight:550;letter-spacing:-.04em;line-height:1.06;max-width:95%;margin-bottom:5%}p,li{font-size:clamp(16px,2.05vw,34px);line-height:1.4}p+p{margin-top:1em}ul{margin:0;padding-left:1.1em}li+li{margin-top:.6em}.eyebrow{font-size:clamp(12px,1.25vw,21px);letter-spacing:.17em;text-transform:uppercase;color:var(--yellow);margin-bottom:3.5%}.light .eyebrow{color:#796625}.small{font-size:clamp(11px,1.3vw,21px);line-height:1.45;color:var(--muted)}.light .small{color:#5c594f}.footer{position:absolute;left:6.5%;bottom:5%;right:6.5%;font-size:clamp(10px,1vw,17px);color:var(--muted)}.light .footer{color:#696456}.accent{color:var(--yellow)}.light .accent{color:#8b7025}.big{font-size:clamp(54px,9vw,140px);line-height:1;letter-spacing:-.05em;font-weight:500;margin-bottom:.2em}.formula{font-family:Consolas,"Courier New",monospace;font-size:clamp(19px,3.1vw,48px);margin:3% 0 5%;line-height:1.5;letter-spacing:-.02em}.split{display:grid;grid-template-columns:1.08fr 1fr;gap:7%;align-items:start}.split p{font-size:clamp(16px,1.9vw,30px)}.rule{height:1px;background:currentColor;opacity:.25;margin:4% 0}.cover{isolation:isolate}.cover::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(12,12,10,.92),rgba(12,12,10,.2)),url('../assets/preview.png') center/cover;z-index:-1}.cover .subtitle{margin-top:4%;max-width:65%;color:#e1d8bf}.cover .small{margin-top:4%;max-width:62%}#navigation{position:fixed;right:16px;bottom:12px;display:flex;align-items:center;gap:10px;z-index:5;font-size:12px;color:#d9d0b7}button{border:1px solid #665e49;color:#ece4cf;background:#201e17;padding:5px 12px;cursor:pointer;font:inherit}button:hover,button:focus-visible{background:#4d4530;outline:2px solid var(--yellow);outline-offset:2px}button:disabled{opacity:.4;cursor:default}#progress{position:fixed;bottom:0;left:0;height:3px;width:10%;background:var(--yellow);z-index:8;transition:width .15s}.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+.split>p{margin-top:0}.split .big{font-size:clamp(54px,9vw,140px)}.split .small{font-size:clamp(11px,1.3vw,21px)}#counter{background:#201e17;padding:5px 8px;color:#ece4cf}
+@media(max-width:700px){.slide{padding:5%;}.eyebrow{margin-bottom:2%}h2{margin-bottom:4%}.footer{left:5%;bottom:4%;right:5%}.split{gap:4%}.small{font-size:10px}#navigation{bottom:5px;right:7px;gap:5px;font-size:10px}button{padding:3px 7px}}
+@media print{@page{size:landscape;margin:0}html,body{height:auto;overflow:visible;background:var(--paper)}main{display:block;height:auto}.slide,.slide.active{display:flex;width:100vw;height:100vh;page-break-after:always;break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}#navigation,#progress{display:none}}
+</style>
+</head>
+<body>
+<main aria-label="Backrooms project presentation">
+<section class="slide cover active" aria-label="1. Backrooms">
+<p class="eyebrow">Computer Graphics Fundamentals</p>
+<h1>Backrooms</h1>
+<p class="subtitle">Quiet Exploration<br>A connected procedural interior</p>
+<p class="small">Version 0.8 educational prototype<br>Team and course group: to be added</p>
+<div class="footer">OpenGL 3.3 · C++17 · GLSL</div>
+</section>
+<section class="slide light" aria-label="2. The experience">
+<p class="eyebrow">Project concept</p>
+<h2>The generated<br>Backrooms</h2>
+<div class="split"><p>Empty yellow rooms share one worn wallpaper style. Seeded layouts vary across 6, 12 and 18 m footprints under a 3.2 m ceiling.</p><p>Explore alone with recorded footsteps and a blurred camera view. Optional flashlight clues lead toward an exit.</p></div>
+<div class="footer">Version 0.8: solitary exploration at a slower pace</div>
+</section>
+<section class="slide" aria-label="3. Endless exploration">
+<p class="eyebrow">Procedural generation</p>
+<h2>Endless exploration,<br>bounded active geometry</h2>
+<div class="split"><div><p class="big accent">25</p><p>playable chunks at radius 2</p></div><div><p>Each chunk contains 6 × 6 cells.</p><p>Prepare one mesh per frame in an outer ring of up to 24 chunks. Crossing a boundary promotes cached geometry.</p><p class="small">Seed + coordinates reproduce the base layout. Numeric ranges remain finite.</p></div></div>
+<div class="footer">Implementation: world.cpp</div>
+</section>
+<section class="slide light" aria-label="4. Connected rooms">
+<p class="eyebrow">Generation rule</p>
+<h2>A connected route<br>through every cell</h2>
+<p>Every non-origin cell reserves an opening toward a neighbour closer to the origin.</p>
+<p class="formula">distance = abs(x) + abs(z)</p>
+<p>Each parent step decreases this distance. Optional openings add variation without removing reserved routes.</p>
+<div class="footer">A shared edge uses the same decision from either adjacent cell</div>
+</section>
+<section class="slide" aria-label="5. Camera and transformations">
+<p class="eyebrow">Viewing pipeline</p>
+<h2>Local geometry<br>becomes a camera view</h2>
+<p class="formula">clip = projection × view × model × position</p>
+<div class="split"><p>Yaw and pitch define orientation. Vertical FOV eases from 78° to 82° during Shift movement. Crouching lowers the eye height.</p><p>A nearby rendering origin keeps GPU coordinates small. Acceleration and braking give the slower movement a sense of weight.</p></div>
+<div class="footer">Course references: L-4-2 Models, pp. 4–20; L-5-1 Viewing, pp. 3–22 and 36–47</div>
+</section>
+<section class="slide light" aria-label="6. Lighting">
+<p class="eyebrow">Fragment shading</p>
+<h2>Lighting establishes<br>the atmosphere</h2>
+<p class="formula">diffuse = max(dot(N, L), 0)<br>specular = pow(max(dot(N, H), 0), shininess)</p>
+<p>Nearby fluorescent fixtures and a flashlight illuminate the yellow rooms. Attenuation limits their range, while fog softens distant geometry.</p>
+<div class="footer">Course references: L-5-2 Shading, pp. 14–32; L-7 Buffers, pp. 47–48</div>
+</section>
+<section class="slide" aria-label="7. Texture mapping">
+<p class="eyebrow">Materials</p>
+<h2>Worn wallpaper<br>and camera blur</h2>
+<div class="split"><p>Generated wallpaper contains scars, scuffs and peeling patches. Wall coordinates fix the marks in place. Mipmaps soften distant detail.</p><div><p>The offscreen scene receives stronger blur, grain and vignette.</p><p>The interface draws afterward, so text stays sharp. V shows a minimal HUD.</p></div></div>
+<div class="rule"></div><p class="small">The camera effect changes pixels. It does not record video.</p>
+<div class="footer">Course reference: L-8 Texture Mapping, pp. 25–47</div>
+</section>
+<section class="slide light" aria-label="8. Movement and interaction">
+<p class="eyebrow">Distinctive interaction</p>
+<h2>Movement and<br>interaction</h2>
+<div class="split"><p>Walking reaches 2.5 m/s, Shift movement 4.0 m/s and crouching 1.1 m/s. Velocity builds gradually and settles when input stops.</p><p>Steps follow actual travel. The optional exit checks both distance and a clear path. Enter resumes exploration after escape.</p></div>
+<div class="rule"></div><p class="small">Six recorded footfall variants replace the synthetic steps. Crouching stays quieter. Source: GboxMikeFozzy, OpenGameArt, CC0. Full credit: THIRD_PARTY.md.</p>
+<div class="footer">Collision prevents crossing solid walls and activating the exit through them</div>
+</section>
+<section class="slide" aria-label="9. Verification">
+<p class="eyebrow">Version 0.8 checks</p>
+<h2>Verification</h2>
+<ul><li>One room style with worn wall surfaces</li><li>Connected routes, bounded streaming and safe changes</li><li>Slower movement, wall collision and recorded audio</li><li>Stronger scene blur, sharp interface and optional exit</li></ul>
+<p class="small" style="margin-top:5%">Use docs/verification.md for executed cases and results. Earlier-version passes do not validate this update. Hidden functional captures do not establish visible gameplay FPS.</p>
+<div class="footer">Execution evidence: docs/verification.md and linked test artifacts</div>
+</section>
+<section class="slide light" aria-label="10. Limitations and authorship">
+<p class="eyebrow">Current scope</p>
+<h2>Limits and next steps</h2>
+<div class="split"><div><p>Lights do not test wall occlusion. Room changes reset after unloading. Initial loads and cache misses still generate synchronously.</p><p class="small">Next: student adaptations, visible performance benchmark, course-template report and final rehearsal.</p></div><div><p>OpenAI Codex generated substantial prototype code and supporting material.</p><p class="small">The student must review, adapt and understand the work. Instructor interpretation of the syllabus AI policy is required before assessed use. Full disclosure: docs/AI_USE.md.</p></div></div>
+<div class="footer">Course requirements: Computer Graphics Fundamentals syllabus, pp. 4–5 and 15</div>
+</section>
+</main>
+<div id="navigation"><button id="previous" type="button" aria-label="Previous slide">←</button><span id="counter" aria-live="polite">1 / 10</span><button id="next" type="button" aria-label="Next slide">→</button><button id="fullscreen" type="button">Full screen</button></div><div id="progress"></div>
+<script>
+const slides=Array.from(document.querySelectorAll('.slide'));let current=0;
+function show(index){current=Math.max(0,Math.min(slides.length-1,index));slides.forEach((slide,i)=>{slide.classList.toggle('active',i===current);slide.setAttribute('aria-hidden',i===current?'false':'true')});document.getElementById('counter').textContent=`${current+1} / ${slides.length}`;document.getElementById('previous').disabled=current===0;document.getElementById('next').disabled=current===slides.length-1;document.getElementById('progress').style.width=`${(current+1)/slides.length*100}%`;history.replaceState(null,'',`#${current+1}`)}
+document.getElementById('previous').addEventListener('click',()=>show(current-1));document.getElementById('next').addEventListener('click',()=>show(current+1));document.getElementById('fullscreen').addEventListener('click',async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen()}catch{document.getElementById('fullscreen').textContent='Use browser full screen'}});
+document.addEventListener('keydown',event=>{if(event.key==='ArrowRight'||event.key==='PageDown'||event.key===' '){event.preventDefault();show(current+1)}else if(event.key==='ArrowLeft'||event.key==='PageUp'){event.preventDefault();show(current-1)}else if(event.key==='Home'){event.preventDefault();show(0)}else if(event.key==='End'){event.preventDefault();show(slides.length-1)}});
+show((parseInt(location.hash.slice(1),10)||1)-1);
+</script>
+</body>
+</html>

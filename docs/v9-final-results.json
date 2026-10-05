@@ -1,0 +1,92 @@
+[
+  {
+    "case": "final-menu-navigation",
+    "arguments": [
+      "--hidden",
+      "--menu-check",
+      "--frames",
+      "60",
+      "--capture",
+      "tests/artifacts/v9/final-menu-navigation.bmp"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Quiet Signal v0.9 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nScreenshot saved: tests/artifacts/v9/final-menu-navigation.bmp\r\nCompleted 60 frames. Max resident chunks: 25. Average FPS: 71.57. Last FPS: 111.68. Max frame ms: 318.60. Position: 3.00, 3.00. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.02. Brightness: 1.00. Volume: 0.80. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "final-exit-resume",
+    "arguments": [
+      "--hidden",
+      "--menu-check",
+      "--auto-exit",
+      "--x",
+      "4.8",
+      "--z",
+      "-68.8",
+      "--frames",
+      "90",
+      "--capture",
+      "tests/artifacts/v9/final-exit-resume.bmp"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Quiet Signal v0.9 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nExit reached: the player escaped. Endless exploration remains available.\r\nScreenshot saved: tests/artifacts/v9/final-exit-resume.bmp\r\nCompleted 90 frames. Max resident chunks: 25. Average FPS: 87.67. Last FPS: 61.19. Max frame ms: 316.22. Position: 4.80, -68.80. Shifts: 0. Room: Yellow halls. Exit used: yes. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.02. Brightness: 1.00. Volume: 0.80. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "final-pause",
+    "arguments": [
+      "--hidden",
+      "--demo",
+      "--auto-pause",
+      "--frames",
+      "60",
+      "--capture",
+      "tests/artifacts/v9/final-pause.bmp"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Quiet Signal v0.9 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nScreenshot saved: tests/artifacts/v9/final-pause.bmp\r\nCompleted 60 frames. Max resident chunks: 25. Average FPS: 78.76. Last FPS: 78.78. Max frame ms: 325.02. Position: 3.00, 3.00. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "final-settings",
+    "arguments": [
+      "--hidden",
+      "--auto-settings",
+      "--width",
+      "960",
+      "--height",
+      "640",
+      "--frames",
+      "60",
+      "--capture",
+      "tests/artifacts/v9/final-settings.bmp"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Quiet Signal v0.9 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nScreenshot saved: tests/artifacts/v9/final-settings.bmp\r\nCompleted 60 frames. Max resident chunks: 25. Average FPS: 87.88. Last FPS: 87.90. Max frame ms: 323.80. Position: 3.00, 3.00. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Brightness: 0.95. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "final-stationary",
+    "arguments": [
+      "--hidden",
+      "--demo",
+      "--frames",
+      "1200",
+      "--profile",
+      "tests/artifacts/v9/stationary.csv"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Quiet Signal v0.9 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nCompleted 1200 frames. Max resident chunks: 25. Average FPS: 164.30. Last FPS: 170.26. Max frame ms: 22.33. Position: 3.00, 3.00. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.08. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "final-streaming",
+    "arguments": [
+      "--hidden",
+      "--demo",
+      "--auto-walk",
+      "--auto-sprint",
+      "--frames",
+      "3600",
+      "--profile",
+      "tests/artifacts/v9/streaming.csv"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Quiet Signal v0.9 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nCompleted 3600 frames. Max resident chunks: 25. Average FPS: 202.57. Last FPS: 196.79. Max frame ms: 27.38. Position: 3.00, -175.67. Shifts: 4. Room: Repeating corridor. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 2.50. Stamina: 15.87. Minimum stamina: 0.00. Doors used: 0. Tension: 0.01. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 25, synchronous fallback chunks 0.\r\n"
+  }
+]

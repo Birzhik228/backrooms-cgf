@@ -1,0 +1,8 @@
+{
+  "frames": 2400,
+  "median_ms": 4.1644,
+  "p95_ms": 6.4385,
+  "max_steady_ms": 15.333,
+  "travel_m": 121.37389,
+  "scope": "Hidden 1280x800, vsync off, fixed simulation steps; excludes first 30 and final frame. No universal FPS claim."
+}

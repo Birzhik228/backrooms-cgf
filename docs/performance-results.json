@@ -1,0 +1,278 @@
+{
+  "date": "2026-10-03",
+  "hardware": "Intel UHD Graphics; OpenGL 3.3.0 Build 32.0.101.5768",
+  "comparison": "v0.7 then v0.8, 1200 stationary frames per run. Hidden 1280x800, vsync off, default seed 12071998, position(3,3), yaw-90, pitch-3. Both use bounded GPU queue. No concurrent graphics work.",
+  "scope": "Whole-version comparison with identical world, camera and movement. Wallpaper and lens treatment differ as requested. This samples their combined cost rather than isolating one operation. No visible frame-rate guarantee.",
+  "exclusions": "First 30 frames and final frame excluded from steady statistics; first frame separately reported. Initial process, asset and CPU world loading precede frame recording.",
+  "streaming": "v0.8: 3600 fixed steps sprint east, 239m including acceleration; six boundaries, 30 prepared chunk promotions, zero fallback generation.",
+  "runs": [
+    {
+      "file": "tests/artifacts/performance/v7-stationary.csv",
+      "frames": 1200,
+      "excluded_initial_frames": 30,
+      "excluded_final_frame": true,
+      "first_frame_ms": 42.3238,
+      "phases": {
+        "world_ms": {
+          "median": 0.008,
+          "p95": 0.015,
+          "maximum": 0.2198
+        },
+        "upload_ms": {
+          "median": 0.012,
+          "p95": 0.0261,
+          "maximum": 0.1758
+        },
+        "frame_ms": {
+          "median": 6.9843,
+          "p95": 10.081,
+          "maximum": 14.3247
+        },
+        "scene_ms": {
+          "median": 0.1667,
+          "p95": 0.3398,
+          "maximum": 0.8655
+        },
+        "lens_ms": {
+          "median": 0.0602,
+          "p95": 0.1924,
+          "maximum": 1.2156
+        },
+        "ui_ms": {
+          "median": 0.162,
+          "p95": 0.3424,
+          "maximum": 0.7672
+        },
+        "swap_ms": {
+          "median": 0.2381,
+          "p95": 0.597,
+          "maximum": 1.8319
+        },
+        "input_ms": {
+          "median": 0.0034,
+          "p95": 0.0052,
+          "maximum": 0.4047
+        },
+        "move_ms": {
+          "median": 0.0072,
+          "p95": 0.0111,
+          "maximum": 0.121
+        },
+        "audio_ms": {
+          "median": 0.0016,
+          "p95": 0.0026,
+          "maximum": 0.0519
+        },
+        "setup_ms": {
+          "median": 0.0664,
+          "p95": 0.1274,
+          "maximum": 0.331
+        },
+        "queue_wait_ms": {
+          "median": 6.1562,
+          "p95": 9.0492,
+          "maximum": 12.1937
+        }
+      },
+      "frames_above_100ms": 0,
+      "chunk_crossings": []
+    },
+    {
+      "file": "tests/artifacts/performance/v8-stationary.csv",
+      "frames": 1200,
+      "excluded_initial_frames": 30,
+      "excluded_final_frame": true,
+      "first_frame_ms": 28.8538,
+      "phases": {
+        "world_ms": {
+          "median": 0.0082,
+          "p95": 0.0142,
+          "maximum": 0.1009
+        },
+        "upload_ms": {
+          "median": 0.0136,
+          "p95": 0.0261,
+          "maximum": 0.1333
+        },
+        "frame_ms": {
+          "median": 6.5273,
+          "p95": 9.7032,
+          "maximum": 13.293
+        },
+        "scene_ms": {
+          "median": 0.1822,
+          "p95": 0.3569,
+          "maximum": 1.9947
+        },
+        "lens_ms": {
+          "median": 0.0715,
+          "p95": 0.2411,
+          "maximum": 1.0955
+        },
+        "ui_ms": {
+          "median": 0.1989,
+          "p95": 0.4247,
+          "maximum": 1.7133
+        },
+        "swap_ms": {
+          "median": 0.286,
+          "p95": 0.944,
+          "maximum": 2.2922
+        },
+        "input_ms": {
+          "median": 0.0036,
+          "p95": 0.0057,
+          "maximum": 0.3426
+        },
+        "move_ms": {
+          "median": 0.0078,
+          "p95": 0.0115,
+          "maximum": 0.0787
+        },
+        "audio_ms": {
+          "median": 0.0014,
+          "p95": 0.0022,
+          "maximum": 0.0759
+        },
+        "setup_ms": {
+          "median": 0.0723,
+          "p95": 0.1285,
+          "maximum": 0.5781
+        },
+        "queue_wait_ms": {
+          "median": 5.2288,
+          "p95": 8.717,
+          "maximum": 11.7963
+        }
+      },
+      "frames_above_100ms": 0,
+      "chunk_crossings": []
+    },
+    {
+      "file": "tests/artifacts/performance/v8-streaming.csv",
+      "frames": 3600,
+      "excluded_initial_frames": 30,
+      "excluded_final_frame": true,
+      "first_frame_ms": 25.9879,
+      "phases": {
+        "world_ms": {
+          "median": 0.008,
+          "p95": 0.015,
+          "maximum": 1.3696
+        },
+        "upload_ms": {
+          "median": 0.0133,
+          "p95": 0.0272,
+          "maximum": 0.9503
+        },
+        "frame_ms": {
+          "median": 3.8764,
+          "p95": 6.6077,
+          "maximum": 54.3469
+        },
+        "scene_ms": {
+          "median": 0.1816,
+          "p95": 0.3614,
+          "maximum": 51.8019
+        },
+        "lens_ms": {
+          "median": 0.0711,
+          "p95": 0.2502,
+          "maximum": 4.0264
+        },
+        "ui_ms": {
+          "median": 0.2109,
+          "p95": 0.4397,
+          "maximum": 11.5217
+        },
+        "swap_ms": {
+          "median": 0.2846,
+          "p95": 0.8968,
+          "maximum": 18.9432
+        },
+        "input_ms": {
+          "median": 0.0032,
+          "p95": 0.0048,
+          "maximum": 6.0112
+        },
+        "move_ms": {
+          "median": 0.0075,
+          "p95": 0.0117,
+          "maximum": 0.2407
+        },
+        "audio_ms": {
+          "median": 0.0017,
+          "p95": 0.003,
+          "maximum": 0.0807
+        },
+        "setup_ms": {
+          "median": 0.0681,
+          "p95": 0.1337,
+          "maximum": 4.5845
+        },
+        "queue_wait_ms": {
+          "median": 2.8418,
+          "p95": 5.4536,
+          "maximum": 19.7688
+        }
+      },
+      "frames_above_100ms": 0,
+      "chunk_crossings": [
+        {
+          "frame": "511",
+          "chunk_x": "1",
+          "chunk_z": "0",
+          "world_ms": "1.2921",
+          "upload_ms": "0.677",
+          "uploads": "1",
+          "frame_ms": "6.4115"
+        },
+        {
+          "frame": "1051",
+          "chunk_x": "2",
+          "chunk_z": "0",
+          "world_ms": "0.9275",
+          "upload_ms": "0.3087",
+          "uploads": "1",
+          "frame_ms": "4.6516"
+        },
+        {
+          "frame": "1591",
+          "chunk_x": "3",
+          "chunk_z": "0",
+          "world_ms": "0.6013",
+          "upload_ms": "0.2781",
+          "uploads": "1",
+          "frame_ms": "4.9246"
+        },
+        {
+          "frame": "2131",
+          "chunk_x": "4",
+          "chunk_z": "0",
+          "world_ms": "0.7346",
+          "upload_ms": "0.3237",
+          "uploads": "1",
+          "frame_ms": "4.2461"
+        },
+        {
+          "frame": "2671",
+          "chunk_x": "5",
+          "chunk_z": "0",
+          "world_ms": "0.8914",
+          "upload_ms": "0.3815",
+          "uploads": "1",
+          "frame_ms": "7.8853"
+        },
+        {
+          "frame": "3211",
+          "chunk_x": "6",
+          "chunk_z": "0",
+          "world_ms": "1.3696",
+          "upload_ms": "0.5056",
+          "uploads": "1",
+          "frame_ms": "5.7345"
+        }
+      ]
+    }
+  ]
+}

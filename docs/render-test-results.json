@@ -1,0 +1,149 @@
+[
+  {
+    "case": "classic-hall",
+    "exitCode": 0,
+    "elapsedSeconds": 3.036,
+    "arguments": "--hidden --capture tests/artifacts/classic-hall.bmp --demo --frames 120 --metrics",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 69.74. Last FPS: 39.80. Max frame ms: 402.67. Position: 3.00, 3.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "former-flooded",
+    "exitCode": 0,
+    "elapsedSeconds": 2.41,
+    "arguments": "--hidden --capture tests/artifacts/former-flooded.bmp --demo --frames 60 --x -69 --z 3 --yaw 90",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 63.11. Last FPS: 114.90. Max frame ms: 443.26. Position: -69.00, 3.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "former-garage",
+    "exitCode": 0,
+    "elapsedSeconds": 2.593,
+    "arguments": "--hidden --capture tests/artifacts/former-garage.bmp --demo --frames 120 --x 111 --z 3 --yaw 35 --auto-sprint",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 97.29. Last FPS: 60.29. Max frame ms: 430.63. Position: 111.00, 3.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "former-offices",
+    "exitCode": 0,
+    "elapsedSeconds": 2.264,
+    "arguments": "--hidden --capture tests/artifacts/former-offices.bmp --demo --frames 60 --x 3 --z 111 --yaw 35",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 67.60. Last FPS: 67.62. Max frame ms: 432.62. Position: 3.00, 111.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "former-gallery",
+    "exitCode": 0,
+    "elapsedSeconds": 2.288,
+    "arguments": "--hidden --capture tests/artifacts/former-gallery.bmp --demo --frames 60 --x -105 --z -105 --yaw 35",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 63.84. Last FPS: 63.88. Max frame ms: 446.04. Position: -105.00, -105.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "camera-view",
+    "exitCode": 0,
+    "elapsedSeconds": 2.348,
+    "arguments": "--hidden --capture tests/artifacts/camera-view.bmp --demo --frames 60 --yaw -35 --camera-view --no-flashlight",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 58.10. Last FPS: 15.25. Max frame ms: 461.10. Position: 3.00, 3.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "wall-wear-close",
+    "exitCode": 0,
+    "elapsedSeconds": 2.475,
+    "arguments": "--hidden --capture tests/artifacts/wall-wear-close.bmp --demo --frames 60 --x 1.4 --z 1.0 --yaw 180 --pitch -8 --camera-view",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 51.05. Last FPS: 28.25. Max frame ms: 434.53. Position: 1.40, 1.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "wall-wear-other-chunk",
+    "exitCode": 0,
+    "elapsedSeconds": 2.493,
+    "arguments": "--hidden --capture tests/artifacts/wall-wear-other-chunk.bmp --demo --frames 60 --x 37.4 --z 1.0 --yaw 180 --pitch -8 --camera-view",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 51.17. Last FPS: 30.07. Max frame ms: 429.98. Position: 37.40, 1.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "soft-focus-wide",
+    "exitCode": 0,
+    "elapsedSeconds": 2.543,
+    "arguments": "--hidden --capture tests/artifacts/soft-focus-wide.bmp --demo --frames 60 --yaw -35 --camera-view --width 1600 --height 900",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 51.69. Last FPS: 27.57. Max frame ms: 458.24. Position: 3.00, 3.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "heavy-walk",
+    "exitCode": 0,
+    "elapsedSeconds": 3.168,
+    "arguments": "--hidden --capture tests/artifacts/heavy-walk.bmp --demo --frames 120 --auto-walk",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 67.40. Last FPS: 66.59. Max frame ms: 425.88. Position: 3.00, -1.61. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 2.50. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 5, synchronous fallback chunks 0."
+  },
+  {
+    "case": "crouch-sprint-priority",
+    "exitCode": 0,
+    "elapsedSeconds": 2.685,
+    "arguments": "--hidden --capture tests/artifacts/crouch-sprint-priority.bmp --demo --frames 120 --auto-walk --auto-crouch --auto-sprint",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 91.00. Last FPS: 64.94. Max frame ms: 409.24. Position: 3.00, 0.88. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.08. Crouched: yes. FOV: 78.00. Velocity: 1.10. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "stand-after-crouch",
+    "exitCode": 0,
+    "elapsedSeconds": 3.784,
+    "arguments": "--hidden --capture tests/artifacts/stand-after-crouch.bmp --demo --frames 120 --auto-walk --auto-crouch --auto-stand",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 49.17. Last FPS: 18.55. Max frame ms: 701.07. Position: 3.00, -0.40. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 2.50. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 5, synchronous fallback chunks 0."
+  },
+  {
+    "case": "sprint",
+    "exitCode": 0,
+    "elapsedSeconds": 3.668,
+    "arguments": "--hidden --capture tests/artifacts/sprint.bmp --demo --frames 120 --auto-walk --auto-sprint",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 52.49. Last FPS: 11.81. Max frame ms: 650.84. Position: 3.00, -4.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 82.00. Velocity: 4.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 5, synchronous fallback chunks 0."
+  },
+  {
+    "case": "sprint-stop",
+    "exitCode": 0,
+    "elapsedSeconds": 3.56,
+    "arguments": "--hidden --capture tests/artifacts/sprint-stop.bmp --demo --frames 120 --auto-walk --auto-sprint --auto-stop",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 53.96. Last FPS: 11.46. Max frame ms: 605.12. Position: 3.00, -0.44. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 5, synchronous fallback chunks 0."
+  },
+  {
+    "case": "wall-stop",
+    "exitCode": 0,
+    "elapsedSeconds": 4.248,
+    "arguments": "--hidden --capture tests/artifacts/wall-stop.bmp --demo --frames 180 --x 0.94 --z 3 --auto-walk",
+    "summary": "Completed 180 frames. Max resident chunks: 25. Average FPS: 63.82. Last FPS: 11.40. Max frame ms: 711.05. Position: 0.94, 0.33. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "map-and-clue",
+    "exitCode": 0,
+    "elapsedSeconds": 2.718,
+    "arguments": "--hidden --capture tests/artifacts/map-and-clue.bmp --demo --frames 60 --yaw -125.4 --map --metrics",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 44.62. Last FPS: 27.66. Max frame ms: 495.85. Position: 3.00, 3.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "escape",
+    "exitCode": 0,
+    "elapsedSeconds": 2.972,
+    "arguments": "--hidden --capture tests/artifacts/escape.bmp --demo --frames 60 --x 4.8 --z -69.9 --auto-exit",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 38.76. Last FPS: 9.58. Max frame ms: 450.60. Position: 4.80, -69.90. Shifts: 0. Room: YELLOW HALLS. Exit used: yes. Escaped: yes. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "escape-continue",
+    "exitCode": 0,
+    "elapsedSeconds": 2.832,
+    "arguments": "--hidden --capture tests/artifacts/escape-continue.bmp --demo --frames 60 --x 4.8 --z -69.9 --auto-exit --auto-continue",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 41.40. Last FPS: 31.04. Max frame ms: 515.90. Position: 4.80, -69.90. Shifts: 0. Room: YELLOW HALLS. Exit used: yes. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "minimum-window",
+    "exitCode": 0,
+    "elapsedSeconds": 2.495,
+    "arguments": "--hidden --capture tests/artifacts/minimum-window.bmp --frames 60 --width 960 --height 640",
+    "summary": "Completed 60 frames. Max resident chunks: 25. Average FPS: 54.18. Last FPS: 24.89. Max frame ms: 462.74. Position: 3.00, 3.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "distant-coordinates",
+    "exitCode": 0,
+    "elapsedSeconds": 3.093,
+    "arguments": "--hidden --capture tests/artifacts/distant-coordinates.bmp --demo --frames 120 --x 600000003 --z -600000003",
+    "summary": "Completed 120 frames. Max resident chunks: 25. Average FPS: 69.77. Last FPS: 25.23. Max frame ms: 531.08. Position: 600000003.00, -600000003.00. Shifts: 0. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0."
+  },
+  {
+    "case": "streaming-walk",
+    "exitCode": 0,
+    "elapsedSeconds": 36.661,
+    "arguments": "--hidden --capture tests/artifacts/streaming-walk.bmp --demo --frames 2400 --auto-walk --metrics",
+    "summary": "Completed 2400 frames. Max resident chunks: 25. Average FPS: 68.25. Last FPS: 18.46. Max frame ms: 886.39. Position: 3.00, -96.61. Shifts: 2. Room: YELLOW HALLS. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 2.50. GL errors: 0.\nStreaming: max prepared chunks 24, cached promotions 15, synchronous fallback chunks 0."
+  }
+]

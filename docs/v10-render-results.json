@@ -1,0 +1,308 @@
+[
+  {
+    "case": "start",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "30",
+      "--capture",
+      "tests/artifacts/v10/start.bmp",
+      "--demo",
+      "--yaw",
+      "-35",
+      "--camera-view"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/start.bmp\r\nCompleted 30 frames. Max resident chunks: 25. Average FPS: 52.88. Last FPS: 52.89. Max frame ms: 130.97. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "settings",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "20",
+      "--capture",
+      "tests/artifacts/v10/settings.bmp",
+      "--width",
+      "960",
+      "--height",
+      "640",
+      "--settings"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/settings.bmp\r\nCompleted 20 frames. Max resident chunks: 25. Average FPS: 114.00. Last FPS: 129.26. Max frame ms: 79.73. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 20, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "music-off",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "20",
+      "--capture",
+      "tests/artifacts/v10/music-off.bmp",
+      "--width",
+      "960",
+      "--height",
+      "640",
+      "--music-menu-check",
+      "--settings-file",
+      "tests/artifacts/v10/music-settings.cfg"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/music-off.bmp\r\nCompleted 20 frames. Max resident chunks: 25. Average FPS: 111.58. Last FPS: 149.84. Max frame ms: 85.53. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Music loaded: yes. Music enabled: no. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 20, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "music-persisted",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "20",
+      "--capture",
+      "tests/artifacts/v10/music-persisted.bmp",
+      "--width",
+      "960",
+      "--height",
+      "640",
+      "--settings",
+      "--settings-file",
+      "tests/artifacts/v10/music-settings.cfg"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/music-persisted.bmp\r\nCompleted 20 frames. Max resident chunks: 25. Average FPS: 97.31. Last FPS: 130.93. Max frame ms: 101.08. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Music loaded: yes. Music enabled: no. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 20, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "music-on",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "20",
+      "--capture",
+      "tests/artifacts/v10/music-on.bmp",
+      "--music-menu-check",
+      "--settings-file",
+      "tests/artifacts/v10/music-settings.cfg"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/music-on.bmp\r\nCompleted 20 frames. Max resident chunks: 25. Average FPS: 82.34. Last FPS: 127.91. Max frame ms: 105.72. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 20, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "exit-closed",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "30",
+      "--capture",
+      "tests/artifacts/v10/exit-closed.bmp",
+      "--demo",
+      "--x",
+      "6.225",
+      "--z",
+      "-85.8",
+      "--yaw",
+      "-90"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/exit-closed.bmp\r\nCompleted 30 frames. Max resident chunks: 25. Average FPS: 81.03. Last FPS: 140.85. Max frame ms: 119.76. Position: 6.22, -85.80. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "exit-opening",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "24",
+      "--capture",
+      "tests/artifacts/v10/exit-opening.bmp",
+      "--demo",
+      "--x",
+      "6.225",
+      "--z",
+      "-85.8",
+      "--yaw",
+      "-90",
+      "--auto-door"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 11009257383163879465\r\nScreenshot saved: tests/artifacts/v10/exit-opening.bmp\r\nCompleted 24 frames. Max resident chunks: 25. Average FPS: 76.28. Last FPS: 133.65. Max frame ms: 111.98. Position: 6.22, -85.80. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 1. Tension: 0.01. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "exit-open",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "80",
+      "--capture",
+      "tests/artifacts/v10/exit-open.bmp",
+      "--demo",
+      "--x",
+      "6.225",
+      "--z",
+      "-85.8",
+      "--yaw",
+      "-90",
+      "--auto-door"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 11009257383163879465\r\nScreenshot saved: tests/artifacts/v10/exit-open.bmp\r\nCompleted 80 frames. Max resident chunks: 25. Average FPS: 111.74. Last FPS: 127.16. Max frame ms: 116.54. Position: 6.22, -85.80. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 1. Tension: 0.03. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "exit-closing",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "133",
+      "--capture",
+      "tests/artifacts/v10/exit-closing.bmp",
+      "--demo",
+      "--x",
+      "6.225",
+      "--z",
+      "-85.8",
+      "--yaw",
+      "-90",
+      "--auto-close-door"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 11009257383163879465\r\nCLOSING DOOR / 11009257383163879465\r\nScreenshot saved: tests/artifacts/v10/exit-closing.bmp\r\nCompleted 133 frames. Max resident chunks: 25. Average FPS: 130.99. Last FPS: 119.19. Max frame ms: 113.82. Position: 6.22, -85.80. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 2. Tension: 0.04. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "exit-reclosed",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "185",
+      "--capture",
+      "tests/artifacts/v10/exit-reclosed.bmp",
+      "--demo",
+      "--x",
+      "6.225",
+      "--z",
+      "-85.8",
+      "--yaw",
+      "-90",
+      "--auto-close-door"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 11009257383163879465\r\nCLOSING DOOR / 11009257383163879465\r\nScreenshot saved: tests/artifacts/v10/exit-reclosed.bmp\r\nCompleted 185 frames. Max resident chunks: 25. Average FPS: 132.50. Last FPS: 154.46. Max frame ms: 124.08. Position: 6.22, -85.80. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 2. Tension: 0.04. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "exit-traverse",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "140",
+      "--capture",
+      "tests/artifacts/v10/exit-traverse.bmp",
+      "--demo",
+      "--x",
+      "6.225",
+      "--z",
+      "-85.8",
+      "--yaw",
+      "-90",
+      "--auto-exit",
+      "--auto-walk"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 11009257383163879465\r\nExit reached by walking through the open doorway.\r\nScreenshot saved: tests/artifacts/v10/exit-traverse.bmp\r\nCompleted 140 frames. Max resident chunks: 25. Average FPS: 116.04. Last FPS: 138.20. Max frame ms: 167.52. Position: 6.22, -87.53. Shifts: 0. Room: Yellow halls. Exit used: yes. Escaped: yes. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 1. Tension: 0.02. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "exit-continue",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "200",
+      "--capture",
+      "tests/artifacts/v10/exit-continue.bmp",
+      "--demo",
+      "--x",
+      "6.225",
+      "--z",
+      "-85.8",
+      "--yaw",
+      "-90",
+      "--auto-exit",
+      "--auto-walk",
+      "--auto-continue"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 11009257383163879465\r\nExit reached by walking through the open doorway.\r\nScreenshot saved: tests/artifacts/v10/exit-continue.bmp\r\nCompleted 200 frames. Max resident chunks: 25. Average FPS: 122.05. Last FPS: 103.43. Max frame ms: 171.82. Position: 6.22, -89.67. Shifts: 0. Room: Yellow halls. Exit used: yes. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 1. Tension: 0.15. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "normal-door-opening",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "24",
+      "--capture",
+      "tests/artifacts/v10/normal-door-opening.bmp",
+      "--demo",
+      "--x",
+      "-3.75",
+      "--z",
+      "1",
+      "--yaw",
+      "-90",
+      "--auto-door"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 3211077657719367256\r\nScreenshot saved: tests/artifacts/v10/normal-door-opening.bmp\r\nCompleted 24 frames. Max resident chunks: 25. Average FPS: 67.84. Last FPS: 91.52. Max frame ms: 206.21. Position: -3.75, 1.00. Shifts: 0. Room: Repeating corridor. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 1. Tension: 0.06. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "normal-door-traverse",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "160",
+      "--capture",
+      "tests/artifacts/v10/normal-door-traverse.bmp",
+      "--demo",
+      "--x",
+      "-3.75",
+      "--z",
+      "1",
+      "--yaw",
+      "-90",
+      "--auto-door",
+      "--auto-walk"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nOPENING DOOR / 3211077657719367256\r\nScreenshot saved: tests/artifacts/v10/normal-door-traverse.bmp\r\nCompleted 160 frames. Max resident chunks: 25. Average FPS: 201.51. Last FPS: 244.44. Max frame ms: 147.88. Position: -3.75, -5.28. Shifts: 0. Room: Repeating corridor. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 2.50. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 1. Tension: 0.29. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 5, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "large-hall",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "30",
+      "--capture",
+      "tests/artifacts/v10/large-hall.bmp",
+      "--demo",
+      "--x",
+      "-18.75",
+      "--z",
+      "11.25",
+      "--yaw",
+      "-45"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/large-hall.bmp\r\nCompleted 30 frames. Max resident chunks: 25. Average FPS: 117.51. Last FPS: 118.23. Max frame ms: 125.85. Position: -18.75, 11.25. Shifts: 0. Room: Open hall. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  },
+  {
+    "case": "negative-origin",
+    "arguments": [
+      "--hidden",
+      "--frames",
+      "30",
+      "--capture",
+      "tests/artifacts/v10/negative-origin.bmp",
+      "--demo",
+      "--x",
+      "-1000000001.25",
+      "--z",
+      "3.75",
+      "--camera-view"
+    ],
+    "exitCode": 0,
+    "log": "Backrooms / Threshold v0.10 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/v10/negative-origin.bmp\r\nCompleted 30 frames. Max resident chunks: 25. Average FPS: 108.37. Last FPS: 122.65. Max frame ms: 120.68. Position: -1000000001.25, 3.75. Shifts: 0. Room: Repeating corridor. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\n"
+  }
+]

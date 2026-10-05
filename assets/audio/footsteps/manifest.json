@@ -1,0 +1,84 @@
+{
+  "title": "Footsteps",
+  "author": "GboxMikeFozzy",
+  "source_page": "https://opengameart.org/content/footsteps-0",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source_verified": "2026-10-03",
+  "description": "Six real shoe footfalls recorded by the author while walking through a subway.",
+  "processing": "35 Hz high-pass, 3.6 kHz low-pass, resample 22050 Hz mono, short edge fades, normalize peak to 0.88, 35 ms silent tail. No synthetic impact layer.",
+  "clips": [
+    {
+      "source": "01-footstep_0.ogg",
+      "source_url": "https://opengameart.org/sites/default/files/01-footstep_0.ogg",
+      "source_sha256": "33c9bef5e8aeb1069455699a34a0c5e1ef1787fd3f61594b0859d7e6bb9f9dec",
+      "source_sample_rate": 48000,
+      "output": "step-01.wav",
+      "sha256": "f750457e85dc3b0d52186d0b8370b612d63eab17d4e8a3c69fac2545f4e894db",
+      "samples": 4165,
+      "seconds": 0.188889,
+      "peak": 28835,
+      "rms": 2400.307
+    },
+    {
+      "source": "02-footstep.ogg",
+      "source_url": "https://opengameart.org/sites/default/files/02-footstep.ogg",
+      "source_sha256": "f05396c807eb8eaecffb2a1ead611ec971c5a7914d1d081c91d7796e852692a2",
+      "source_sample_rate": 48000,
+      "output": "step-02.wav",
+      "sha256": "1ed1e4aee30a053498dc05c3ff30df16caaaa61688876bbb08efe3f43d9ca071",
+      "samples": 4492,
+      "seconds": 0.203719,
+      "peak": 28835,
+      "rms": 2326.893
+    },
+    {
+      "source": "03-footstep.ogg",
+      "source_url": "https://opengameart.org/sites/default/files/03-footstep.ogg",
+      "source_sha256": "9817cc93897ed1de5da87675b26be4196bfda3daa6f1de9dc4398a68d250cdb9",
+      "source_sample_rate": 48000,
+      "output": "step-03.wav",
+      "sha256": "4ba38abf74cabc60dd6bdf3c08e7b9fdc5e66eb43b30c78230fbe700feb939c7",
+      "samples": 7755,
+      "seconds": 0.351701,
+      "peak": 28835,
+      "rms": 3155.299
+    },
+    {
+      "source": "04-footstep.ogg",
+      "source_url": "https://opengameart.org/sites/default/files/04-footstep.ogg",
+      "source_sha256": "b373ff981e44d6f7ba2291225a4803078771029615ed81606136fdb9599906d5",
+      "source_sample_rate": 48000,
+      "output": "step-04.wav",
+      "sha256": "2432cb94e2d6cf80b3be0246f67a5b5c6462019a0abf45b4d60efa37635c35e8",
+      "samples": 8114,
+      "seconds": 0.367982,
+      "peak": 28835,
+      "rms": 1847.506
+    },
+    {
+      "source": "05-footstep.ogg",
+      "source_url": "https://opengameart.org/sites/default/files/05-footstep.ogg",
+      "source_sha256": "f1b4893dd3cebe23438567a0dcaf047848a52b594e7eb03e5c212d99e83d2298",
+      "source_sample_rate": 48000,
+      "output": "step-05.wav",
+      "sha256": "4590b4e9e76e224876bda3aed073db9d1e7f61db56f4f8cccda0fc105983471b",
+      "samples": 7690,
+      "seconds": 0.348753,
+      "peak": 28835,
+      "rms": 3184.643
+    },
+    {
+      "source": "06-footstep.ogg",
+      "source_url": "https://opengameart.org/sites/default/files/06-footstep.ogg",
+      "source_sha256": "39147cc1b98abb4b5378ad07b15d50d18f2aa0f0fd2f5514f078c1e574d14773",
+      "source_sample_rate": 48000,
+      "output": "step-06.wav",
+      "sha256": "ef528e5a2269675ddbfe1b05c647b1e790827201abba47e3d8f4b28c4422f3d3",
+      "samples": 6188,
+      "seconds": 0.280635,
+      "peak": 28835,
+      "rms": 3941.573
+    }
+  ]
+}

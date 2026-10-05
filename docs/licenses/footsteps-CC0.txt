@@ -1,0 +1,31 @@
+RECORDED FOOTSTEPS
+
+Title: Footsteps
+Author: GboxMikeFozzy
+Published: 2022-04-14
+Source page: https://opengameart.org/content/footsteps-0
+License: CC0 1.0 Universal (CC0-1.0)
+License deed: https://creativecommons.org/publicdomain/zero/1.0/
+Legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+Source/license verified: 2026-10-03
+
+The author states that these are recordings of their own footsteps while
+walking through a subway, normalized and noise-reduced in Audacity.
+The source page explicitly lists CC0 and states no attribution is required.
+This credit is retained voluntarily for course provenance.
+
+Original downloads, retained unchanged in assets/audio/footsteps/source/:
+https://opengameart.org/sites/default/files/01-footstep_0.ogg
+https://opengameart.org/sites/default/files/02-footstep.ogg
+https://opengameart.org/sites/default/files/03-footstep.ogg
+https://opengameart.org/sites/default/files/04-footstep.ogg
+https://opengameart.org/sites/default/files/05-footstep.ogg
+https://opengameart.org/sites/default/files/06-footstep.ogg
+
+Project derivatives: assets/audio/footsteps/step-01.wav through step-06.wav.
+Processing: remove sub-bass/DC, soften high frequencies, resample to mono
+22050 Hz 16-bit PCM, fade clip edges, normalize, add a brief silent tail.
+No synthetic impact layer was added. In-game gait volume and slight pitch
+variation are applied to these recordings. tools/prepare_footsteps.py
+reproduces the conversion; assets/audio/footsteps/manifest.json includes
+the SHA-256 hashes for every original and derived file.
