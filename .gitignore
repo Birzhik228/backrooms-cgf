@@ -18,4 +18,10 @@ __pycache__/
 /movement_tests
 /streaming_tests
 /music_tests
+/threat_tests
+/threat_tests.exe
+/threat_model_tests
+/threat_model_tests.exe
+/encounter_tests
+/encounter_tests.exe
 /assets/*-v8.png

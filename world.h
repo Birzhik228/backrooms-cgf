@@ -12,6 +12,10 @@ inline constexpr double CELL = 7.5;
 inline constexpr double ROOM_HEIGHT = 3.2;
 inline constexpr int CHUNK_CELLS = 6;
 inline constexpr double CHUNK_SIZE = CELL * CHUNK_CELLS;
+// A distant landmark on the permanent north route, outside the starting
+// resident window. Generation, collision and interaction share this cell.
+inline constexpr std::int64_t EXIT_CELL_X = 0;
+inline constexpr std::int64_t EXIT_CELL_Z = -36;
 
 struct Vertex { float x,y,z,nx,ny,nz,u,v,material; };
 struct ChunkCoord {
@@ -22,6 +26,9 @@ struct ChunkCoord {
     bool operator==(const ChunkCoord& other) const { return x == other.x && z == other.z; }
 };
 struct Aabb { double minX,minZ,maxX,maxZ; };
+// Local chunk-space footprint of elevated solid geometry. Full-height walls
+// stay in obstacles; these records measure room available above a tall actor.
+struct Overhead { Aabb footprint; float undersideY; };
 enum class LampState { Working=0, Dying=1, Off=2 };
 struct Lamp {
     float x,y,z,power;
@@ -51,6 +58,7 @@ struct Chunk {
     float maxHeight = 0;
     std::vector<Vertex> vertices;
     std::vector<Aabb> obstacles;
+    std::vector<Overhead> overheads;
     std::vector<Lamp> lamps;
     std::vector<DoorInfo> doors;
 };
@@ -87,10 +95,17 @@ public:
     // leaf must not hide its own handle. Movement supplies no exclusion.
     bool blocked(double x, double z, double playerRadius,
                  std::optional<std::uint64_t> ignoredDoorId=std::nullopt) const;
-    bool shiftBehind(double x, double z, float forwardX, float forwardZ);
+    // Minimum actual underside over a circular footprint; radius1 anticipates
+    // a tall head approaching a lintel. Invalid/nonresident queries return0.
+    float headClearance(double x,double z,double radius=1.0) const;
+    // A live actor and its neighbouring chunks must keep their collision mesh
+    // stable, even when they are distant and behind the player's camera.
+    bool shiftBehind(double x, double z, float forwardX, float forwardZ,
+                     std::optional<WorldPoint> protectedActor=std::nullopt);
     bool nearestDoor(double x,double z,double range,DoorInfo& result) const;
     bool toggleDoor(std::uint64_t id,double playerX,double playerZ,double playerRadius=.25);
-    bool advanceDoors(float dt,double playerX,double playerZ,double playerRadius=.25,bool paused=false);
+    bool advanceDoors(float dt,double playerX,double playerZ,double playerRadius=.25,bool paused=false,
+                      std::optional<WorldPoint> otherActor=std::nullopt,double otherRadius=.3);
     std::vector<Vertex> doorVertices(double originX,double originZ) const;
     bool exitCrossed(double playerX,double playerZ) const;
     // The latest 128 opened doors survive unloading. Older overrides return to
@@ -98,7 +113,7 @@ public:
     std::size_t rememberedDoors() const { return openDoors_.size(); }
     std::uint64_t seed() const { return seed_; }
     std::size_t shifts() const { return shifts_; }
-    WorldPoint exitLocation() const { return {CELL-1.275,-12*CELL+3.0+1.2}; }
+    WorldPoint exitLocation() const { return {(EXIT_CELL_X+1)*CELL-1.275,EXIT_CELL_Z*CELL+3.0+1.2}; }
 private:
     Chunk generate(ChunkCoord coord, std::uint64_t variant) const;
     std::uint64_t seed_;

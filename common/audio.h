@@ -7,7 +7,10 @@ namespace br {
 inline constexpr int AUDIO_SAMPLE_RATE=22050;
 enum class Surface { Carpet, HardFloor, DampCarpet };
 enum class Gait { Walk, Crouch, Sprint };
-enum class SoundKind { Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door };
+enum class SoundKind {
+    Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door,
+    ThreatNotice, ThreatStep, Jumpscare
+};
 struct SoundEvent {
     SoundKind kind=SoundKind::Footstep;
     Gait gait=Gait::Walk;
@@ -48,7 +51,9 @@ StereoGain positionalGains(const AudioScene& scene,AudioPosition source,
                            float nearDistance=2,float farDistance=48);
 
 // The same bounded, cached stereo mixer drives waveOut and offline tests.
-// New ambience is synthesized once at construction, never in the render loop.
+// Ambience and threat cues are synthesized once, never in the render loop.
+// Threat cues are positional except the capture sting, which is centered and
+// replaces other one-shots. All cues obey master volume and pause/mute.
 class AudioMixer {
 public:
     AudioMixer();

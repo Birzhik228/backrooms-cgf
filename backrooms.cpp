@@ -36,6 +36,9 @@
 #include "common/player_state.h"
 #include "common/settings.h"
 #include "common/music.h"
+#include "common/threat.h"
+#include "common/threat_model.h"
+#include "common/encounter.h"
 
 namespace fs = std::filesystem;
 using namespace br;
@@ -66,6 +69,11 @@ struct Options {
     bool autoStop = false, autoReleaseSprint = false;
     bool unboundedQueue = false, settingsMenu = false, autoSettings = false, musicMenuCheck = false;
     bool autoDoor = false, autoCloseDoor = false, menuCheck = false, autoPause = false;
+    bool noThreat=false, threatPreview=false, forcedThreat=false;
+    bool autoCatch=false, autoRestart=false, autoRestartClick=false, autoScareEscape=false;
+    double threatX=8, threatZ=3.75;
+    float threatYaw=-90;
+    float threatPreviewTime=0, threatPreviewSpeed=0;
     std::string settingsFile, musicFile;
     int doorCloseFrame=110;
     double spawnX = CELL*.5, spawnZ = CELL*.5;
@@ -160,6 +168,17 @@ static Options parseOptions(int argc, char** argv) {
             options.autoDoor = true;
         } else if (argument == "--auto-close-door") {
             options.autoDoor = options.autoCloseDoor = true;
+        } else if (argument == "--no-threat") { options.noThreat=true;
+        } else if (argument == "--threat-preview") { options.threatPreview=true; options.forcedThreat=true;
+        } else if (argument == "--threat-x") { options.threatX=std::stod(next()); options.forcedThreat=true;
+        } else if (argument == "--threat-z") { options.threatZ=std::stod(next()); options.forcedThreat=true;
+        } else if (argument == "--threat-yaw") { options.threatYaw=std::stof(next()); options.forcedThreat=true;
+        } else if (argument == "--threat-time") { options.threatPreviewTime=std::stof(next());
+        } else if (argument == "--threat-speed") { options.threatPreviewSpeed=std::stof(next());
+        } else if (argument == "--auto-catch") { options.autoCatch=true;
+        } else if (argument == "--auto-restart") { options.autoRestart=true;
+        } else if (argument == "--auto-restart-click") { options.autoRestartClick=true;
+        } else if (argument == "--auto-scare-escape") { options.autoScareEscape=true;
         } else if (argument == "--audio-preview") {
             options.audioPreview = next();
         } else if (argument == "--help") {
@@ -181,6 +200,11 @@ static Options parseOptions(int argc, char** argv) {
                          "--menu-check exercises settings and resume; --auto-pause pauses on frame 2.\n"
                          "--music-file path selects an optional local MP3/WAV/M4A song.\n"
                          "--door-close-frame N changes the scripted closing time (default 110).\n"
+                         "Threat verification: --threat-x X --threat-z Z --threat-yaw DEGREES\n"
+                         "--threat-preview freezes the model/AI. --no-threat isolates room checks.\n"
+                         "--threat-time SECONDS --threat-speed MPS select an animation preview pose.\n"
+                         "--auto-catch [--auto-restart | --auto-restart-click] checks the defeat flow.\n"
+                         "--auto-scare-escape tests Escape during capture and game over.\n"
                          "Minimum window size: 960 x 640.\n";
             std::exit(0);
         } else {
@@ -194,6 +218,10 @@ static Options parseOptions(int argc, char** argv) {
     }
     if (options.frames < 0 || options.doorCloseFrame < 0 || !std::isfinite(options.spawnX) ||
         !std::isfinite(options.spawnZ) || !std::isfinite(options.yaw) || !std::isfinite(options.pitch) ||
+        !std::isfinite(options.threatX) || !std::isfinite(options.threatZ) || !std::isfinite(options.threatYaw) ||
+        !std::isfinite(options.threatPreviewTime) || options.threatPreviewTime<0 || options.threatPreviewTime>10000 ||
+        !std::isfinite(options.threatPreviewSpeed) || options.threatPreviewSpeed<0 || options.threatPreviewSpeed>10 ||
+        std::abs(options.threatX)>1e12 || std::abs(options.threatZ)>1e12 ||
         std::abs(options.pitch) > 85 ||
         std::abs(options.spawnX) > 1e12 || std::abs(options.spawnZ) > 1e12) {
         throw std::runtime_error("Invalid frame count or spawn coordinate.");
@@ -495,7 +523,7 @@ static int run(const Options& options) {
     glfwWindowHint(GLFW_VISIBLE, options.hidden ? GLFW_FALSE : GLFW_TRUE);
     glfwWindowHint(GLFW_SAMPLES, 0);
     GLFWwindow* window = glfwCreateWindow(options.width, options.height,
-        "BACKROOMS / Threshold - CGF Prototype v0.10", nullptr, nullptr);
+        "BACKROOMS / Threshold - CGF Prototype v0.12", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         throw std::runtime_error("Cannot create an OpenGL 3.3 core window.");
@@ -545,6 +573,13 @@ static int run(const Options& options) {
         throw std::runtime_error("Requested spawn intersects a wall.");
     }
 
+    Threat threat(world.seed());
+    Encounter encounter;
+    if(options.forcedThreat && !options.noThreat) {
+        if(world.blocked(options.threatX,options.threatZ,Threat::RADIUS))
+            throw std::runtime_error("Threat fixture intersects a wall or unloaded chunk.");
+        threat.resetAt(options.threatX,options.threatZ,options.threatYaw*PI/180);
+    }
     Input input;
     input.window = window;
     input.setLook(options.yaw, options.pitch);
@@ -559,7 +594,19 @@ static int run(const Options& options) {
     input.pause(options.settingsMenu || !(options.demo || options.tour));
 
     std::map<ChunkCoord, GpuChunk> gpu;
-    GpuChunk doorGpu;
+    GpuChunk doorGpu, threatGpu;
+    // Read and validate the imported animation cache during loading, so the
+    // first encounter never has to open a file or allocate the clip bank.
+    {
+        const auto initialModel=threatModelVertices(0,0,false);
+        uploadVertices(threatGpu,initialModel,GL_DYNAMIC_DRAW);
+        log("Loaded Smiler model: "+std::to_string(initialModel.size()/3)+" triangles.");
+    }
+    float threatAnimation=0, threatStepTravel=0, lastThreatMeshTime=-1;
+    float threatStoop=0, lastThreatStoop=-1, threatNoticeCooldown=0;
+    float threatGaitPhase=0, threatVisualSpeed=0;
+    bool lastScareMesh=false, scriptedRestarted=false;
+    int catches=0, restarts=0;
     bool doorVisualDirty=true;
     ChunkCoord doorOrigin{};
     std::size_t doorShift=0;
@@ -610,11 +657,25 @@ static int run(const Options& options) {
         fieldOfView = settings.fov;
         stamina.reset(); tension = 0;
         audio.reset(static_cast<uint32_t>(world.seed()));
+        threat.reset(world.seed()); encounter.reset();
+        threatAnimation=threatStepTravel=0; lastThreatMeshTime=-1;
+        threatStoop=0; lastThreatStoop=-1; threatNoticeCooldown=0;
+        threatGaitPhase=threatVisualSpeed=0;
         travel = walk = shiftClock = 0;
         audio.update(0, 0, false, false, Surface::Carpet, true);
         notice = "RETURNED TO THE FIRST ROOM";
         noticeTime = 3;
         log("Returned to the first room.");
+    };
+
+    auto freshRun = [&](uint64_t seed) {
+        world=World(seed);
+        for(auto& [coord,mesh]:gpu) release(mesh);
+        gpu.clear();
+        returnToStart();
+        exitUsed=false; doorsUsed=0; minimumStamina=100;
+        notice.clear(); noticeTime=0; settingsOpen=false; menuSelection=0;
+        input.pause(false); entered=true;
     };
 
     FrameQueue frameQueue;
@@ -634,13 +695,14 @@ static int run(const Options& options) {
         // Cap ordinary simulation stalls to avoid teleporting through a wall.
         // The automated walk has deterministic motion per frame, independent of
         // render speed; performance counters always use real wall-clock time.
-        const float dt = (options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit) ? 1.f / 60.f :
+        const float dt = (options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.forcedThreat) ? 1.f / 60.f :
                          static_cast<float>(std::min(rawDelta, .05));
         elapsed += dt;
         const double inputStart = glfwGetTime();
         glfwPollEvents();
         // Scripted checks use the same latched callbacks as physical keys.
         auto simulateKey = [&](int key) { Input::key(window,key,0,GLFW_PRESS,0); };
+        std::optional<std::array<double,2>> scriptedMenuClick;
         if(options.autoSettings && frame<=2) simulateKey(frame==2 ? GLFW_KEY_LEFT : GLFW_KEY_DOWN);
         if(options.musicMenuCheck && frame<=7) simulateKey(frame==7 ? GLFW_KEY_ENTER : GLFW_KEY_DOWN);
         if(options.menuCheck && frame<=6) {
@@ -650,6 +712,17 @@ static int run(const Options& options) {
         }
         if(options.menuCheck && options.autoExit && frame==10) simulateKey(GLFW_KEY_ENTER);
         if(options.autoPause && frame==2) simulateKey(GLFW_KEY_ESCAPE);
+        if(options.autoScareEscape && (frame==10 || frame==75)) simulateKey(GLFW_KEY_ESCAPE);
+        if((options.autoRestart || options.autoRestartClick) && encounter.gameOver() && frame>=90 && !scriptedRestarted) {
+            if(options.autoRestartClick) {
+                // Hidden windows cannot warp the OS pointer. Supply the same
+                // framebuffer point consumed by the real menu hit test instead.
+                int w,h; glfwGetFramebufferSize(window,&w,&h);
+                scriptedMenuClick=std::array<double,2>{w*.5,(h-550)*.5+184};
+                Input::button(window,GLFW_MOUSE_BUTTON_LEFT,GLFW_PRESS,0);
+            } else simulateKey(GLFW_KEY_ENTER);
+            scriptedRestarted=true;
+        }
         input.poll();
         const double inputMs = (glfwGetTime() - inputStart) * 1000;
         const double moveStart = glfwGetTime();
@@ -665,12 +738,13 @@ static int run(const Options& options) {
         };
         bool resumeAction = false, newSeedAction = false, resetAction = false, quitAction = false;
         bool escapeHandled = false;
-        if (input.paused) {
+        if (input.paused && !encounter.scaring()) {
             int menuW, menuH, windowW, windowH;
             glfwGetFramebufferSize(window, &menuW, &menuH);
             glfwGetWindowSize(window, &windowW, &windowH);
             double mouseX, mouseY; glfwGetCursorPos(window, &mouseX, &mouseY);
             mouseX *= double(menuW)/std::max(1,windowW); mouseY *= double(menuH)/std::max(1,windowH);
+            if(scriptedMenuClick) { mouseX=(*scriptedMenuClick)[0]; mouseY=(*scriptedMenuClick)[1]; }
             const float boxW = std::min(700.f, float(menuW)-40), boxH = 550;
             const float left=(menuW-boxW)*.5f, top=(menuH-boxH)*.5f;
             if (settingsOpen) {
@@ -725,7 +799,8 @@ static int run(const Options& options) {
         }
         // Input and focus management.
         if (input.hit(GLFW_KEY_ESCAPE) && !escapeHandled) {
-            input.pause(!input.paused);
+            if(encounter.scaring()) encounter.skipScare();
+            else if(!encounter.gameOver()) input.pause(!input.paused);
             if (input.paused) menuSelection=0;
             if (!input.paused) {
                 entered = true;
@@ -733,7 +808,8 @@ static int run(const Options& options) {
             }
         }
         if ((resumeAction || (options.autoContinue && escaped)) && input.paused && !settingsOpen) {
-            input.pause(false);
+            if(encounter.gameOver()) { freshRun(world.seed()); ++restarts; log("Restarted after capture with the same seed."); }
+            else if(!encounter.scaring()) input.pause(false);
             entered = true;
             escaped = false;
         }
@@ -779,41 +855,29 @@ static int run(const Options& options) {
                 log(audio.available() ? "Audio output active." : "Audio output unavailable; use M to retry.");
             }
         }
-        if ((input.hit(GLFW_KEY_R) && !settingsOpen) || resetAction) {
-            returnToStart();
-        }
-        if ((newSeedAction || input.hit(GLFW_KEY_N)) && input.paused && !settingsOpen) {
-            world = World(world.seed() + 104729);
-            escaped = exitUsed = false; exitArmed=true; doorVisualDirty=true;
-            motion.reset();
-            bobOffset = 0;
-            travel = walk = shiftClock = 0;
-            crouched = false;
-            eyeHeight = 1.65f;
-            fieldOfView = settings.fov;
-        stamina.reset(); tension = 0;
-        audio.reset(static_cast<uint32_t>(world.seed()));
-            audio.update(0, 0, false, false, Surface::Carpet, true);
-            px = pz = CELL*.5;
-            world.update(px, pz);
-            for (auto& [coord, mesh] : gpu) {
-                release(mesh);
+        if (((input.hit(GLFW_KEY_R) && !settingsOpen) || resetAction) && !encounter.scaring()) {
+            if(encounter.gameOver()) {
+                freshRun(world.seed());
+                if(resetAction) { input.pause(true); entered=false; }
+                else ++restarts;
             }
-            gpu.clear();
-            input.setLook(-90, -3);
-            notice = "NEW SEED / NEW BUILDING";
-            noticeTime = 3;
+            else returnToStart();
+        }
+        if ((newSeedAction || input.hit(GLFW_KEY_N)) && input.paused && !settingsOpen && !encounter.scaring()) {
+            freshRun(world.seed()+104729);
+            notice="NEW SEED / NEW BUILDING"; noticeTime=3;
         }
         input.smooth(dt);
-        if (options.tour) {
+        if (options.tour && encounter.alive() && !input.paused) {
             input.setLook(options.yaw + std::sin(elapsed * .38) * 40, -3 + std::sin(elapsed * .2) * 4);
         }
 
         // Advance leaves before movement so collision uses their visible angle.
-        doorVisualDirty |= world.advanceDoors(dt,px,pz,.23,input.paused);
+        const auto threatPosition=threat.active() ? std::optional<WorldPoint>{{threat.x(),threat.z()}} : std::nullopt;
+        doorVisualDirty |= world.advanceDoors(dt,px,pz,.23,input.paused,threatPosition,Threat::RADIUS);
         // Move a circular player collider in small, axis-separated steps. This
         // permits sliding along walls while preventing tunnelling through them.
-        const Vec3 forward = input.forward();
+        const Vec3 forward = encounter.scaring() ? normalize(Vec3{input.forward().x,0,input.forward().z}) : input.forward();
         bool moving = false;
         double frameDistance = 0;
         if (!input.paused) {
@@ -869,7 +933,7 @@ static int run(const Options& options) {
         if (!input.paused && shifting) {
             shiftClock += dt;
             if (shiftClock > 14) {
-                world.shiftBehind(px, pz, forward.x, forward.z);
+                world.shiftBehind(px, pz, forward.x, forward.z,threatPosition);
                 shiftClock = 0;
             }
         }
@@ -882,6 +946,7 @@ static int run(const Options& options) {
             motion.reset(); input.pause(true); menuSelection=0;
             log("Exit reached by walking through the open doorway.");
         }
+        float doorNoise=0;
         DoorInfo nearbyDoor{};
         bool nearDoor = world.nearestDoor(px, pz, 2.0, nearbyDoor);
         if (nearDoor) {
@@ -899,7 +964,7 @@ static int run(const Options& options) {
             if (nearDoor) {
                 if (world.toggleDoor(nearbyDoor.id, px, pz)) {
                     doorVisualDirty=true;
-                    ++doorsUsed;
+                    ++doorsUsed; doorNoise=1;
                     nearbyDoor.open = !nearbyDoor.open;
                     audio.play(SoundKind::Door, {nearbyDoor.x, 1.2, nearbyDoor.z});
                     notice = nearbyDoor.open ? "OPENING DOOR" : "CLOSING DOOR";
@@ -911,6 +976,60 @@ static int run(const Options& options) {
                 noticeTime = 3;
             }
         }
+        // Actual movement and explicit interaction noise feed one physical actor.
+        // Menu time never advances its senses, path following, or grace period.
+        const auto previousThreatState=threat.state();
+        if(!input.paused) threatNoticeCooldown=std::max(0.f,threatNoticeCooldown-dt);
+        if(options.autoCatch && frame==2 && encounter.alive()) {
+            const Vec3 front=normalize(Vec3{forward.x,0,forward.z});
+            double tx=px+front.x*.5,tz=pz+front.z*.5;
+            if(world.blocked(tx,tz,Threat::RADIUS)) { tx=px; tz=pz; }
+            threat.resetAt(tx,tz,std::atan2(-front.x,front.z));
+        }
+        ThreatPlayer perceivedPlayer{px,pz,forward.x,forward.z,dt>0 ? float(frameDistance/dt) : 0.f,crouched,doorNoise};
+        if(!options.noThreat && !options.threatPreview)
+            threat.update(world,perceivedPlayer,dt,input.paused || !encounter.alive());
+        if(threat.state()!=previousThreatState) {
+            std::ostringstream threatEvent;
+            threatEvent << "Threat: " << threatStateName(threat.state()) << " / distance "
+                        << std::fixed << std::setprecision(2) << std::hypot(threat.x()-px,threat.z()-pz) << " m";
+            log(threatEvent.str());
+            if(threat.state()==ThreatState::Chase && threatNoticeCooldown<=0) {
+                audio.play(SoundKind::ThreatNotice,{threat.x(),1.8,threat.z()},.8f);
+                threatNoticeCooldown=5;
+            }
+        }
+        if(!input.paused && threat.active() && threat.speed()>.05f) {
+            threatStepTravel+=threat.speed()*dt;
+            // Search can run too; match cadence to travel rather than AI label.
+            const float runMix=std::clamp((threat.speed()-1.1f)/2.2f,0.f,1.f);
+            const float stride=.68f+.67f*runMix;
+            if(threatStepTravel>=stride) {
+                threatStepTravel=std::fmod(threatStepTravel,stride);
+                audio.play(SoundKind::ThreatStep,{threat.x(),.2,threat.z()},.8f);
+            }
+        } else threatStepTravel=0;
+        const bool scareSuspended=!options.hidden && !glfwGetWindowAttrib(window,GLFW_FOCUSED);
+        encounter.update(dt,scareSuspended);
+        if(threat.caught() && encounter.catchPlayer()) {
+            ++catches; motion.reset(); moving=false; frameDistance=0;
+            input.pause(true); settingsOpen=false; menuSelection=0;
+            notice.clear(); noticeTime=0;
+            audio.play(SoundKind::Jumpscare,{px,eyeHeight,pz},.9f);
+            log("Captured: 3D jumpscare started.");
+        }
+        if((!input.paused || encounter.scaring()) && !scareSuspended && !options.threatPreview) {
+            threatAnimation+=dt;
+            if(encounter.alive()) {
+                threatVisualSpeed+=(threat.speed()-threatVisualSpeed)*(1.f-std::exp(-dt*9.f));
+                // One full leg cycle contains two footfalls. Integrating
+                // distance avoids a phase jump when walk changes to run.
+                const float runBlend=std::clamp((threatVisualSpeed-1.1f)/2.2f,0.f,1.f);
+                const float stride=1.36f+(2.70f-1.36f)*runBlend;
+                threatGaitPhase=std::fmod(threatGaitPhase+threat.speed()*dt/stride,1.f);
+            }
+        }
+
         const double audioStart = glfwGetTime();
         const auto currentRoom = roomInfo(int64_t(std::floor(px / CELL)), int64_t(std::floor(pz / CELL)), world.seed());
         const auto floorSurface = floorSurfaceAt(px, pz, world.seed());
@@ -936,12 +1055,14 @@ static int run(const Options& options) {
             }
         }
         if(nearestSoundLight==1e30) soundScene.lightPower=0;
-        const float danger=std::clamp((1.f-std::min(1.f,localIllumination))*.58f +
+        const float environmentalDanger=std::clamp((1.f-std::min(1.f,localIllumination))*.58f +
             localInstability*.28f + (flashlight ? 0.f : .15f) + (currentRoom.kind==RoomKind::OddRoom ? .22f : 0.f),0.f,1.f);
+        const float danger=std::max(environmentalDanger,threat.state()==ThreatState::Chase ? 1.f :
+            threat.state()==ThreatState::Search ? .7f : 0.f);
         if(!input.paused) tension+=(danger-tension)*(1.f-std::exp(-dt*.6f));
         soundScene.tension=tension;
         audio.setScene(soundScene);
-        audio.update(dt, float(frameDistance), crouched, sprinting && moving, surface, input.paused);
+        audio.update(dt, float(frameDistance), crouched, sprinting && moving, surface, input.paused && (!encounter.scaring() || scareSuspended));
         if (!input.paused) {
             // Widen only for real sprint travel, not for Shift held at a wall.
             // Exponential easing has the same response at different frame rates.
@@ -983,6 +1104,22 @@ static int run(const Options& options) {
             }
         }
 
+        if(threat.active() && (!input.paused || lastThreatMeshTime<0)) {
+            auto stoopFor=[](float clearance) { return clearance<2.8f ? 1.f : clearance<3.f ? .5f : 0.f; };
+            const float ahead=stoopFor(world.headClearance(threat.x(),threat.z(),1.75));
+            const float minimum=stoopFor(world.headClearance(threat.x(),threat.z(),1.0));
+            threatStoop+=(ahead-threatStoop)*(1.f-std::exp(-dt*9.f));
+            threatStoop=std::max(threatStoop,minimum);
+        }
+        if(threat.active() && (lastThreatMeshTime<0 || threatAnimation-lastThreatMeshTime>=1.f/60.f ||
+                              std::abs(threatStoop-lastThreatStoop)>.002f || lastScareMesh!=encounter.scaring())) {
+            const float visualSpeed=options.threatPreview ? options.threatPreviewSpeed : threatVisualSpeed;
+            uploadVertices(threatGpu,threatModelVertices(options.threatPreview ? options.threatPreviewTime : threatAnimation,visualSpeed,
+                visualSpeed>2.f,encounter.scaring() ? std::max(.001f,encounter.progress()) : 0.f,threatStoop,
+                options.threatPreview ? -1.f : threatGaitPhase),GL_DYNAMIC_DRAW);
+            lastThreatMeshTime=threatAnimation; lastScareMesh=encounter.scaring(); lastThreatStoop=threatStoop;
+        }
+        if(threat.active()) residentTriangles+=threatGpu.count/3;
         const double uploadMs = (glfwGetTime() - uploadStart) * 1000;
         const double setupStart = glfwGetTime();
         int width = 0, height = 0;
@@ -1015,8 +1152,10 @@ static int run(const Options& options) {
         const float bobTarget = -weight * (.5f + .5f * std::cos(phase));
         bobOffset += (bobTarget - bobOffset) * (1.f - std::exp(-14.f * dt));
         const Vec3 eye{float(px - originX), eyeHeight + bobOffset, float(pz - originZ)};
-        const Mat4 view = lookAt(eye, forward);
-        const Mat4 projection = perspective(fieldOfView * PI / 180, float(width) / height, .06f, 110.f);
+        const Vec3 cameraForward=encounter.scaring() ? normalize(Vec3{forward.x,0,forward.z}) : forward;
+        const Mat4 view = lookAt(eye, cameraForward);
+        const float renderFov=encounter.scaring() ? fieldOfView+(65.f-fieldOfView)*std::min(1.f,encounter.progress()*4.f) : fieldOfView;
+        const Mat4 projection = perspective(renderFov * PI / 180, float(width) / height, .06f, 110.f);
         const Mat4 vp = projection * view;
 
         struct NearLight {
@@ -1056,7 +1195,7 @@ static int run(const Options& options) {
         scene.set("uCamera", eye);
         scene.set("uWorldPhase",Vec3{float(std::fmod(std::fmod(originX,180.0)+180.0,180.0)),0,
                                   float(std::fmod(std::fmod(originZ,180.0)+180.0,180.0))});
-        scene.set("uForward", forward);
+        scene.set("uForward", cameraForward);
         scene.set("uTime", float(elapsed));
         scene.set("uFlashlight", int(flashlight));
         scene.set("uExposure", settings.brightness);
@@ -1119,6 +1258,33 @@ static int run(const Options& options) {
             glDrawArrays(GL_TRIANGLES,0,doorGpu.count);
             drawnTriangles+=doorGpu.count/3;
         }
+        if(threat.active() && threatGpu.count) {
+            float tx=float(threat.x()-originX),tz=float(threat.z()-originZ),ty=0,yaw=threat.yaw();
+            if(encounter.scaring()) {
+                // A short 3D close-up uses the same articulated mesh. Freeze the
+                // player and keep the face visible even at a wall or low camera angle.
+                const float lunge=1.f-std::pow(1.f-encounter.progress(),3.f);
+                const float distance=1.65f-.92f*lunge;
+                const Vec3 right=normalize(cross(cameraForward,{0,1,0}));
+                const float tremor=std::sin(encounter.progress()*37.f)*.018f;
+                tx=eye.x+cameraForward.x*distance+right.x*tremor;
+                tz=eye.z+cameraForward.z*distance+right.z*tremor;
+                ty=eye.y-THREAT_EYE_HEIGHT+.06f;
+                yaw=std::atan2(-cameraForward.x,cameraForward.z);
+                glClear(GL_DEPTH_BUFFER_BIT);
+                glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+                scene.set("uFlashlight",1);
+            }
+            if(encounter.scaring() || visibleBox(vp,{tx,ty+1.5f,tz},{2.7f,1.6f,2.7f})) {
+                Mat4 rotation=Mat4::identity();
+                rotation.m[0]=rotation.m[10]=std::cos(yaw);
+                rotation.m[2]=std::sin(yaw); rotation.m[8]=-std::sin(yaw);
+                scene.set("uModel",translate(tx,ty,tz)*rotation);
+                glBindVertexArray(threatGpu.vao);
+                glDrawArrays(GL_TRIANGLES,0,threatGpu.count);
+                drawnTriangles+=threatGpu.count/3;
+            }
+        }
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         const double sceneMs = (glfwGetTime() - sceneStart) * 1000;
         const double lensStart = glfwGetTime();
@@ -1129,6 +1295,7 @@ static int run(const Options& options) {
         lens.use();
         lens.set("uTime", float(elapsed));
         lens.set("uBlurAmount", settings.blur);
+        lens.set("uFear",encounter.scaring() ? .9f : threat.state()==ThreatState::Chase ? .28f : 0.f);
         lens.set("uSize", Vec3{float(width), float(height), 0});
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, target.color);
@@ -1150,7 +1317,7 @@ static int run(const Options& options) {
                  << ":" << std::setw(2) << int(elapsed) % 60;
             ui.text(float(width) - 105, 28, tape.str(), 1.35f * scale, paper);
         }
-        if (!cameraView || input.paused) {
+        if ((!cameraView || input.paused) && !encounter.scaring()) {
         ui.rect(18, 18, 330 * scale, 50, {.015f, .020f, .015f, .70f});
         ui.rect(22, 24, 3, 38, gold);
         ui.text(36, 25, "BACKROOMS", 2 * scale, paper);
@@ -1191,7 +1358,7 @@ static int run(const Options& options) {
         if (showMap && !input.paused) {
             minimap(ui, world, px, pz, forward, width);
         }
-        if (diagnostics) {
+        if (diagnostics && !encounter.scaring()) {
             std::ostringstream text;
             text << "FPS " << int(fps)
                  << "\nRESIDENT TRIANGLES " << residentTriangles << " / DRAWN " << drawnTriangles
@@ -1201,8 +1368,9 @@ static int run(const Options& options) {
                  << "\nLIGHTS " << lights.size() << " / SPEED " << std::fixed << std::setprecision(2) << motion.speed()
                  << "\nROOM " << currentRoom.widthCells * CELL << " X " << currentRoom.depthCells * CELL
                  << " M / CEILING " << currentRoom.height << " M"
-                 << "\nEYE " << std::fixed << std::setprecision(2) << eyeHeight << " M / " << (crouched ? "CROUCH" : "STAND");
-            ui.rect(26, 83, 460, 162, {.02f, .025f, .02f, .82f});
+                 << "\nEYE " << std::fixed << std::setprecision(2) << eyeHeight << " M / " << (crouched ? "CROUCH" : "STAND")
+                 << "\nTHREAT " << threatStateName(threat.state()) << " / PATH NODES " << threat.pathNodesVisited();
+            ui.rect(26, 83, 480, 182, {.02f, .025f, .02f, .82f});
             ui.text(38, 95, text.str(), 1.4f, paper);
         }
         if (showHelp && !input.paused) {
@@ -1216,7 +1384,7 @@ static int run(const Options& options) {
                     "F1 METRICS   F2 WIREFRAME   F3 ROOM SHIFTS\n"
                     "F12 SAVE SCREENSHOT   TAB LOCAL MAP\n"
                     "SHIFT SPRINT / REST TO RECOVER STAMINA\n"
-                    "ESC PAUSE / SETTINGS / EXPLORE AT YOUR OWN PACE", 1.35f, paper);
+                    "BREAK SIGHT / STAY QUIET TO LOSE THE CREATURE", 1.35f, paper);
         }
         if (noticeTime > 0) {
             noticeTime -= dt;
@@ -1225,14 +1393,14 @@ static int run(const Options& options) {
                     {.02f, .025f, .02f, .85f});
             ui.text(width * .5f - textWidth * .5f, 94, notice, 1.5f, gold);
         }
-        if (input.paused) {
+        if (input.paused && !encounter.scaring()) {
             ui.rect(0,0,float(width),float(height),{.014f,.018f,.011f,.70f});
             const float boxW=std::min(700.f,float(width)-40), boxH=550;
             const float left=(width-boxW)*.5f, top=(height-boxH)*.5f;
             ui.rect(left,top,boxW,boxH,{.032f,.039f,.027f,.96f});
             ui.rect(left,top,boxW,2,gold);
             ui.text(left+32,top+27,settingsOpen ? "CAMERA / SOUND / DISPLAY" : "LEVEL 0 / ENDLESS EXPLORATION",1.4f,gold);
-            ui.text(left+32,top+57,settingsOpen ? "SETTINGS" : escaped ? "YOU ESCAPED" : entered ? "PAUSED" : "BACKROOMS",3.6f,paper);
+            ui.text(left+32,top+57,settingsOpen ? "SETTINGS" : encounter.gameOver() ? "GAME OVER" : escaped ? "YOU ESCAPED" : entered ? "PAUSED" : "BACKROOMS",3.6f,paper);
             if (settingsOpen) {
                 const std::array<std::string,11> labels={"MOUSE SENSITIVITY","MASTER VOLUME","BRIGHTNESS","FIELD OF VIEW","HEAD BOB","CAMERA SOFTNESS","VSYNC","MUSIC","MUSIC VOLUME","RESET DEFAULTS","BACK"};
                 auto decimal=[](float value,int precision) {std::ostringstream out;out<<std::fixed<<std::setprecision(precision)<<value;return out.str();};
@@ -1252,16 +1420,16 @@ static int run(const Options& options) {
                 ui.text(left+32,top+boxH-47,"UP/DOWN SELECT   LEFT/RIGHT ADJUST   ESC BACK",1.3f,dim);
                 ui.text(left+32,top+boxH-25,"CLICK A ROW OR ITS - / + CONTROLS. SETTINGS SAVE AUTOMATICALLY.",1.1f,dim);
             } else {
-                ui.text(left+32,top+107,escaped ? "THE EXIT IS OPEN. YOU CAN KEEP EXPLORING." : "FOLLOW THE HUM. WATCH THE LIGHTS. FIND YOUR WAY.",1.35f,dim);
-                const std::array<std::string,5> labels={escaped?"CONTINUE EXPLORING":entered?"RESUME":"ENTER THE BACKROOMS","SETTINGS","NEW SEEDED BUILDING","RETURN TO FIRST ROOM","QUIT"};
+                ui.text(left+32,top+107,encounter.gameOver() ? "IT FOUND YOU. BREAK SIGHT. CROUCH TO STAY QUIET." : escaped ? "THE EXIT IS OPEN. YOU CAN KEEP EXPLORING." : "FOLLOW THE HUM. LISTEN FOR FOOTSTEPS THAT ARE NOT YOURS.",1.35f,dim);
+                const std::array<std::string,5> labels={encounter.gameOver()?"RESTART RUN":escaped?"CONTINUE EXPLORING":entered?"RESUME":"ENTER THE BACKROOMS","SETTINGS","NEW SEEDED BUILDING",encounter.gameOver()?"MAIN MENU":"RETURN TO FIRST ROOM","QUIT"};
                 for(int i=0;i<5;++i) {
                     float y=top+163+i*52; const bool selected=i==menuSelection;
                     ui.rect(left+32,y,boxW-64,43,selected ? Color{.69f,.59f,.31f,1} : Color{.08f,.09f,.058f,1});
                     ui.text(left+50,y+14,labels[i],1.7f,selected?Color{.055f,.065f,.035f,1}:paper);
                 }
                 ui.text(left+32,top+446,"WASD MOVE   SHIFT SPRINT   CTRL CROUCH   E DOORS   F LIGHT",1.2f,paper);
-                ui.text(left+32,top+472,"CLICK OR UP/DOWN + ENTER   O SETTINGS   ESC RESUME",1.2f,dim);
-                ui.text(left+32,top+boxH-27,"CGF / OPENGL 3.3 / THRESHOLD VERSION 0.10",1.1f,dim);
+                ui.text(left+32,top+472,encounter.gameOver()?"CLICK RESTART OR PRESS ENTER   O SETTINGS   Q QUIT":"CLICK OR UP/DOWN + ENTER   O SETTINGS   ESC RESUME",1.2f,dim);
+                ui.text(left+32,top+boxH-27,"CGF / OPENGL 3.3 / THRESHOLD VERSION 0.12",1.1f,dim);
             }
         }
         ui.render(width, height);
@@ -1324,6 +1492,8 @@ static int run(const Options& options) {
             << ". FOV: " << fieldOfView << ". Velocity: " << motion.speed()
             << ". Stamina: " << stamina.value << ". Minimum stamina: " << minimumStamina
             << ". Doors used: " << doorsUsed << ". Tension: " << tension
+            << ". Threat: " << threatStateName(threat.state()) << ". Catches: " << catches << ". Restarts: " << restarts
+            << ". Encounter: " << (encounter.scaring()?"jumpscare":encounter.gameOver()?"game-over":"exploring")
             << ". Music loaded: " << (musicLoaded ? "yes" : "no")
             << ". Music enabled: " << (settings.musicEnabled ? "yes" : "no")
             << ". Brightness: " << settings.brightness << ". Volume: " << settings.volume
@@ -1336,7 +1506,7 @@ static int run(const Options& options) {
     // Delete GL objects while their context is still current.
     frameQueue.destroy();
     audio.stop();
-    music.stop(); release(doorGpu);
+    music.stop(); release(doorGpu); release(threatGpu);
     for (auto& [coord, mesh] : gpu) {
         release(mesh);
     }
@@ -1360,7 +1530,7 @@ int main(int argc, char** argv) {
         }
         logFile.open("backrooms.log", std::ios::trunc);
         const Options options = parseOptions(argc, argv);
-        log("Backrooms / Threshold v0.10 | seed " + std::to_string(options.seed));
+        log("Backrooms / Threshold v0.12 | seed " + std::to_string(options.seed));
         if (loadFootstepSamples()) {
             log("Loaded " + std::to_string(recordedFootstepCount()) + " recorded footstep samples.");
         } else {

@@ -16,11 +16,18 @@ void check(bool condition, const std::string& message) {
 
 bool sameGeometry(const br::Chunk& a, const br::Chunk& b) {
     if (a.maxHeight!=b.maxHeight || a.vertices.size()!=b.vertices.size() || a.obstacles.size()!=b.obstacles.size()
+        || a.overheads.size()!=b.overheads.size()
         || a.lamps.size()!=b.lamps.size()) return false;
     if (std::memcmp(a.vertices.data(),b.vertices.data(),a.vertices.size()*sizeof(br::Vertex))!=0) return false;
     for (std::size_t i=0; i<a.obstacles.size(); ++i) {
         const auto &one=a.obstacles[i], &two=b.obstacles[i];
         if (one.minX!=two.minX || one.minZ!=two.minZ || one.maxX!=two.maxX || one.maxZ!=two.maxZ) return false;
+    }
+    for (std::size_t i=0;i<a.overheads.size();++i) {
+        const auto& one=a.overheads[i]; const auto& two=b.overheads[i];
+        if(one.undersideY!=two.undersideY || one.footprint.minX!=two.footprint.minX
+            || one.footprint.minZ!=two.footprint.minZ || one.footprint.maxX!=two.footprint.maxX
+            || one.footprint.maxZ!=two.footprint.maxZ) return false;
     }
     for (std::size_t i=0; i<a.lamps.size(); ++i) {
         const auto &one=a.lamps[i], &two=b.lamps[i];
@@ -117,24 +124,41 @@ void variedRoomsAndExit() {
         // central walking cross and nearby cell corners unobstructed.
         for (int z=0; z<br::CHUNK_CELLS; ++z) for (int x=0; x<br::CHUNK_CELLS; ++x) {
             const auto gx=coord.x*br::CHUNK_CELLS+x,gz=coord.z*br::CHUNK_CELLS+z;
-            if (gx==0 && gz==-12) continue;
+            if (gx==br::EXIT_CELL_X && gz==br::EXIT_CELL_Z) continue;
             for (double dx : {.6,br::CELL-.6}) for (double dz : {.6,br::CELL-.6})
                 check(!world.blocked(gx*br::CELL+dx,gz*br::CELL+dz,.25),
                       "all room corners are empty of furniture and district props");
         }
     }
-    check(materials==allowedMaterials,"classic surfaces, lamps, clues and the exit are generated");
+    auto startingMaterials=allowedMaterials; startingMaterials.erase(16);
+    check(materials==startingMaterials,"classic surfaces, lamps and clues are generated without the distant exit sign at spawn");
     check(hasUnlitFixture,"some fluorescent fixtures remain unlit for atmosphere");
     check(vertexCount<500000,"varied world retains a bounded mesh budget");
 
     const auto exit=world.exitLocation();
+    check(std::hypot(exit.x-br::CELL/2,exit.z-br::CELL/2)>260,
+          "exit is a distant destination over 260 m from the player spawn");
+    for (const auto& [coord,chunk]:world.chunks()) {
+        (void)coord;
+        for (const auto& door:chunk.doors)
+            check(!door.isExit,"no exit remains in the initial resident window or its former location");
+    }
     check(br::World(991).exitLocation().x==exit.x && br::World(991).exitLocation().z==exit.z,
           "exit landmark is stable across seeds");
     world.update(exit.x,exit.z);
+    bool foundExitSign=false;
+    for (const auto& [coord,chunk]:world.chunks()) {
+        (void)coord;
+        for (const auto& vertex:chunk.vertices) foundExitSign=foundExitSign || vertex.material==16;
+    }
+    check(foundExitSign,"the exit sign streams in at the distant landmark");
     check(!world.blocked(exit.x,exit.z,.25),"exit interaction threshold is clear");
     check(world.blocked(exit.x,exit.z-1.2,.25),"closed exit door has collision");
-    for (int step=0; step<=900; ++step)
-        check(!world.blocked(br::CELL/2,br::CELL/2-step*.1,.25),"north route from entrance to exit stays open");
+    for (double z=br::CELL/2;z>=exit.z;z-=.1) {
+        world.update(br::CELL/2,z);
+        check(!world.blocked(br::CELL/2,z,.25),"streamed north route from entrance to distant exit stays open");
+    }
+    world.update(exit.x,exit.z);
     for (int step=0; step<=50; ++step) {
         const double t=step/50.0;
         check(!world.blocked(br::CELL/2+(exit.x-br::CELL/2)*t,exit.z,.25),"exit approach is reachable");
@@ -274,8 +298,11 @@ void exitAndHingeSafety() {
               "full-height wall jambs flank the opening");
         check(world.blocked(br::CELL-2.55,exit.z-1,.25) && world.blocked(br::CELL,exit.z-1,.25)
               && world.blocked(exit.x,exit.z-3,.25),"side and back walls enclose an actual vestibule");
-        for (int i=0;i<=920;++i)
-            check(!world.blocked(br::CELL/2,br::CELL/2-i*.1,.25),"exit architecture preserves the north route for every seed");
+        for (double z=br::CELL/2;z>=exit.z-1;z-=.1) {
+            world.update(br::CELL/2,z);
+            check(!world.blocked(br::CELL/2,z,.25),"exit architecture preserves the streamed north route for every seed");
+        }
+        world.update(approach.x,approach.z);
         const auto chunkCoord=br::chunkAt(exit.x,exit.z);
         const auto& chunk=world.chunks().at(chunkCoord);
         const double localX=exit.x-chunkCoord.x*br::CHUNK_SIZE,localZ=exit.z-chunkCoord.z*br::CHUNK_SIZE;
@@ -493,11 +520,122 @@ void streamingAndShifts() {
     check(first.chunks().size()==1,"single-chunk resident window");
     check(!first.shiftBehind(3,3,0,-1),"near chunks cannot shift");
 }
+
+void actorProtectionAndDoorBroadphase() {
+    br::World shifted(851); shifted.update(3,3);
+    // The original deterministic choice is a real eligible chunk, so protecting
+    // its actor must change that choice or postpone the shift entirely.
+    br::World reference(851); reference.update(3,3);
+    const auto original=reference.chunks();
+    check(reference.shiftBehind(3,3,0,-1),"unprotected reference has an eligible distant shift");
+    br::ChunkCoord protectedChunk{}; bool selected=false;
+    for (const auto& [coord,chunk]:reference.chunks()) if (chunk.revision!=original.at(coord).revision) {
+        protectedChunk=coord; selected=true; break;
+    }
+    check(selected,"reference exposes the chunk that would otherwise change");
+    const br::WorldPoint actor{(protectedChunk.x+.5)*br::CHUNK_SIZE,(protectedChunk.z+.5)*br::CHUNK_SIZE};
+    for(int attempt=0;attempt<8;++attempt) shifted.shiftBehind(3,3,0,-1,actor);
+    for (const auto& [coord,chunk]:shifted.chunks())
+        if (std::abs(coord.x-protectedChunk.x)<=1 && std::abs(coord.z-protectedChunk.z)<=1)
+            check(chunk.revision==original.at(coord).revision,"entity chunk and all neighbours remain unchanged by repeated hidden shifts");
+
+    br::World world(42); const auto approach=world.exitLocation(); world.update(approach.x,approach.z);
+    br::DoorInfo exit{}; check(world.nearestDoor(approach.x,approach.z,2,exit),"secondary actor door fixture is present");
+    check(world.toggleDoor(exit.id,approach.x,approach.z),"secondary actor fixture opens");
+    for(int i=0;i<60;++i) world.advanceDoors(.016f,approach.x,approach.z);
+    const double hinge=exit.x-(.825-.035),width=2*(.825-.035);
+    const br::WorldPoint blocker{hinge+width*.65*.70710678118,exit.z-width*.65*.70710678118};
+    check(!world.blocked(blocker.x,blocker.z,.26),"secondary actor starts clear of open leaf");
+    check(world.toggleDoor(exit.id,approach.x,approach.z),"player starts door closing with entity in swing area");
+    bool reversed=false;
+    for(int i=0;i<70;++i) {
+        world.advanceDoors(.016f,approach.x,approach.z,.23,false,blocker,.26);
+        check(!world.blocked(blocker.x,blocker.z,.26),"closing panel never sweeps through secondary actor capsule");
+        world.nearestDoor(exit.x,exit.z,.1,exit); reversed=reversed || exit.open;
+    }
+    check(reversed && exit.openness==1,"closing leaf reverses for an entity as it does for a player");
+
+    // Regression for a full-open east leaf protruding past its owner's chunk
+    // border. Derive sample points from rendered geometry, not collider math.
+    br::World seams(42); seams.update(3.75,3.75);
+    std::vector<br::DoorInfo> chosen;
+    for(const auto& [coord,chunk]:seams.chunks()) for(const auto& door:chunk.doors)
+        if(door.east && std::abs(door.x/br::CHUNK_SIZE-std::round(door.x/br::CHUNK_SIZE))<1e-8)
+            chosen.push_back(door);
+    check(chosen.size()>=2,"seeded fixture includes swinging leaves on chunk seams");
+    for(const auto& door:chosen) check(seams.toggleDoor(door.id,door.x-1,door.z),"seam door starts opening");
+    int verified=0; bool negative=false,positive=false;
+    for(int phase=0;phase<5;++phase) {
+        if(phase) seams.advanceDoors(.2f,10000,10000);
+        const auto vertices=seams.doorVertices(0,0);
+        std::size_t offset=0;
+        for(const auto& [coord,chunk]:seams.chunks()) for(const auto& door:chunk.doors) {
+            const bool seam=door.east && std::abs(door.x/br::CHUNK_SIZE-std::round(door.x/br::CHUNK_SIZE))<1e-8;
+            if(seam) {
+                const double x=(vertices[offset].x+vertices[offset+1].x)*.5;
+                const double z=(vertices[offset].z+vertices[offset+1].z)*.5;
+                if(!seams.blocked(x,z,.26,door.id)) {
+                    check(seams.blocked(x,z,.26),"rendered moving leaf retains collision across ownership seams");
+                    ++verified; negative=negative || coord.x<0 || coord.z<0; positive=positive || coord.x>=0;
+                }
+            }
+            offset+=72; // One36-vertex panel and one36-vertex handle per leaf.
+        }
+    }
+    check(verified>=10 && negative && positive,"seam collision regression covers multiple poses and both coordinate signs");
+}
+
+void actualOverheadClearance() {
+    br::World world(42); world.update(3.75,3.75);
+    const auto close=[](float one,float two) {return std::abs(one-two)<.0001f;};
+    check(close(world.headClearance(1.5,1.5,.25),3.2f),"empty floor retains the actual3.2m ceiling height");
+    check(close(world.headClearance(3.75,3.75,.15),3.049f),"ceiling fixture underside reduces clearance using its rendered geometry");
+    check(close(world.headClearance(.9,0,.15),3.2f),"solid full-height wall is not mistaken for a zero-height overhead");
+    check(world.headClearance(10000,10000,1)==0 && world.headClearance(3.75,3.75,-1)==0,
+          "unloaded or invalid clearance queries fail closed");
+    br::DoorInfo door{};
+    check(world.nearestDoor(3,3,14,door),"head-clearance doorway fixture exists");
+    check(close(world.headClearance(door.x,door.z,.26),2.40f),"normal doorframe header has actual2.40m underside");
+    const double nx=door.east?1:0,nz=door.east?0:1;
+    check(close(world.headClearance(door.x+nx*.8,door.z+nz*.8,1),2.40f),"wide query anticipates the door before the actor's head reaches it");
+    check(world.headClearance(door.x+nx*.8,door.z+nz*.8,.26)>2.85f,"smaller footprint distinguishes nearby header from current room height");
+    check(world.toggleDoor(door.id,door.x+nx,door.z+nz),"clearance fixture door opens");
+    for(int i=0;i<60;++i) world.advanceDoors(.016f,door.x+nx,door.z+nz);
+    check(close(world.headClearance(door.x,door.z,.26),2.40f),"opening the leaf leaves its fixed frame overhead in place");
+
+    bool wide=false,standard=false,negativeSeam=false;
+    for(const auto& [coord,chunk]:world.chunks()) {
+        check(!chunk.overheads.empty(),"streamed chunks cache ceilings and raised geometry");
+        for(const auto& overhead:chunk.overheads) {
+            check(overhead.undersideY>=2 && overhead.undersideY<=br::ROOM_HEIGHT+1e-5,
+                  "cache contains raised geometry only");
+            const auto& box=overhead.footprint;
+            const double x=coord.x*br::CHUNK_SIZE+(box.minX+box.maxX)*.5;
+            const double z=coord.z*br::CHUNK_SIZE+(box.minZ+box.maxZ)*.5;
+            br::DoorInfo framed{};
+            if(close(overhead.undersideY,2.86f) && !world.blocked(x,z,.26)) {
+                check(close(world.headClearance(x,z,.26),2.86f),"wide hallway lintel reports its actual2.86m underside"); wide=true;
+            }
+            if(close(overhead.undersideY,2.48f) && !world.blocked(x,z,.26)
+                && !world.nearestDoor(x,z,.1,framed)) {
+                check(close(world.headClearance(x,z,.26),2.48f),"unframed standard doorway reports its actual2.48m underside"); standard=true;
+            }
+        }
+        for(const auto& candidate:chunk.doors)
+            if((coord.x<0 || coord.z<0) && candidate.east
+                && std::abs(candidate.x/br::CHUNK_SIZE-std::round(candidate.x/br::CHUNK_SIZE))<1e-8
+                && world.headClearance(candidate.x+.2,candidate.z,.26)>0) {
+                check(close(world.headClearance(candidate.x+.2,candidate.z,.26),2.40f),
+                      "overhead query finds neighboring owner's frame across a negative chunk boundary"); negativeSeam=true;
+            }
+    }
+    check(wide && standard && negativeSeam,"clearance fixtures exercise wide, standard and negative-boundary headers");
+}
 }
 
 int main() {
     try {
-        coordinates(); topology(); geometryAndCollision(); variedRoomsAndExit(); streamingAndShifts(); doorsAndLampStates(); exitAndHingeSafety();
+        coordinates(); topology(); geometryAndCollision(); variedRoomsAndExit(); streamingAndShifts(); doorsAndLampStates(); exitAndHingeSafety(); actorProtectionAndDoorBroadphase(); actualOverheadClearance();
         std::cout << "PASS: coordinates, seeded topology, connectivity, mesh winding, six room variants, seeded surfaces, merged surface coverage, room dimensions, uniform ceilings, lights, exit approach, streaming, and safe shifts\n";
         return 0;
     } catch (const std::exception& error) {

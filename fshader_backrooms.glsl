@@ -182,6 +182,18 @@ void main() {
         normal = mappedNormal(geometricNormal, vUV, texture(uHardFloorNormal, vUV).rgb, 1.0);
         specularStrength = 0.13;
         shininess = 44.0;
+    } else if (material == 20) {
+        // Preserve the supplied Smiler's black skin; a restrained specular
+        // response reveals the imported rounded surface under the flashlight.
+        albedo = linearColor(vec3(0.075, 0.078, 0.080));
+        specularStrength = 0.025;
+        shininess = 28.0;
+    } else if (material == 21) {
+        // The original mesh provides the eyes and every tooth of the grin.
+        // Subtle constant emission preserves the Smiler silhouette in darkness.
+        albedo = linearColor(vec3(0.82, 0.83, 0.79));
+        emission = vec3(0.22, 0.23, 0.21);
+        specularStrength = 0.0;
     }
 
     // Low ambient fill leaves deep shadows between dim fluorescent pools.

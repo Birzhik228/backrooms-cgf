@@ -1,4 +1,70 @@
-# Version 0.10 verification
+# Version 0.12 verification
+
+Checked on 6 October 2026 for the Smiler update. The supplied FBX replaces the previous procedural creature. Walk/run animations, closer appearances and a farther exit are implemented.
+
+## Asset and animation
+
+The ZIP contained `source/Zombie Scream.fbx`, 872,240 bytes. Its SHA-256 is `D8E9F3AA2F150B605E13D8CFF5F1E0D16BCE6F6C14C5B7E29EAEA0B29A1DACCF`; the retained source matches it. The original 4,466 vertices, 8,728 triangles, 65-bone rig and black/white materials were preserved. There are no supplied image textures. Blender 4.3 was used offline with automatic script execution disabled; no new runtime library was added.
+
+Idle, walk, run and their three crouched variants were authored on the supplied skeleton. The supplied scream action provides a seventh capture clip. Skinning is baked into 148 frames; the game interpolates compact cached frames and blends gait by actual speed, including fast search behavior. Continuous distance-based phase avoids a reset on a state change. Capture eyes are stabilized around `(0,2.60,0)` to keep the face visible. The 8,071,492-byte cache has SHA-256 `0F247A16F878DB18FC407A965210809EC687DFB02F86D3413AB3B7AEFEB8AF35`. It is validated and loaded before gameplay.
+
+The model suite verifies retained geometry, finite normalized normals, distinct articulated walk/run motion, longer running stride, loop continuity, speed crossfades, deterministic paused poses, identical gait selection during Search/Chase, source capture movement, and full/half stoop bounds of 2.234/2.526 m. Missing, corrupt, truncated, oversized, malformed-index/normal and trailing-data assets are rejected. Source and bake details are in [model notes](../assets/models/smiler/README.md).
+
+## Build and behavior
+
+The final application was compiled using `build.ps1 -Test`, C++17, MinGW GCC `-O2 -Wall -Wextra`. All eight suites passed: world, streaming, movement/settings, threat, imported model, encounter, audio and native music. The native Windows music test ran with normal MCI device access. CMake now copies the model assets and runs its model test from the source root, but this verification used the PowerShell build path.
+
+Threat spawn attempts now use a shared 16–22 m range instead of 25–34 m. Eight-second grace, concealed placement, connected paths, sight/hearing pursuit and five-second memory remain. Tests cover the new range across varied seeds. The graphics check observed a natural spawn at 20.98 m.
+
+The exit is generated at `(6.225,-267)`, with approach `(6.225,-265.8)`, about 270 m from the starting room. Shared cell constants drive its geometry, clear route and interaction. World/streaming tests cover the full northward journey over 260 m, cached streaming without misses, doorway collision/persistence, and absence of the old exit near the start. The rendered traversal ended at `(6.22,-267.53)` with one door interaction and a successful escape; continued exploration also passed.
+
+## Rendered verification
+
+Twenty-five application checks passed with the final asset on Intel UHD Graphics, OpenGL 3.3.0: menu, light/dark Smiler views, low-doorway stoop, opening-door pursuit, two walk and two run poses, standing/crouched/late jumpscares, chase and pause, actual pursuit capture, game over, keyboard and button restart, Escape protection after defeat, settings, distant exit traversal/continue, natural spawn, chase profiling and extended streaming. All reported the imported 8,728-triangle model, six recorded footstep samples, loaded music and zero GL errors. [Commands and logs](v12-render-results.json).
+
+Framebuffer captures were inspected for the supplied mesh's grin/claws, gait changes, stooping, capture framing and menus. Input checks use latched key/button callbacks and the same hit-test path as gameplay. They are automated checks, not a physical mouse/keyboard playtest or headphone listening session. The reproducible graphics script is `tools/verify.ps1`; raw evidence is local under `tests/artifacts/v12`.
+
+## Measured performance and limits
+
+For the 600-frame chase profile, steady median was 2.91 ms, p95 4.51 ms, maximum 6.08 ms. A 3,000-frame generation-only run moved 150.13 m with the threat disabled, 25 active plus 24 prepared chunks, 15 cache promotions and zero synchronous generation fallbacks; median 3.69 ms, p95 11.60 ms, maximum 44.57 ms. These hidden 1280x800 single runs exclude startup and final screenshot readback; desktop activity and timing variation prevent a universal FPS claim. [Measured data](v12-performance-results.json).
+
+The body uses the existing swept footprint collider; extended animated claws are visual geometry. Lighting has no shadow maps and audio uses stereo positioning. The source model's author/license were not provided. Student review, official report/presentation completion and TA-machine testing remain pending. No remote push or course submission was made for this update.
+
+The installed Desktop copy passed a capture-and-restart smoke check launched from an unrelated working directory. All assets loaded and GL errors remained zero. Deployment checked 95 baseline hashes, updated 35 files, preserved settings, and retired the two obsolete model exports after creating `backups/backrooms-v0.11-before-v0.12-20261006-122121.zip`.
+
+---
+
+# Historical version 0.11 verification
+
+Checked on 6 October 2026 for the Watcher update to Threshold. The latest request adds one hostile 3D creature and supersedes the earlier no-enemy preference. The existing seeded rooms, heavy movement, dim lighting, reduced blur, music switch and exit remain.
+
+## Build and behavior
+
+The application was built using PowerShell/MinGW GCC with C++17, `-O2 -Wall -Wextra`. All eight suites passed: world, streaming, movement/settings, threat AI, creature mesh, encounter lifecycle, audio, and native music. The Windows music suite requires normal MCI device access: an initial sandbox run returned Windows error 277, then the complete final build/test run passed outside the sandbox. No new runtime library was added. CMake and Makefile sources/test targets were kept consistent but those build paths were not executed.
+
+Threat checks exercise the sight cone, clear/blocked/animated-door vision, movement hearing, quieter crouching, explicit door noise, bounded A* detours, eight-second grace, five-second memory, capture/reset, pause, deterministic reachable spawning over five seeds and safe recycling during endless travel. Searches expand at most 4,096 nodes. Doors yield to both player and creature, and room shifts protect the creature's chunk and adjacent chunks. A 640,820-query comparison over five door angles produced identical collision results before and after the local-door broadphase optimization.
+
+The original procedural model has 1,740 triangles and 11 articulated parts. Geometry checks cover 450 animated poses, winding, finite unit normals and floor/ceiling bounds. Full doorway stoop remains at most 2.241 m high; half stoop remains below 2.768 m. Clearance uses cached footprints from actual overhead geometry, including 2.40 m doorframes. The editable OBJ/MTL is a neutral export; the runtime uses the same model builder.
+
+Encounter tests verify one-shot capture, finite timing, focus suspension, the 1.05-second scare, locked game over and reset. New cached positional notice/footstep sounds and a centered capture sting pass numerical headroom, priority, master-volume and mixer tests. Physical speaker/headphone listening was not performed.
+
+## Rendered application checks
+
+Twenty final-build checks passed on Intel UHD Graphics, OpenGL 3.3.0, driver 32.0.101.5768: main menu, lit/dark model views, low-doorframe stoop, pursuit through an opening door, chase, pause during chase, standing/crouched/late jumpscare views, game over, actual pursuit capture, keyboard restart, a 960x640 restart-button hit test, Escape during/after capture, settings, physical exit traversal, natural spawn, pursuit profiling and extended streaming. All loaded six footstep recordings and the soundtrack, exited successfully, and reported zero GL errors. [Exact commands and logs](v11-render-results.json).
+
+Captures were inspected for silhouette, hollow eyes, stooping, near-camera framing and readable menus. Restart rebuilds the same seeded world, closes doors and resets threat, movement and stamina. Escape cannot resume a dead run. Tests use the normal latched key/button callbacks; the hidden-window click supplies the real menu hit test with a framebuffer coordinate because an unfocused hidden window cannot warp the OS pointer. This is automated verification, not a physical mouse playtest.
+
+## Performance and limits
+
+The 600-frame pursuit profile stayed in CHASING without capture while the player moved 34.18 m. Steady median was 2.94 ms, p95 4.22 ms, maximum 8.10 ms. A 3,000-frame streamed run with the threat disabled to isolate generation moved 150.13 m, held 25 active plus 24 prepared chunks, promoted 15 cached chunks and had zero synchronous fallbacks. Its steady median was 2.96 ms, p95 4.32 ms, maximum 13.63 ms. Measurements exclude the first 30 and final screenshot frame, use hidden 1280x800 with vsync off and actual wall-clock time. They are individual runs, not general FPS promises. [Details](v11-performance-results.json); raw captures/logs/CSVs are local under `tests/artifacts/v11`.
+
+In a separate release CPU microbenchmark, 24 sealed-route queries each exhausting 4,096 nodes improved from 373.10 ms to 15.70 ms median after limiting door collision checks to nearby owner chunks. Difficult unreachable searches can still cause a short frame spike. Lighting has no shadow maps; positional audio uses stereo panning/distance, with simplified perception muffling rather than acoustic simulation. The low-poly model is an original interpretation of the supplied reference, not the Roblox game's original asset. Student review, official report template, final presentation and TA-machine checks remain pending. No submission or remote push was made for this update.
+
+The installed Desktop copy also passed a capture-and-restart smoke check launched from an unrelated working directory. Deployment checked 82 baseline hashes and updated 36 files while preserving settings. The previous version is backed up as `backups/backrooms-v0.10-before-v0.11-20261006-114719.zip`.
+
+---
+
+# Historical version 0.10 verification
 
 Checked on 5 October 2026 for Threshold. This update enlarges rooms by 25%, puts the exit in a real wall opening, adds hinged doors and the supplied soundtrack, and reduces the lens radius from 1.7 to 0.8 pixels at the reference resolution. No enemies were added.
 

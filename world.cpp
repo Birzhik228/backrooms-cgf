@@ -54,6 +54,8 @@ void quad(Chunk& c, P a, P b, P d, P e, P normal,
 void box(Chunk& c, float x0, float y0, float z0,
          float x1, float y1, float z1, float material, bool collision = false) {
     const float w=x1-x0,h=y1-y0,d=z1-z0;
+    if (y0>=2.0f && h>0 && w>0 && d>0)
+        c.overheads.push_back({{x0,z0,x1,z1},y0});
     quad(c,{x0,y0,z1},{x1,y0,z1},{x1,y1,z1},{x0,y1,z1},{0,0,1},w,h,material);
     quad(c,{x1,y0,z0},{x0,y0,z0},{x0,y1,z0},{x1,y1,z0},{0,0,-1},w,h,material);
     quad(c,{x1,y0,z1},{x1,y0,z0},{x1,y1,z0},{x1,y1,z1},{1,0,0},d,h,material);
@@ -176,9 +178,14 @@ DoorPose doorPose(const DoorInfo& door,float openness) {
 }
 
 bool doorHits(const DoorInfo& door,float openness,double x,double z,double radius) {
+    // Most navigation samples are nowhere near a leaf. Reject its complete
+    // 90-degree sweep before calculating trigonometric hinge transforms.
+    const double reach=2*((door.isExit?EXIT_HALF:DOOR_HALF)-.035)+DOOR_THICKNESS+radius;
+    if (std::abs(x-door.x)>reach || std::abs(z-door.z)>reach) return false;
     const auto pose=doorPose(door,openness);
-    if (std::hypot(x-pose.hingeX,z-pose.hingeZ)>pose.width+radius+.10) return false;
     const double dx=x-pose.hingeX,dz=z-pose.hingeZ;
+    const double bound=pose.width+radius+.10;
+    if (dx*dx+dz*dz>bound*bound) return false;
     const double along=dx*pose.alongX+dz*pose.alongZ;
     const double across=dx*pose.alongZ-dz*pose.alongX;
     return circleHits({0,-DOOR_THICKNESS,pose.width,DOOR_THICKNESS},along,across,radius);
@@ -248,7 +255,8 @@ RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed) {
     }
     if (flavor%13==0 && kind!=RoomKind::DeadEnd) kind=RoomKind::OddRoom;
     // The entrance and exit approach remain uncluttered familiar yellow rooms.
-    if ((roomX==0 && roomZ==0) || (roomX<=0 && roomX+width>0 && roomZ<=-12 && roomZ+depth>-12))
+    if ((roomX==0 && roomZ==0) || (roomX<=EXIT_CELL_X && roomX+width>EXIT_CELL_X
+                               && roomZ<=EXIT_CELL_Z && roomZ+depth>EXIT_CELL_Z))
         kind=RoomKind::Classic;
     return {roomX,roomZ,width,depth,static_cast<float>(ROOM_HEIGHT),kind};
 }
@@ -292,7 +300,7 @@ namespace {
 bool hasDoor(std::int64_t x,std::int64_t z,std::int64_t bx,std::int64_t bz,std::uint64_t seed) {
     if (edgeReserved(x,z,bx,bz,seed) || sharedHall(x,z,bx,bz,seed)) return false;
     if (roomKind(x,z,seed)==RoomKind::DeadEnd || roomKind(bx,bz,seed)==RoomKind::DeadEnd) return false;
-    if ((x==0 && z==-12) || (bx==0 && bz==-12)) return false;
+    if ((x==EXIT_CELL_X && z==EXIT_CELL_Z) || (bx==EXIT_CELL_X && bz==EXIT_CELL_Z)) return false;
     const double midX=(x+bx+1)*CELL*.5,midZ=(z+bz+1)*CELL*.5;
     // Nearby optional branch doors make the E interaction discoverable. None
     // can close a guaranteed route, and distant doors remain seed-driven.
@@ -322,6 +330,7 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
     chunk.maxHeight=static_cast<float>(ROOM_HEIGHT);
     chunk.vertices.reserve(14000);
     chunk.obstacles.reserve(100);
+    chunk.overheads.reserve(200);
     constexpr float ceiling=static_cast<float>(ROOM_HEIGHT);
     for (int z=0; z<CHUNK_CELLS; ++z) {
         for (int x=0; x<CHUNK_CELLS; ++x) {
@@ -343,6 +352,7 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
                 quad(chunk,{x0,ceiling,z0},{x0+width,ceiling,z0},
                      {x0+width,ceiling,z0+depth},{x0,ceiling,z0+depth},
                      {0,-1,0},width,depth,2);
+                chunk.overheads.push_back({{x0,z0,x0+width,z0+depth},ceiling});
             }
             const bool eastOpen=edgeOpen(gx,gz,gx+1,gz,seed_,variant);
             const bool southOpen=edgeOpen(gx,gz,gx,gz+1,seed_,variant);
@@ -380,13 +390,13 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
             if (gx==0 && gz==0) state=LampState::Working;
             const float phase=(static_cast<float>((h>>40)&255)+.5f)/256;
             ceilingLight(chunk,x0+static_cast<float>(CELL/2),z0+static_cast<float>(CELL/2),power,state,phase);
-            if (gx==0 && gz==-12) {
+            if (gx==EXIT_CELL_X && gz==EXIT_CELL_Z) {
                 exitDoor(chunk,x0,z0);
-                const auto id=hashCell(0,-12,seed_^0xe817d006ULL);
+                const auto id=hashCell(EXIT_CELL_X,EXIT_CELL_Z,seed_^0xe817d006ULL);
                 const auto doorState=openDoors_.find(id);
                 const bool open=doorState!=openDoors_.end() && doorState->second.target;
                 const float openness=doorState==openDoors_.end()?0:doorState->second.openness;
-                chunk.doors.push_back({id,CELL-1.275,-12*CELL+3.0,false,open,openness,true});
+                chunk.doors.push_back({id,(EXIT_CELL_X+1)*CELL-1.275,EXIT_CELL_Z*CELL+3.0,false,open,openness,true});
             }
 
             if (!eastHall && (!eastOpen || !eastWide) && (h>>24)%11==0)
@@ -493,14 +503,39 @@ bool World::blocked(double x, double z, double playerRadius,std::optional<std::u
                 if (circleHits(obstacle,localX,localZ,playerRadius)) return true;
         }
     }
-    // A swinging leaf can extend into either neighbour. Test its oriented box
-    // separately from static chunk obstacles so animation never rebuilds rooms.
-    for (const auto& [coord,chunk]:chunks_) {
-        (void)coord;
-        for (const auto& door:chunk.doors)
+    // A leaf can extend into either neighbouring chunk. Its maximum swing is
+    // shorter than2.3m, so only nearby owners can possibly contain a hit. The
+    // extra margin includes leaves whose centre lies on their owner's border.
+    const double doorReach=2*DOOR_HALF+DOOR_THICKNESS+.02+playerRadius;
+    const auto doorLow=chunkAt(x-doorReach,z-doorReach),doorHigh=chunkAt(x+doorReach,z+doorReach);
+    for (auto cz=doorLow.z;cz<=doorHigh.z;++cz) for (auto cx=doorLow.x;cx<=doorHigh.x;++cx) {
+        const auto found=chunks_.find({cx,cz});
+        if (found==chunks_.end()) continue;
+        for (const auto& door:found->second.doors)
             if ((!ignoredDoorId || door.id!=*ignoredDoorId) && doorHits(door,door.openness,x,z,playerRadius)) return true;
     }
     return false;
+}
+
+float World::headClearance(double x,double z,double radius) const {
+    if (!std::isfinite(x) || !std::isfinite(z) || !std::isfinite(radius)
+        || radius<=0 || radius>CELL/2) return 0;
+    const auto low=chunkAt(x-radius,z-radius),high=chunkAt(x+radius,z+radius);
+    for (auto cz=low.z;cz<=high.z;++cz) for (auto cx=low.x;cx<=high.x;++cx)
+        if (chunks_.find({cx,cz})==chunks_.end()) return 0;
+    // Header/fixture geometry can protrude a little beyond its owner's edge.
+    // The widest such trim is0.125m, including a door on a negative seam.
+    const auto ownersLow=chunkAt(x-radius-.15,z-radius-.15);
+    const auto ownersHigh=chunkAt(x+radius+.15,z+radius+.15);
+    float clearance=static_cast<float>(ROOM_HEIGHT);
+    for (auto cz=ownersLow.z;cz<=ownersHigh.z;++cz) for (auto cx=ownersLow.x;cx<=ownersHigh.x;++cx) {
+        const auto found=chunks_.find({cx,cz}); if (found==chunks_.end()) continue;
+        const double localX=x-cx*CHUNK_SIZE,localZ=z-cz*CHUNK_SIZE;
+        for (const auto& overhead:found->second.overheads)
+            if (overhead.undersideY<clearance && circleHits(overhead.footprint,localX,localZ,radius))
+                clearance=overhead.undersideY;
+    }
+    return clearance;
 }
 
 bool World::nearestDoor(double x,double z,double range,DoorInfo& result) const {
@@ -570,7 +605,8 @@ void World::syncDoor(std::uint64_t id) {
     sync(prepared_);
 }
 
-bool World::advanceDoors(float dt,double playerX,double playerZ,double playerRadius,bool paused) {
+bool World::advanceDoors(float dt,double playerX,double playerZ,double playerRadius,bool paused,
+                         std::optional<WorldPoint> otherActor,double otherRadius) {
     if (paused || !std::isfinite(dt) || dt<=0 || !std::isfinite(playerX) || !std::isfinite(playerZ)
         || !std::isfinite(playerRadius) || playerRadius<=0 || playerRadius>CELL/2) return false;
     bool changed=false;
@@ -589,7 +625,10 @@ bool World::advanceDoors(float dt,double playerX,double playerZ,double playerRad
         for (int step=0;step<steps && state.openness!=target;++step) {
             const float next=state.target?std::min(target,state.openness+movement/steps)
                                          :std::max(target,state.openness-movement/steps);
-            if (doorHits(*selected,next,playerX,playerZ,playerRadius)) {
+            const bool touchesActor=otherActor && std::isfinite(otherActor->x) && std::isfinite(otherActor->z)
+                && otherRadius>0 && otherRadius<CELL/2
+                && doorHits(*selected,next,otherActor->x,otherActor->z,otherRadius);
+            if (doorHits(*selected,next,playerX,playerZ,playerRadius) || touchesActor) {
                 if (!state.target) state.target=true; // A closing door yields.
                 break;
             }
@@ -638,15 +677,20 @@ bool World::exitCrossed(double playerX,double playerZ) const {
     return nearestDoor(approach.x,front,.1,exit) && exit.isExit && exit.openness>=.98f;
 }
 
-bool World::shiftBehind(double x, double z, float forwardX, float forwardZ) {
+bool World::shiftBehind(double x, double z, float forwardX, float forwardZ,std::optional<WorldPoint> protectedActor) {
     const double length=std::hypot(forwardX,forwardZ);
     if (length<0.01) return false;
     const double fx=forwardX/length,fz=forwardZ/length;
     // Include the complete square and its wall thickness in the visibility test.
     constexpr double bound=CHUNK_SIZE*0.7071067811865475244+0.25;
     auto chosen=chunks_.end();
+    std::optional<ChunkCoord> protectedChunk;
+    if (protectedActor && std::isfinite(protectedActor->x) && std::isfinite(protectedActor->z))
+        protectedChunk=chunkAt(protectedActor->x,protectedActor->z);
     double bestScore=-std::numeric_limits<double>::infinity();
     for (auto it=chunks_.begin(); it!=chunks_.end(); ++it) {
+        if (protectedChunk && std::abs(it->first.x-protectedChunk->x)<=1
+            && std::abs(it->first.z-protectedChunk->z)<=1) continue;
         const double dx=(it->first.x+0.5)*CHUNK_SIZE-x;
         const double dz=(it->first.z+0.5)*CHUNK_SIZE-z;
         const double distance=std::hypot(dx,dz), forwardDistance=dx*fx+dz*fz;

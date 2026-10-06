@@ -1,0 +1,17 @@
+{
+  "chase": {
+    "measured_frames": 569,
+    "median_ms": 2.908,
+    "p95_ms": 4.5095,
+    "max_ms": 6.077,
+    "frames_above_33ms": 0
+  },
+  "streaming": {
+    "measured_frames": 2969,
+    "median_ms": 3.6907,
+    "p95_ms": 11.6035,
+    "max_ms": 44.5686,
+    "frames_above_33ms": 1
+  },
+  "method": "Hidden 1280x800; vsync off; fixed 1/60s simulation; actual elapsed timings; first 30 and last screenshot frames excluded. Intel UHD Graphics, driver32.0.101.5768. Concurrent desktop activity possible; single runs, not FPS guarantees."
+}

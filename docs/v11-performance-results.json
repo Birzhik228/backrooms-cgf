@@ -1,0 +1,28 @@
+{
+  "chase": {
+    "measured_frames": 569,
+    "median_ms": 2.9415,
+    "p95_ms": 4.2152,
+    "max_ms": 8.1035,
+    "frames_above_33ms": 0
+  },
+  "streaming": {
+    "measured_frames": 2969,
+    "median_ms": 2.9649,
+    "p95_ms": 4.317,
+    "max_ms": 13.6254,
+    "frames_above_33ms": 0
+  },
+  "method": "Hidden1280x800; vsync off; 1/60s simulation; measured real elapsed time; excludes first30 and final screenshot frames. Intel UHDGraphics32.0.101.5768. Single runs; not universalFPS guarantees.",
+  "pathfinding_microbenchmark": {
+    "queries": 24,
+    "expanded_nodes_per_query": 4096,
+    "before_median_ms": 373.1,
+    "after_median_ms": 15.7,
+    "before_p95_ms": 449.48,
+    "after_p95_ms": 32.09,
+    "collision_equivalence_queries": 640820,
+    "collision_equivalence_hash": "15597713907049634163",
+    "note": "Release O2 CPU microbenchmark; concurrent desktop activity; all paired collision answers matched."
+  }
+}

@@ -20,7 +20,7 @@ if (-not $taskCompiler) { throw 'Install MSYS2 MinGW64 GCC and GLFW first. See R
 $env:PATH = (Split-Path -Parent $taskCompiler) + ';' + $env:PATH
 $taskFlags = @('-std=c++17','-Wall','-Wextra','-Iinclude','-I.')
 if ($DebugBuild) { $taskFlags += @('-O0','-g') } else { $taskFlags += '-O2' }
-$taskSources = @('backrooms.cpp','world.cpp','common\audio.cpp','common\music.cpp','common\Shader.cpp','common\ui.cpp','common\textures.cpp','common\glad.c')
+$taskSources = @('backrooms.cpp','world.cpp','common\threat.cpp','common\threat_model.cpp','common\audio.cpp','common\music.cpp','common\Shader.cpp','common\ui.cpp','common\textures.cpp','common\glad.c')
 Write-Host "Building Backrooms with $taskCompiler"
 & $taskCompiler @taskFlags @taskSources '-o' 'Backrooms.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-lwinmm' '-static' '-mwindows'
 if ($LASTEXITCODE -ne 0) { throw "Build failed ($LASTEXITCODE)." }
@@ -38,6 +38,18 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Movement test compilation failed.' }
     & '.\tests\movement_tests.exe'
     if ($LASTEXITCODE -ne 0) { throw 'Movement tests failed.' }
+    & $taskCompiler @taskFlags 'world.cpp' 'common\threat.cpp' 'tests\threat_tests.cpp' '-o' 'tests\threat_tests.exe' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Threat test compilation failed.' }
+    & '.\tests\threat_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Threat tests failed.' }
+    & $taskCompiler @taskFlags 'common\threat_model.cpp' 'tests\threat_model_tests.cpp' '-o' 'tests\threat_model_tests.exe' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Threat model test compilation failed.' }
+    & '.\tests\threat_model_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Threat model tests failed.' }
+    & $taskCompiler @taskFlags 'tests\encounter_tests.cpp' '-o' 'tests\encounter_tests.exe' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Encounter test compilation failed.' }
+    & '.\tests\encounter_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Encounter tests failed.' }
     & $taskCompiler @taskFlags 'common\audio.cpp' 'tests\audio_tests.cpp' '-o' 'tests\audio_tests.exe' '-lwinmm' '-static'
     if ($LASTEXITCODE -ne 0) { throw 'Audio test compilation failed.' }
     & '.\tests\audio_tests.exe'

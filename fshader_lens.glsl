@@ -5,6 +5,7 @@ uniform sampler2D uScene;
 uniform float uTime;
 uniform vec3 uSize;
 uniform float uBlurAmount;
+uniform float uFear;
 void main() {
     vec2 p = uv - 0.5;
     float edge = dot(p, p);
@@ -45,5 +46,9 @@ void main() {
     float grain = fract(sin(dot(gl_FragCoord.xy + frame * vec2(17.0, 31.0),
                                vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
     color += grain * mix(0.021, 0.010, luminance);
+    float fear=clamp(uFear,0.0,1.0);
+    color=mix(color,vec3(dot(color,vec3(.2126,.7152,.0722))),fear*.36);
+    color*=1.0-fear*.45*smoothstep(.04,.45,edge);
+    color+=grain*fear*.045;
     frag = vec4(clamp(color, 0.0, 1.0), 1.0);
 }

@@ -106,5 +106,38 @@ int main() {
     world.update(3,3);
     checkResident(world,3,3);
     CHECK(world.streamPromotions()==0 && world.streamFallbacks()==0);
-    std::cout << "Streaming tests passed: bounded 25+24 cache, zero sprint/diagonal/turn-back generation misses, deterministic lamp and door promotion, animated-door cache persistence, teleport and seed reset.\n";
+    // The exit is now several resident windows from spawn. Walk the permanent
+    // north route with normal prefetch and verify its physical door appears at
+    // the new landmark only, without a generation hitch or blocked corridor.
+    World journey(12071998);
+    const auto exitApproach=journey.exitLocation();
+    double journeyZ=CELL/2;
+    journey.update(CELL/2,journeyZ);
+    CHECK(std::abs(exitApproach.z-journeyZ)>260);
+    bool sawExit=false;
+    while (journeyZ>exitApproach.z) {
+        journeyZ=std::max(exitApproach.z,journeyZ-SPRINT_SPEED/60);
+        journey.update(CELL/2,journeyZ);
+        journey.prepareAhead(CELL/2,journeyZ);
+        checkResident(journey,CELL/2,journeyZ);
+        CHECK(!journey.blocked(CELL/2,journeyZ,.25));
+        for (const auto& [coord,chunk]:journey.chunks()) {
+            (void)coord;
+            for (const auto& candidate:chunk.doors) if(candidate.isExit) {
+                sawExit=true;
+                CHECK(candidate.x==exitApproach.x && candidate.z==exitApproach.z-1.2);
+            }
+        }
+    }
+    CHECK(sawExit && journey.streamPromotions()>0 && journey.streamFallbacks()==0);
+    DoorInfo distantExit{};
+    CHECK(journey.nearestDoor(exitApproach.x,exitApproach.z,2,distantExit) && distantExit.isExit);
+    CHECK(journey.toggleDoor(distantExit.id,exitApproach.x,exitApproach.z));
+    for(int i=0;i<100;++i) journey.advanceDoors(.016f,exitApproach.x,exitApproach.z);
+    CHECK(journey.exitCrossed(distantExit.x,distantExit.z-.8));
+    journey.update(CELL/2,CELL/2);
+    journey.update(exitApproach.x,exitApproach.z);
+    CHECK(journey.nearestDoor(exitApproach.x,exitApproach.z,2,distantExit) && distantExit.openness==1);
+    CHECK(journey.exitCrossed(distantExit.x,distantExit.z-.8));
+    std::cout << "Streaming tests passed: bounded 25+24 cache, zero sprint/diagonal/turn-back generation misses, deterministic lamp and door promotion, animated-door cache persistence, teleport and seed reset, distant exit journey and persistence.\n";
 }

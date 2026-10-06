@@ -18,6 +18,8 @@ namespace br {
 namespace {
 constexpr double PI=3.14159265358979323846;
 constexpr std::size_t FOOTSTEP_COUNT=6;
+constexpr std::size_t POSITIONED_CLIP_COUNT=
+    std::size_t(SoundKind::Jumpscare)-std::size_t(SoundKind::AmbientCreak)+1;
 std::array<std::vector<std::int16_t>,FOOTSTEP_COUNT> recordedSteps;
 std::size_t loadedSteps=0;
 double stride(Gait gait) {
@@ -114,6 +116,49 @@ std::vector<std::int16_t> environmentalSound(const SoundEvent& event) {
     result.front()=0; result.back()=0;
     return result;
 }
+std::vector<std::int16_t> threatSound(const SoundEvent& event) {
+    const bool step=event.kind==SoundKind::ThreatStep;
+    const bool caught=event.kind==SoundKind::Jumpscare;
+    const double duration=step?.42:(caught?.82:.95);
+    const auto count=static_cast<std::size_t>(duration*AUDIO_SAMPLE_RATE);
+    std::vector<std::int16_t> result(count);
+    std::uint32_t state=event.variation*747796405u+2891336453u;
+    if (!state) state=1;
+    const double pitch=.97+.015*(event.variation%5);
+    double lowNoise=0,midNoise=0;
+    for (std::size_t i=0;i<count;++i) {
+        const double t=double(i)/AUDIO_SAMPLE_RATE;
+        const double white=noise(state);
+        lowNoise+=.055*(white-lowNoise);
+        midNoise+=.32*(white-midNoise);
+        double value=0;
+        if (step) {
+            // A low, dragging footfall differentiates the creature from the
+            // player's recorded shoes without announcing it through loud clicks.
+            const double heel=std::sin(2*PI*pitch*(48*t-15*t*t))*std::exp(-t*17);
+            const double drag=std::exp(-std::pow((t-.16)/.095,2));
+            value=.37*heel+.22*lowNoise*(std::exp(-t*8)+drag);
+        } else if (caught) {
+            // Short rough chord, not a full-scale white-noise blast. Slightly
+            // detuned falling partials create the sting; a 12ms attack and
+            // 90ms release keep it click-free even at the loudest setting.
+            const double envelope=std::exp(-t*2.3)*(1+.12*std::sin(2*PI*19*t));
+            const double chord=.48*std::sin(2*PI*pitch*(171*t-44*t*t))
+                +.30*std::sin(2*PI*pitch*(257*t-35*t*t))
+                +.19*std::sin(2*PI*pitch*(739*t-220*t*t));
+            value=.57*envelope*(chord+.46*(midNoise-lowNoise));
+        } else {
+            const double envelope=std::pow(std::sin(PI*t/duration),1.6);
+            const double whisper=midNoise-lowNoise;
+            value=.18*envelope*(.75*std::sin(2*PI*pitch*(71*t+26*t*t))
+                +.4*std::sin(2*PI*pitch*(108*t+32*t*t))+1.2*whisper);
+        }
+        const double fade=std::min({1.0,t/(caught?.012:.008),(duration-t)/(caught?.09:.05)});
+        result[i]=pcm(value*fade);
+    }
+    result.front()=0; result.back()=0;
+    return result;
+}
 }
 
 std::vector<std::int16_t> readFootstepWav(const std::string& path) {
@@ -167,6 +212,8 @@ bool loadFootstepSamples(const std::string& directory) {
 std::size_t recordedFootstepCount() { return loadedSteps; }
 
 std::vector<std::int16_t> synthesizeSound(const SoundEvent& event) {
+    if (event.kind==SoundKind::ThreatNotice || event.kind==SoundKind::ThreatStep || event.kind==SoundKind::Jumpscare)
+        return threatSound(event);
     if (event.kind!=SoundKind::Footstep && event.kind!=SoundKind::ClothRustle)
         return environmentalSound(event);
     if (event.kind==SoundKind::Footstep && loadedSteps==FOOTSTEP_COUNT) return recordedSound(event);
@@ -278,7 +325,7 @@ struct AudioMixer::Impl {
     };
     std::array<std::array<std::array<std::vector<std::int16_t>,6>,3>,3> steps;
     std::array<std::vector<std::int16_t>,3> cloth;
-    std::array<std::array<std::vector<std::int16_t>,4>,4> ambience;
+    std::array<std::array<std::vector<std::int16_t>,4>,POSITIONED_CLIP_COUNT> ambience;
     std::array<float,AUDIO_SAMPLE_RATE> humTable{},droneTable{};
     std::array<Voice,MAX_VOICES> voices{};
     AudioScene scene{};
@@ -294,7 +341,7 @@ struct AudioMixer::Impl {
                 for (std::size_t index=0;index<6;++index)
                     steps[gait][surface][index]=synthesizeSound({SoundKind::Footstep,Gait(gait),Surface(surface),std::uint32_t(index+1)});
         }
-        for (std::size_t kind=0;kind<4;++kind)
+        for (std::size_t kind=0;kind<ambience.size();++kind)
             for (std::size_t index=0;index<4;++index)
                 ambience[kind][index]=synthesizeSound({SoundKind(int(SoundKind::AmbientCreak)+int(kind)),Gait::Walk,Surface::Carpet,std::uint32_t(index+1)});
         for (std::size_t i=0;i<humTable.size();++i) {
@@ -320,8 +367,12 @@ struct AudioMixer::Impl {
     }
     void environmental(SoundKind kind,AudioPosition position,float gain) {
         const auto index=int(kind)-int(SoundKind::AmbientCreak);
-        if (index<0 || index>=4) return;
-        add(ambience[std::size_t(index)][variation++%4],position,true,gain);
+        if (index<0 || std::size_t(index)>=ambience.size() || paused || !std::isfinite(gain) || gain<=0) return;
+        const bool capture=kind==SoundKind::Jumpscare;
+        // Catch feedback must not be dropped by a full ambience queue, nor pile
+        // on top of twelve existing sources. It belongs at the camera.
+        if (capture) voices={};
+        add(ambience[std::size_t(index)][variation++%4],position,!capture,gain);
     }
     void schedule() {
         if (sample>=nextAmbient) {

@@ -142,6 +142,74 @@ double channelEnergy(const std::vector<std::int16_t>& samples,int channel) {
     for (std::size_t i=std::size_t(channel);i<samples.size();i+=2) sum+=double(samples[i])*samples[i];
     return std::sqrt(sum/(samples.size()/2));
 }
+double relativeHighFrequency(const std::vector<std::int16_t>& sound) {
+    double differences=0,total=0;
+    for (std::size_t i=1;i<sound.size();++i) {
+        const double difference=double(sound[i])-sound[i-1];
+        differences+=difference*difference;
+        total+=double(sound[i])*sound[i];
+    }
+    return std::sqrt(differences/total);
+}
+void threatAudio() {
+    const auto step=br::synthesizeSound({br::SoundKind::ThreatStep});
+    const auto notice=br::synthesizeSound({br::SoundKind::ThreatNotice});
+    const auto scare=br::synthesizeSound({br::SoundKind::Jumpscare});
+    check(step.size()>.3*br::AUDIO_SAMPLE_RATE && step.size()<.6*br::AUDIO_SAMPLE_RATE,
+          "creature steps are short enough for a chase cadence");
+    check(notice.size()>.7*br::AUDIO_SAMPLE_RATE && notice.size()<1.2*br::AUDIO_SAMPLE_RATE,
+          "recognition cue is brief rather than looping over footsteps");
+    check(scare.size()>.6*br::AUDIO_SAMPLE_RATE && scare.size()<br::AUDIO_SAMPLE_RATE,
+          "capture sting finishes before the one-second game-over transition");
+    check(relativeHighFrequency(scare)>relativeHighFrequency(step)*1.6,
+          "capture chord has a brighter spectrum than the creature's low footfall");
+    check(energy(scare)>energy(notice)*1.4 && energy(scare)>energy(step),
+          "capture sting is distinct from quiet positional tracking cues");
+    for (auto kind:{br::SoundKind::ThreatStep,br::SoundKind::ThreatNotice,br::SoundKind::Jumpscare}) {
+        for (std::uint32_t variation=1;variation<=4;++variation) {
+            const br::SoundEvent event{kind,br::Gait::Walk,br::Surface::Carpet,variation};
+            const auto clip=br::synthesizeSound(event);
+            check(clip==br::synthesizeSound(event),"threat clip variants are deterministic and cacheable");
+            check(clip.front()==0 && clip.back()==0 && energy(clip)>300,
+                  "threat sounds have soft endpoints and audible signal");
+            for (auto value:clip) check(std::abs(int(value))<22000,"threat cue leaves substantial source headroom");
+            const std::vector<std::int16_t> tail(clip.end()-br::AUDIO_SAMPLE_RATE/50,clip.end());
+            check(energy(tail)<energy(clip)*.3,"threat cue fades before playback ends");
+        }
+    }
+    br::AudioScene scene;
+    scene.listener={0,1.65,0}; scene.lightPower=0;
+    br::AudioMixer mixer;
+    mixer.setScene(scene);
+    for (auto kind:{br::SoundKind::ThreatStep,br::SoundKind::ThreatNotice}) {
+        mixer.reset(543); mixer.play(kind,{-3,1.65,0});
+        auto near=render(mixer,br::AUDIO_SAMPLE_RATE);
+        check(channelEnergy(near,0)>150 && channelEnergy(near,1)==0,
+              "creature footsteps and recognition identify its world-space direction");
+        mixer.reset(543); mixer.play(kind,{-25,1.65,0});
+        auto far=render(mixer,br::AUDIO_SAMPLE_RATE);
+        check(channelEnergy(far,0)<channelEnergy(near,0)*.2,
+              "distant threat cues fade rather than staying at full volume");
+    }
+    mixer.reset(543);
+    for (int i=0;i<12;++i) mixer.play(br::SoundKind::Door,scene.listener);
+    mixer.play(br::SoundKind::Jumpscare,scene.listener,0);
+    check(mixer.activeVoices()==12,"inaudible capture request does not cancel other sounds");
+    mixer.play(br::SoundKind::Jumpscare,{1000,1.65,1000});
+    check(mixer.activeVoices()==1,"capture replaces overlapping one-shots even when all slots were occupied");
+    auto output=render(mixer,br::AUDIO_SAMPLE_RATE);
+    check(channelEnergy(output,0)>1000 && channelEnergy(output,0)==channelEnergy(output,1),
+          "capture sting is centered and cannot vanish with enemy distance or facing");
+    check(mixer.activeVoices()==0,"capture completes as a one-shot without a looping voice");
+    mixer.setVolume(0); mixer.reset(543); mixer.play(br::SoundKind::Jumpscare,scene.listener);
+    check(energy(render(mixer,br::AUDIO_SAMPLE_RATE))==0,"master mute covers the capture sting");
+    mixer.setVolume(1); mixer.reset(543); mixer.play(br::SoundKind::Jumpscare,scene.listener);
+    render(mixer,br::AUDIO_SAMPLE_RATE/5); mixer.setPaused(true);
+    check(mixer.activeVoices()==0 && energy(render(mixer,512))==0,"game-over menu clears and silences threat cues");
+    mixer.play(br::SoundKind::ThreatNotice,scene.listener);
+    mixer.setPaused(false);
+    check(mixer.activeVoices()==0,"paused threat cues cannot leak into a restart");
+}
 void stereoMixer() {
     for (auto kind:{br::SoundKind::AmbientCreak,br::SoundKind::WaterDrip,
                    br::SoundKind::ElectricalStinger,br::SoundKind::Door}) {
@@ -244,6 +312,6 @@ void offlinePreview() {
 }
 }
 int main() {
-    try { recordedBank(); wavReader(); samples(); movement(); positionalAudio(); stereoMixer(); offlinePreview(); std::cout<<"Audio tests passed: recorded carpet/damp/tile footsteps, bounded WAV parsing, cadence, 3D distance and stereo panning, seeded ambient events, tension stingers, headroom, master volume, pause/reset, 12-second stereo preview.\n"; }
+    try { recordedBank(); wavReader(); samples(); movement(); positionalAudio(); stereoMixer(); threatAudio(); offlinePreview(); std::cout<<"Audio tests passed: recorded carpet/damp/tile footsteps, bounded WAV parsing, cadence, 3D distance and stereo panning, seeded ambience, creature tracking cues, capture sting priority/spectrum/headroom, master volume, pause/reset, 12-second stereo preview.\n"; }
     catch (const std::exception& error) { std::cerr<<"Audio tests failed: "<<error.what()<<'\n'; return 1; }
 }
