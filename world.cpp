@@ -138,7 +138,12 @@ void exitDoor(Chunk& c, float x, float z) {
     box(c,cx-.65f,2.72f,front-.03f,cx+.65f,3.08f,front+.09f,3);
     quad(c,{cx-.60f,2.75f,front+.092f},{cx+.60f,2.75f,front+.092f},
            {cx+.60f,3.05f,front+.092f},{cx-.60f,3.05f,front+.092f},{0,0,1},1,1,16);
-    c.lamps.push_back({cx,2.67f,front+.45f,1.18f,.38f,1.0f,.57f});
+    c.lamps.push_back({cx,2.67f,front+.45f,1.7f,1.0f,1.0f,1.0f});
+    // A bright neutral ceiling panel makes the exit vestibule a lit destination.
+    const float lightZ=(front+back)*.5f;
+    box(c,cx-.83f,top-.15f,lightZ-.46f,cx+.83f,top-.02f,lightZ+.46f,7);
+    box(c,cx-.75f,top-.16f,lightZ-.38f,cx+.75f,top-.15f,lightZ+.38f,27);
+    c.lamps.push_back({cx,top-.24f,lightZ,2.6f,1.0f,1.0f,1.0f});
 }
 
 void clue(Chunk& c, float centerX, float centerZ, bool east, float normalSign) {
@@ -364,8 +369,56 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
             const bool eastWide=!nearOrigin && !eastDoor && edgeHash(gx,gz,gx+1,gz,seed_)%3==0;
             const bool southWide=!nearOrigin && !southDoor && edgeHash(gx,gz,gx,gz+1,seed_)%3==0;
             // Internal cell edges vanish, keeping the yellow rooms open.
-            if (!eastHall) wall(chunk,true,x1,z0,eastOpen,eastWide);
-            if (!southHall) wall(chunk,false,z1,x0,southOpen,southWide);
+            // Carve pockets into existing solid walls. Keep them within their
+            // owning chunk and away from doorways, route centres and the exit.
+            auto boundary=[&](bool east,bool hall,bool open,bool wide) {
+                if(hall) return;
+                const float edge=east?x1:z1,begin=east?z0:x0;
+                const auto pocketHash=edgeHash(gx,gz,gx+(east?1:0),gz+(east?0:1),seed_^0x48494445);
+                const bool eligible=!open && edge<CHUNK_SIZE-1.5 &&
+                    !(std::abs(gx-EXIT_CELL_X)<=1 && std::abs(gz-EXIT_CELL_Z)<=1);
+                if(!eligible || pocketHash%5!=0) { wall(chunk,east,edge,begin,open,wide); return; }
+                const float center=begin+1.65f+float((pocketHash>>8)%1000)/1000.f*.40f;
+                const float half=.61f+float((pocketHash>>20)%1000)/1000.f*.12f;
+                const float depth=.90f+float((pocketHash>>32)%1000)/1000.f*.20f;
+                const float lo=center-half,hi=center+half;
+                wallSegment(chunk,east,edge,begin,lo,0,ceiling,true);
+                wallSegment(chunk,east,edge,hi,begin+float(CELL),0,ceiling,true);
+                // Entrance is flush with the original wall. The full-height
+                // backing joins it as a structural pier on the reverse side.
+                auto slab=[&](float d0,float y0,float t0,float d1,float y1,float t1,bool solid) {
+                    if(east) box(chunk,edge+d0,y0,t0,edge+d1,y1,t1,0,solid);
+                    else box(chunk,t0,y0,edge+d0,t1,y1,edge+d1,0,solid);
+                };
+                slab(-.10f,1.35f,lo,depth,ceiling,hi,false);
+                slab(.10f,0,lo-.15f,depth,ceiling,lo,true);
+                slab(.10f,0,hi,depth,ceiling,hi+.15f,true);
+                slab(depth-.15f,0,lo,depth,ceiling,hi,true);
+                // A removable vent cover closes after E-entry. Real gaps keep
+                // the view readable from inside; the closed cover blocks walking.
+                auto metal=[&](float t0,float y0,float t1,float y1) {
+                    if(east) box(chunk,edge-.14f,y0,t0,edge-.08f,y1,t1,7);
+                    else box(chunk,t0,y0,edge-.14f,t1,y1,edge-.08f,7);
+                };
+                metal(lo-.04f,0,lo+.045f,1.39f);
+                metal(hi-.045f,0,hi+.04f,1.39f);
+                metal(lo,.02f,hi,.085f);metal(lo,1.29f,hi,1.38f);
+                for(int bar=0;bar<10;++bar) {
+                    const float y=.16f+bar*.112f;
+                    metal(lo,y,hi,y+.036f);
+                }
+                metal(center-.018f,.085f,center+.018f,1.29f);
+                if(east) chunk.obstacles.push_back({edge-.14f,lo,edge-.08f,hi});
+                else chunk.obstacles.push_back({lo,edge-.14f,hi,edge-.08f});
+                if(east) chunk.overheads.push_back({{edge-.1f,lo,edge+depth,hi},1.35f});
+                else chunk.overheads.push_back({{lo,edge-.1f,hi,edge+depth},1.35f});
+                const double ox=coord.x*CHUNK_SIZE,oz=coord.z*CHUNK_SIZE;
+                chunk.hidingSpots.push_back({pocketHash,
+                    {ox+(east?edge+.38f:center),oz+(east?center:edge+.38f)},
+                    {ox+(east?edge-1.0f:center),oz+(east?center:edge-1.0f)}});
+            };
+            boundary(true,eastHall,eastOpen,eastWide);
+            boundary(false,southHall,southOpen,southWide);
             auto addDoor=[&](bool east) {
                 const auto id=edgeHash(gx,gz,gx+(east?1:0),gz+(east?0:1),seed_^0xd006ULL);
                 const auto state=openDoors_.find(id);
@@ -394,8 +447,8 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
                 exitDoor(chunk,x0,z0);
                 const auto id=hashCell(EXIT_CELL_X,EXIT_CELL_Z,seed_^0xe817d006ULL);
                 const auto doorState=openDoors_.find(id);
-                const bool open=doorState!=openDoors_.end() && doorState->second.target;
-                const float openness=doorState==openDoors_.end()?0:doorState->second.openness;
+                const bool open=doorState!=openDoors_.end() ? doorState->second.target : keyCollected_;
+                const float openness=doorState==openDoors_.end()?(keyCollected_?1.f:0.f):doorState->second.openness;
                 chunk.doors.push_back({id,(EXIT_CELL_X+1)*CELL-1.275,EXIT_CELL_Z*CELL+3.0,false,open,openness,true});
             }
 
@@ -564,7 +617,7 @@ bool World::toggleDoor(std::uint64_t id,double playerX,double playerZ,double pla
         }
         if (found) break;
     }
-    if (!found || std::hypot(playerX-selected.x,playerZ-selected.z)>3.0) return false;
+    if (!found || (selected.isExit && !keyCollected_) || std::hypot(playerX-selected.x,playerZ-selected.z)>3.0) return false;
     if (selected.open && doorHits(selected,0,playerX,playerZ,playerRadius)) return false;
     openDoors_[id]={owner,++doorOrder_,selected.openness,!selected.open};
     syncDoor(id);
@@ -596,8 +649,8 @@ void World::syncDoor(std::uint64_t id) {
         for (auto& [coord,chunk]:chunks) {
             (void)coord;
             for (auto& door:chunk.doors) if (door.id==id) {
-                door.open=state!=openDoors_.end() && state->second.target;
-                door.openness=state==openDoors_.end()?0:state->second.openness;
+                door.open=state!=openDoors_.end() ? state->second.target : door.isExit && keyCollected_;
+                door.openness=state==openDoors_.end()?(door.isExit && keyCollected_?1.f:0.f):state->second.openness;
             }
         }
     };
@@ -637,7 +690,7 @@ bool World::advanceDoors(float dt,double playerX,double playerZ,double playerRad
         if (std::abs(state.openness-target)<.00001f) state.openness=target;
         changed=changed || state.openness!=before;
         const auto id=it->first;
-        if (!state.target && state.openness==0) it=openDoors_.erase(it);
+        if (!state.target && state.openness==0 && !selected->isExit) it=openDoors_.erase(it);
         else ++it;
         syncDoor(id);
     }
@@ -668,7 +721,67 @@ std::vector<Vertex> World::doorVertices(double originX,double originZ) const {
     return std::move(panels.vertices);
 }
 
+WorldPoint World::keyLocation() const {
+    // Seeded landmark on the guaranteed connected north route, before the exit.
+    return {CELL*.5,(-12-static_cast<int>(hashCell(0,0,seed_)%7))*CELL+CELL*.5};
+}
+
+bool World::collectKey(double x,double z) {
+    const auto key=keyLocation();
+    if(keyCollected_ || !std::isfinite(x) || !std::isfinite(z) || std::hypot(x-key.x,z-key.z)>1.25) return false;
+    for(int i=0;i<=16;++i) if(blocked(x+(key.x-x)*i/16,z+(key.z-z)*i/16,.05)) return false;
+    keyCollected_=true;
+    const auto id=hashCell(EXIT_CELL_X,EXIT_CELL_Z,seed_^0xe817d006ULL);
+    openDoors_.erase(id);
+    syncDoor(id); // Unlock/open even if the exit is in the prepared cache.
+    return true;
+}
+
+bool World::nearestHidingSpot(double x,double z,double range,HidingSpot& result) const {
+    bool found=false;
+    for(const auto& [coord,chunk]:chunks_) {
+        (void)coord;
+        for(const auto& spot:chunk.hidingSpots) {
+            const double d=std::hypot(x-spot.approach.x,z-spot.approach.z);
+            if(d<=range) { result=spot;range=d;found=true; }
+        }
+    }
+    return found;
+}
+
+std::vector<Vertex> World::keyVertices(double originX,double originZ) const {
+    if(keyCollected_) return {};
+    const auto key=keyLocation();
+    if(chunks_.find(chunkAt(key.x,key.z))==chunks_.end()) return {};
+    Chunk mesh;
+    const float x=float(key.x-originX),z=float(key.z-originZ);
+    // Thin brass key rests directly on the carpet, with a restrained glint.
+    box(mesh,x-.20f,.006f,z-.035f,x+.23f,.032f,z+.035f,24);
+    box(mesh,x+.13f,.006f,z+.02f,x+.18f,.032f,z+.14f,24);
+    box(mesh,x+.22f,.006f,z+.02f,x+.27f,.032f,z+.12f,24);
+    box(mesh,x-.29f,.006f,z-.12f,x-.23f,.032f,z+.12f,24);
+    box(mesh,x-.23f,.006f,z-.12f,x-.08f,.032f,z-.06f,24);
+    box(mesh,x-.23f,.006f,z+.06f,x-.08f,.032f,z+.12f,24);
+    box(mesh,x-.13f,.006f,z-.06f,x-.08f,.032f,z+.06f,24);
+    return mesh.vertices;
+}
+
+float World::soundTransmission(double ax,double az,double bx,double bz) const {
+    const double distance=std::hypot(bx-ax,bz-az);
+    if(!std::isfinite(distance) || distance>64) return 0;
+    // Count contiguous solid spans, so a thick wall does not count as many walls.
+    const int steps=std::max(1,int(std::ceil(distance/.10)));
+    int barriers=0; bool previous=false;
+    for(int i=1;i<steps;++i) {
+        const bool solid=blocked(ax+(bx-ax)*i/steps,az+(bz-az)*i/steps,.06);
+        if(solid && !previous) ++barriers;
+        previous=solid;
+    }
+    return std::pow(.38f,float(std::min(barriers,4)));
+}
+
 bool World::exitCrossed(double playerX,double playerZ) const {
+    if(!keyCollected_) return false;
     const auto approach=exitLocation();
     const double front=approach.z-1.2;
     if (!std::isfinite(playerX) || !std::isfinite(playerZ) || std::abs(playerX-approach.x)>EXIT_HALF-.3

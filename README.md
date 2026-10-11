@@ -22,11 +22,11 @@ The GitHub repository contains source code and assets; the build produces `Backr
 | WASD + mouse | Move and look |
 | Left Shift | Sprint while stamina is available |
 | Hold Ctrl | Crouch; lower the camera and walk quietly |
-| E | Open/close a nearby door; walk through the opened exit to escape |
+| E | Enter/leave a nearby hiding place, or open/close a door |
 | F | Toggle flashlight |
 | C | Toggle flashlight-revealed clues |
 | Tab | Toggle local map |
-| H | Show controls |
+| H | Reopen the controls popup |
 | V | Toggle minimal camera HUD |
 | M | Mute / unmute all sounds |
 | O, in the main/pause menu | Open settings |
@@ -37,10 +37,29 @@ The GitHub repository contains source code and assets; the build produces `Backr
 | R | Return to the first room, keeping the seed |
 | N, while paused | Start a different seeded building |
 | F12 | Save a BMP screenshot to `captures/` |
+| J | Trigger the debug jumpscare |
 | Escape | Pause / resume and release / capture mouse |
 | Q, while paused | Quit |
 
 Walking reaches **2.5 m/s**, Shift reaches **4.0 m/s**, and crouching reaches **1.1 m/s**. Acceleration and braking give movement weight. Holding Ctrl eases the eye height from 1.65 to 1.08 metres. Footsteps follow actual travel: crouching stays quiet, and wall pushing does not keep playing walking sounds. **M** mutes the complete sound mix.
+
+Controls appear in a three-stage illustrated guide at the start of each run:
+movement, exploration and survival. Click **Next** or press **Enter** to advance;
+**Back** and the left arrow return to the previous page. **Begin Exploring** on
+the final page closes it. **Escape** or the corner close button skips the guide;
+**H** reopens it. The world and audio pause while it is open, and the cursor is
+free. Nearby interaction prompts remain on the HUD.
+
+Wall hiding pockets have metal ventilation covers: **E** enters behind the cover
+or leaves it, and real gaps between the slats let you watch the corridor. Closed
+covers block ordinary walking. Doors now have procedural brown wood grain. A
+bright neutral-white ceiling panel illuminates the exit vestibule.
+
+A small brown mouse wanders the floor and scurries away when touched. Its
+positional squeak alerts the creature to that location, including during the
+initial spawn grace period. Walls and distance limit an active creature's
+hearing. Continuous contact cannot repeatedly trigger the squeak; stepping away
+rearms it after a short cooldown. See [room details](docs/room-details.md).
 
 Stamina starts at **100**, drains at **18 points per second** during actual sprint travel, and recovers at **14 points per second** after **1.5 seconds** without sprinting. Exhaustion prevents sprinting until stamina recovers to **22**. Pausing freezes stamina. Doors swing smoothly through **90° in about 0.8 seconds**. Their collision follows the moving panel; an obstructed closing door reverses instead of trapping the player. Pausing also freezes door movement. Reserved connecting routes remain traversable.
 
@@ -48,19 +67,19 @@ Mouse look is smoothly eased, and restrained head bob follows actual movement. T
 
 The clickable main and pause menus provide play/resume, settings, a new seed, a return to the entrance and quit. Settings include **mouse sensitivity, master volume, music on/off, music volume, brightness, field of view, head bob, camera softness and VSync**, plus a reset-defaults option. Music volume defaults to **35%**, multiplied by master volume. Changes are saved to `settings.cfg` beside the executable. Head bob and camera softness can be set to zero. Press Escape in settings to return to the menu.
 
-The yellow wallpaper and acoustic-ceiling style continues through classic rooms, repeating corridors, open halls, pillar halls, dead ends and occasional odd rooms with hard tiled floors. Layouts vary across **7.5, 15 and 22.5 metre** footprints under a uniform 3.2 metre ceiling. Procedural wall scars, peeling patches and damp marks combine with normal-mapped wallpaper, dry/damp carpet, ceiling tiles and hard flooring. The connected world continues generating as you walk. The older photo Nextbots, furniture and separate themed districts remain removed.
+The yellow wallpaper and acoustic-ceiling style continues through classic rooms, repeating corridors, open halls, pillar halls, dead ends and occasional odd rooms with hard tiled floors. Layouts vary across **7.5, 15 and 22.5 metre** footprints under a uniform 3.2 metre ceiling. Procedural wall scars, peeling patches and damp marks combine with normal-mapped wallpaper, dry/damp carpet, ceiling tiles and hard flooring. The connected world continues generating as you walk. The older photo Nextbots and separate themed districts remain removed. Seeded recesses carved into existing yellow walls provide hiding places; **H** marks them on the minimap. Approach and press **E** to hide or leave. Break the creature's line of sight before entering. Hiding stops movement, lowers the camera, and suppresses the flashlight while allowing you to look out.
 
 The **Smiler** uses the actual 3D mesh from the user-supplied `smiler-backrooms.zip`, whose model file is `source/Zombie Scream.fbx`. Its dark humanoid body, pale eyes and teeth are retained from the supplied mesh. Walk and run cycles are added through its skeleton; an imported scream animation supplies the capture pose. The offline conversion produces `assets/models/smiler/smiler.brm` for the game, so Blender is not needed to build or play. Source and conversion details are recorded in the [model notes](assets/models/smiler/README.md). This replaces the procedural Watcher introduced in v0.11. After an initial **8-second grace period**, one creature can enter unseen, reachable space **16–22 metres** from the player, closer than the previous 25–34 metre range. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
 
-The creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, automatically stoops through low doorways and cannot catch through a closed door. Positional footfalls help you hear its direction during a chase. Contact triggers a roughly **1-second 3D jumpscare**, then a game-over screen. Click **Restart Run** or press **Enter** with that option selected to restart the same seed. Restart restores stamina and resets the creature and doors; settings remain saved. **Main Menu** prepares a fresh run with the same seed and leaves it paused at the menu. Escape cannot resume a defeated run. Music pauses during capture and the game-over screen. **M** and master volume also apply to the jumpscare sound.
+The creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, automatically stoops through low doorways and cannot catch through a closed door. Positional footfalls help you hear its direction during a chase. Contact or unobstructed proximity within **1.5 m** triggers a **2-second 3D jumpscare**, then **0.3 seconds of black** before the game-over screen. **J** triggers a debug scare. Camera lunge/shake, glowing face, static, RGB separation and the supplied roar are configurable in `common/jumpscare.h`; see [jumpscare details](docs/jumpscare.md). Click **Restart Run** or press **Enter** with that option selected to restart the same seed. Restart restores stamina and resets the creature and doors; settings remain saved. **Main Menu** prepares a fresh run with the same seed and leaves it paused at the menu. Escape cannot resume a defeated run. Music pauses during capture and the game-over screen. **M** and master volume also apply to the jumpscare sound.
 
 Ceiling fixtures have seeded **working, dying or off** states. Working lamps fluctuate gently, dying fixtures flicker more strongly, and off fixtures contribute no light. Each selected local light uses distance attenuation. The flashlight provides a separate directional beam.
 
-Sound uses the existing Windows **WinMM** output API, with no additional library. The stereo mixer pans world-space sources relative to the camera and attenuates them using their three-dimensional distance. The nearest active fluorescent fixture hums; seeded distant creaks and drips add ambience. The six recorded footsteps are cached and filtered differently for carpet, damp carpet and hard floors. A subdued drone and occasional electrical stinger respond to environmental tension. The creature adds positional heavy steps and a recognition cue; capture uses a brief centered sting with controlled headroom. Ambient, door and threat sounds are generated placeholders cached before gameplay; the original footstep recordings and credits remain unchanged.
+Sound uses the existing Windows **WinMM** output API, with no additional library. The stereo mixer pans world-space sources relative to the camera and attenuates them using their three-dimensional distance. The nearest active fluorescent fixture hums; seeded distant creaks and drips add ambience. The player uses the supplied freesound indoor footsteps uniformly on every floor; gait still controls cadence and volume. The monster uses the supplied Universfield heavy footsteps, with distance attenuation and wall/closed-door attenuation updated every 0.1 seconds. A subdued drone and occasional electrical stinger respond to environmental tension. The creature adds positional heavy steps and a recognition cue; capture uses the user-supplied roar with a low impact, exclusive playback and controlled headroom. Ambient, door and recognition cues remain generated placeholders. Supplied footsteps and roars are cached before gameplay; source recordings and conversion manifests are retained.
 
 The soundtrack plays from `assets/audio/music/numbers-temporex.mp3`, converted locally from the supplied file for compatibility with this computer's Windows decoder. The original `numbers-temporex.m4a` is preserved in the same directory. Windows WinMM/MCI plays the music separately from positional environmental sounds, without another runtime library. Pause, **M**, or switching music off pauses the track; resuming keeps its playback position. Music volume can be lowered independently of footsteps and ambience. The generated audio-preview WAV contains the environmental mix, not the song.
 
-The green **EXIT SIGNAL** shows distance and direction relative to your view. The exit is fitted into a wall opening at `(6.225, -267)`, with its approach near `(6.225, -265.8)`, about 270 metres north of the entrance. Follow the clear north route, approach the green sign, face the door and press **E**. Wait for it to open, then **walk through the doorway** to escape. Pressing E alone does not end the game. The **YOU ESCAPED** screen pauses play; **Enter** continues exploration. The local map shows the exit when it is in range.
+The green **EXIT SIGNAL** shows distance and direction relative to your view. The exit is fitted into a wall opening at `(6.225, -267)`, with its approach near `(6.225, -265.8)`, about 270 metres north of the entrance. The exit starts **locked**. Follow the gold **KEY SIGNAL** and minimap marker to the seeded brass key. Walk close to collect it: the exit opens, the creature becomes **35% faster**, and it roars. Then follow the clear north route and **walk through the open doorway** to escape. The collected key persists while rooms stream; a new run resets it. See [key, hiding and audio details](docs/key-and-hiding.md). Pressing E alone does not end the game. The **YOU ESCAPED** screen pauses play; **Enter** continues exploration. The local map shows the exit when it is in range.
 
 To see the first clue, stand in the starting room, face its first north doorway, and aim the flashlight at the doorway's left side. Toggle F to compare.
 
@@ -74,7 +93,7 @@ To see the first clue, stand in the starting room, face its first north doorway,
 - Procedural worn materials with UV mapping, mipmaps and normal maps.
 - Working/dying/off fluorescent fixtures, per-light attenuation, a flashlight cone, Blinn-Phong shading and distance fog.
 - An offscreen scene framebuffer with light soft focus, analog grain and vignette, followed by a sharp HUD.
-- Stereo spatial hum, distant ambience, environmental tension, door sounds, surface-dependent recorded footsteps and the supplied Temporex soundtrack.
+- Stereo spatial hum, distant ambience, environmental tension, door sounds, universal player footsteps, wall-attenuated heavy creature footsteps and the supplied Temporex soundtrack.
 - Main/pause menus and persistent camera, audio and display settings.
 - Bounded room streaming, origin rebasing for distant travel, local map and rendering diagnostics.
 
@@ -138,7 +157,8 @@ Backrooms CGF Project/
   common/                   Math, shader loading, textures, UI and GLAD
   include/                  Generated GLAD and Khronos headers
   tests/                    CPU tests and graphics verification evidence
-  assets/audio/footsteps/    Bundled recorded footstep WAV files
+  assets/audio/footsteps-player/   Supplied universal player contacts
+  assets/audio/footsteps-monster/  Supplied heavy creature contacts
   assets/audio/music/        User-supplied Numbers by Temporex
   assets/models/             Supplied FBX source and converted creature animation cache
   assets/                   In-game preview and exported audio preview
@@ -171,8 +191,6 @@ The 12-second stereo sound preview demonstrates carpet walking, damp-carpet crou
 
 ## Scope and remaining work
 
-This version combines exploration with one simple threat. It has no photo sprites, separate themed districts, furniture, weapons, network play or saved gameplay sessions. The creature uses bounded local pathfinding and a short memory, without complex tactics or a general-purpose navigation system. Settings persist, but world progress does not. Lighting can contribute across walls because it has no shadow maps or full global illumination. Audible spatial playback uses stereo panning and distance attenuation, without HRTF filtering or acoustic propagation; the creature's hearing uses a separate obstruction-based detection rule. Normal maps change shading, not geometry. The exit presents an ending screen. Initial loading and cache misses remain synchronous, and procedural architectural motifs repeat.
+This version combines exploration with one simple threat. It has no photo sprites, separate themed districts, furniture, weapons, network play or saved gameplay sessions. The creature uses bounded local pathfinding and a short memory, without complex tactics or a general-purpose navigation system. Settings persist, but world progress does not. Lighting can contribute across walls because it has no shadow maps or full global illumination. Audible spatial playback uses stereo panning and distance attenuation plus direct-ray wall attenuation for creature sounds, without HRTF filtering or acoustic propagation; the creature's hearing uses a separate obstruction-based detection rule. Normal maps change shading, not geometry. The exit presents an ending screen. Initial loading and cache misses remain synchronous, and procedural architectural motifs repeat.
 
 This educational prototype includes substantial Codex assistance. Review and adapt the implementation, record student contributions and be able to explain it. The supplied syllabus's restrictions and disclosure requirements still apply. Team details, the official report template, defence date and final instructor rubric remain to be confirmed before an assessed submission. Nothing has been submitted to Moodle.
-
-

@@ -12,6 +12,8 @@ uniform vec3 uForward;
 uniform vec3 uWorldPhase;
 uniform float uTime;
 uniform float uExposure;
+uniform float uScareDarken;
+uniform float uScareGlow;
 uniform bool uFlashlight;
 uniform bool uClues;
 uniform bool uFog;
@@ -174,14 +176,32 @@ void main() {
         emission = mix(vec3(0.012, 0.40, 0.095), vec3(1.65, 2.0, 1.60), white);
         specularStrength = 0.02;
     } else if (material == 17) {
-        albedo = linearColor(vec3(0.14, 0.39, 0.34));
-        specularStrength = 0.09;
+        // UVs rotate with the hinged leaf, keeping the oak grain on the door.
+        float warp=sin(vUV.y*3.1+sin(vUV.x*9.0))*0.065;
+        float rings=sin((vUV.x+warp)*112.0+sin(vUV.y*8.0)*.55);
+        float fibers=grain(vec2(vUV.x*3.0,vUV.y*.12));
+        vec3 wood=mix(vec3(.25,.13,.055),vec3(.52,.33,.15),.48+.18*rings+.22*fibers);
+        albedo=linearColor(wood);
+        specularStrength = 0.055;
         shininess = 35.0;
+    } else if (material == 25) {
+        albedo=linearColor(vec3(.23,.20,.16))*(.86+.14*grain(vUV));
+        specularStrength=.025;
+    } else if (material == 26) {
+        albedo=linearColor(vec3(.42,.26,.23));
+        specularStrength=.04;
+    } else if (material == 27) {
+        albedo=vec3(.92);
+        emission=vec3(2.4);
     } else if (material == 19) {
         albedo = linearColor(texture(uHardFloor, vUV).rgb);
         normal = mappedNormal(geometricNormal, vUV, texture(uHardFloorNormal, vUV).rgb, 1.0);
         specularStrength = 0.13;
         shininess = 44.0;
+    } else if (material == 24) {
+        albedo=linearColor(vec3(.72,.51,.12));
+        emission=vec3(.10,.063,.009);
+        specularStrength=.65;shininess=70.0;
     } else if (material == 20) {
         // Preserve the supplied Smiler's black skin; a restrained specular
         // response reveals the imported rounded surface under the flashlight.
@@ -192,7 +212,7 @@ void main() {
         // The original mesh provides the eyes and every tooth of the grin.
         // Subtle constant emission preserves the Smiler silhouette in darkness.
         albedo = linearColor(vec3(0.82, 0.83, 0.79));
-        emission = vec3(0.22, 0.23, 0.21);
+        emission = mix(vec3(0.22, 0.23, 0.21),vec3(5.0),uScareGlow);
         specularStrength = 0.0;
     }
 
@@ -223,7 +243,8 @@ void main() {
     color += albedo * vec3(1.0, 0.98, 0.90) * flashlight * (0.10 + 1.9 * flashDiffuse);
     float flashSpecular = pow(flashDiffuse, shininess) * specularStrength;
     color += vec3(1.0, 0.98, 0.90) * flashlight * flashSpecular * 1.9;
-    color += emission;
+    color *= mix(1.0,0.16,uScareDarken);
+    color += emission * (material==21 ? 1.0 : mix(1.0,0.12,uScareDarken));
     if (material == 5) color = albedo * flashlight * 3.0;
 
     if (uFog) {

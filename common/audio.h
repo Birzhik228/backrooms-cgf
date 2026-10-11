@@ -9,7 +9,7 @@ enum class Surface { Carpet, HardFloor, DampCarpet };
 enum class Gait { Walk, Crouch, Sprint };
 enum class SoundKind {
     Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door,
-    ThreatNotice, ThreatStep, Jumpscare
+    ThreatNotice, ThreatStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient
 };
 struct SoundEvent {
     SoundKind kind=SoundKind::Footstep;
@@ -20,8 +20,11 @@ struct SoundEvent {
 
 // Load the six recorded footfalls once, before gameplay; no per-step disk reads.
 // A missing or invalid bank returns false and keeps the procedural fallback.
-bool loadFootstepSamples(const std::string& directory="assets/audio/footsteps");
+bool loadFootstepSamples(const std::string& directory="assets/audio/footsteps-player");
+bool loadMonsterFootsteps(const std::string& directory="assets/audio/footsteps-monster");
 std::size_t recordedFootstepCount();
+// Preload user-supplied roar before constructing the mixer.
+bool loadJumpscareSample(const std::string& path="assets/audio/jumpscare/scream.wav");
 // Strict bounded PCM WAV reader, also used by the CPU validation tests.
 std::vector<std::int16_t> readFootstepWav(const std::string& path);
 // Footsteps use the cached recordings; cloth and the missing-bank fallback are
@@ -45,6 +48,7 @@ struct AudioPosition { double x=0,y=0,z=0; };
 struct AudioScene {
     AudioPosition listener{},forward{0,0,-1},fluorescent{3,3.2,3};
     float lightPower=1,lightInstability=0,tension=0;
+    float threatTransmission=1;
 };
 struct StereoGain { float left=0,right=0; };
 StereoGain positionalGains(const AudioScene& scene,AudioPosition source,

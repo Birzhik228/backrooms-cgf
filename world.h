@@ -37,6 +37,10 @@ struct Lamp {
     float phase=0;
 };
 struct WorldPoint { double x,z; };
+struct HidingSpot {
+    std::uint64_t id;
+    WorldPoint inside, approach;
+};
 enum class RoomKind { Classic, Corridor, OpenHall, PillarHall, DeadEnd, OddRoom };
 enum class FloorSurface { Carpet, DampCarpet, Tile };
 struct DoorInfo {
@@ -61,6 +65,7 @@ struct Chunk {
     std::vector<Overhead> overheads;
     std::vector<Lamp> lamps;
     std::vector<DoorInfo> doors;
+    std::vector<HidingSpot> hidingSpots;
 };
 
 std::int64_t floorDiv(std::int64_t value, std::int64_t divisor);
@@ -108,6 +113,12 @@ public:
                       std::optional<WorldPoint> otherActor=std::nullopt,double otherRadius=.3);
     std::vector<Vertex> doorVertices(double originX,double originZ) const;
     bool exitCrossed(double playerX,double playerZ) const;
+    WorldPoint keyLocation() const;
+    bool keyCollected() const { return keyCollected_; }
+    bool collectKey(double x,double z);
+    bool nearestHidingSpot(double x,double z,double range,HidingSpot& result) const;
+    std::vector<Vertex> keyVertices(double originX,double originZ) const;
+    float soundTransmission(double ax,double az,double bx,double bz) const;
     // The latest 128 opened doors survive unloading. Older overrides return to
     // their seeded closed state, keeping memory bounded for endless travel.
     std::size_t rememberedDoors() const { return openDoors_.size(); }
@@ -117,6 +128,7 @@ public:
 private:
     Chunk generate(ChunkCoord coord, std::uint64_t variant) const;
     std::uint64_t seed_;
+    bool keyCollected_=false;
     std::size_t shifts_ = 0;
     std::uint64_t nextRevision_ = 1;
     std::map<ChunkCoord,Chunk> chunks_;

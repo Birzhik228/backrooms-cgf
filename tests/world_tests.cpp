@@ -95,7 +95,7 @@ void variedRoomsAndExit() {
     for (int step=0; step<=720; ++step)
         check(!world.blocked(br::CELL/2+step*.1,br::CELL/2,.25),"guaranteed east route remains traversable");
 
-    const std::set<int> allowedMaterials{0,1,2,3,5,7,16,18,19,32,33,34};
+    const std::set<int> allowedMaterials{0,1,2,3,5,7,16,18,19,27,32,33,34};
     std::set<int> materials;
     std::size_t vertexCount=0;
     bool hasUnlitFixture=false;
@@ -125,12 +125,16 @@ void variedRoomsAndExit() {
         for (int z=0; z<br::CHUNK_CELLS; ++z) for (int x=0; x<br::CHUNK_CELLS; ++x) {
             const auto gx=coord.x*br::CHUNK_CELLS+x,gz=coord.z*br::CHUNK_CELLS+z;
             if (gx==br::EXIT_CELL_X && gz==br::EXIT_CELL_Z) continue;
-            for (double dx : {.6,br::CELL-.6}) for (double dz : {.6,br::CELL-.6})
+            bool hasHide=false;
+            for(const auto& spot:chunk.hidingSpots) hasHide|=std::floor(spot.inside.x/br::CELL)==gx && std::floor(spot.inside.z/br::CELL)==gz;
+            for (double dx : {.6,br::CELL-.6}) for (double dz : {.6,br::CELL-.6}) {
+                if(hasHide && dx<3 && dz<3) continue;
                 check(!world.blocked(gx*br::CELL+dx,gz*br::CELL+dz,.25),
-                      "all room corners are empty of furniture and district props");
+                      "corners outside explicit hiding structures remain clear");
+            }
         }
     }
-    auto startingMaterials=allowedMaterials; startingMaterials.erase(16);
+    auto startingMaterials=allowedMaterials; startingMaterials.erase(16); startingMaterials.erase(27);
     check(materials==startingMaterials,"classic surfaces, lamps and clues are generated without the distant exit sign at spawn");
     check(hasUnlitFixture,"some fluorescent fixtures remain unlit for atmosphere");
     check(vertexCount<500000,"varied world retains a bounded mesh budget");
@@ -309,6 +313,11 @@ void exitAndHingeSafety() {
         for (const auto& obstacle:chunk.obstacles)
             check(!(localX>=obstacle.minX && localX<=obstacle.maxX && localZ>=obstacle.minZ && localZ<=obstacle.maxZ),
                   "the exit aperture is cut through static collision rather than covering a solid wall");
+        check(!world.toggleDoor(exit.id,approach.x,approach.z),"locked exit rejects interaction");
+        const auto key=world.keyLocation();world.update(key.x,key.z);
+        check(world.collectKey(key.x,key.z),"key unlocks exit");world.update(approach.x,approach.z);
+        check(world.toggleDoor(exit.id,approach.x,approach.z),"unlocked exit can close");
+        for(int i=0;i<60;++i) world.advanceDoors(.016f,approach.x,approach.z);
         check(world.toggleDoor(exit.id,approach.x,approach.z),"exit starts opening with E interaction");
         world.advanceDoors(.3f,approach.x,approach.z);
         bool ownLeafOccludes=false;
@@ -541,7 +550,8 @@ void actorProtectionAndDoorBroadphase() {
 
     br::World world(42); const auto approach=world.exitLocation(); world.update(approach.x,approach.z);
     br::DoorInfo exit{}; check(world.nearestDoor(approach.x,approach.z,2,exit),"secondary actor door fixture is present");
-    check(world.toggleDoor(exit.id,approach.x,approach.z),"secondary actor fixture opens");
+    const auto key=world.keyLocation();world.update(key.x,key.z);check(world.collectKey(key.x,key.z),"actor fixture collects key");
+    world.update(approach.x,approach.z);
     for(int i=0;i<60;++i) world.advanceDoors(.016f,approach.x,approach.z);
     const double hinge=exit.x-(.825-.035),width=2*(.825-.035);
     const br::WorldPoint blocker{hinge+width*.65*.70710678118,exit.z-width*.65*.70710678118};
@@ -607,8 +617,8 @@ void actualOverheadClearance() {
     for(const auto& [coord,chunk]:world.chunks()) {
         check(!chunk.overheads.empty(),"streamed chunks cache ceilings and raised geometry");
         for(const auto& overhead:chunk.overheads) {
-            check(overhead.undersideY>=2 && overhead.undersideY<=br::ROOM_HEIGHT+1e-5,
-                  "cache contains raised geometry only");
+            check(overhead.undersideY>=1.35f && overhead.undersideY<=br::ROOM_HEIGHT+1e-5,
+                  "cache includes crouch-height recess roofs and raised geometry");
             const auto& box=overhead.footprint;
             const double x=coord.x*br::CHUNK_SIZE+(box.minX+box.maxX)*.5;
             const double z=coord.z*br::CHUNK_SIZE+(box.minZ+box.maxZ)*.5;

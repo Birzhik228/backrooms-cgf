@@ -1,0 +1,37 @@
+{
+  "source": "freesound_community-indoor-footsteps-6385.mp3",
+  "sha256": "fee6076afebf6af062eec02cc7feb60a94886443d6b5c0b58460c16f14ed6c7e",
+  "sample_rate": 22050,
+  "clips": [
+    {
+      "file": "step-01.wav",
+      "start_seconds": 0.1246,
+      "duration": 0.34
+    },
+    {
+      "file": "step-02.wav",
+      "start_seconds": 0.7532,
+      "duration": 0.34
+    },
+    {
+      "file": "step-03.wav",
+      "start_seconds": 1.3718,
+      "duration": 0.34
+    },
+    {
+      "file": "step-04.wav",
+      "start_seconds": 2.0203,
+      "duration": 0.34
+    },
+    {
+      "file": "step-05.wav",
+      "start_seconds": 2.6289,
+      "duration": 0.34
+    },
+    {
+      "file": "step-06.wav",
+      "start_seconds": 3.2974,
+      "duration": 0.2545578231292517
+    }
+  ]
+}

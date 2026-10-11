@@ -18,6 +18,7 @@ struct ThreatPlayer {
     float forwardX=0,forwardZ=-1,speed=0;
     bool crouched=false;
     float noise=0;
+    bool hidden=false;
 };
 
 class Threat {
@@ -31,6 +32,9 @@ public:
     // Deterministic fixture/capture entry point; ordinary games use reset().
     void resetAt(double x,double z,float yaw=0);
     void update(const World& world,const ThreatPlayer& player,float dt,bool paused=false);
+    void hearAlarm(const World& world,const ThreatPlayer& player,double x,double z);
+    void setEnraged(bool value) { enraged_=value; }
+    bool enraged() const { return enraged_; }
 
     bool active() const { return state_!=ThreatState::Dormant; }
     double x() const { return x_; }
@@ -51,6 +55,9 @@ private:
     double x_=0,z_=0,goalX_=0,goalZ_=0,lastX_=0,lastZ_=0;
     float yaw_=0,speed_=0,age_=0,sinceSense_=100,repath_=0,wanderWait_=0,spawnRetry_=0;
     bool seesPlayer_=false,hasGoal_=false;
+    bool enraged_=false;
+    float alarmRemaining_=0;
+    WorldPoint alarm_{};
     ThreatState state_=ThreatState::Dormant;
     std::vector<WorldPoint> path_;
     std::size_t pathIndex_=0,pathNodesVisited_=0;

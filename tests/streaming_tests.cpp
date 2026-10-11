@@ -119,6 +119,7 @@ int main() {
         journeyZ=std::max(exitApproach.z,journeyZ-SPRINT_SPEED/60);
         journey.update(CELL/2,journeyZ);
         journey.prepareAhead(CELL/2,journeyZ);
+        journey.collectKey(CELL/2,journeyZ);
         checkResident(journey,CELL/2,journeyZ);
         CHECK(!journey.blocked(CELL/2,journeyZ,.25));
         for (const auto& [coord,chunk]:journey.chunks()) {
@@ -132,7 +133,7 @@ int main() {
     CHECK(sawExit && journey.streamPromotions()>0 && journey.streamFallbacks()==0);
     DoorInfo distantExit{};
     CHECK(journey.nearestDoor(exitApproach.x,exitApproach.z,2,distantExit) && distantExit.isExit);
-    CHECK(journey.toggleDoor(distantExit.id,exitApproach.x,exitApproach.z));
+    CHECK(journey.keyCollected() && distantExit.open);
     for(int i=0;i<100;++i) journey.advanceDoors(.016f,exitApproach.x,exitApproach.z);
     CHECK(journey.exitCrossed(distantExit.x,distantExit.z-.8));
     journey.update(CELL/2,CELL/2);

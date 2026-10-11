@@ -24,7 +24,7 @@ void recordedBank() {
     check(br::recordedFootstepCount()==6,"complete bank is cached before playback");
     std::set<std::vector<std::int16_t>> distinct;
     for (int index=1;index<=6;++index) {
-        const auto original=br::readFootstepWav("assets/audio/footsteps/step-0"+std::to_string(index)+".wav");
+        const auto original=br::readFootstepWav("assets/audio/footsteps-player/step-0"+std::to_string(index)+".wav");
         check(original.size()>br::AUDIO_SAMPLE_RATE/8 && original.size()<br::AUDIO_SAMPLE_RATE/2,
               "recorded shoe contact has a short natural duration");
         check(original.front()==0 && original.back()==0,"recordings have click-free ends");
@@ -43,7 +43,7 @@ void recordedBank() {
     check(br::loadFootstepSamples(),"recorded bank can be restored after a failed load");
 }
 void wavReader() {
-    const std::string source="assets/audio/footsteps/step-03.wav",temporary="audio-test-malformed.wav";
+    const std::string source="assets/audio/footsteps-player/step-03.wav",temporary="audio-test-malformed.wav";
     std::ifstream stream(source,std::ios::binary);
     const std::vector<unsigned char> valid((std::istreambuf_iterator<char>(stream)),{});
     check(valid.size()>44,"test source WAV exists");
@@ -100,8 +100,8 @@ void samples() {
     const auto carpet=br::synthesizeSound({br::SoundKind::Footstep,br::Gait::Walk,br::Surface::Carpet,2});
     const auto tile=br::synthesizeSound({br::SoundKind::Footstep,br::Gait::Walk,br::Surface::HardFloor,2});
     const auto damp=br::synthesizeSound({br::SoundKind::Footstep,br::Gait::Walk,br::Surface::DampCarpet,2});
-    check(carpet!=tile,"hard floors and carpet have distinct timbres");
-    check(damp!=carpet && damp!=tile,"damp carpet adds a muffled wet sole timbre");
+    check(carpet==tile,"same player recording on hard floors and carpet");
+    check(damp==carpet,"same player recording on damp carpet");
     const std::vector<std::int16_t> drag(carpet.begin()+br::AUDIO_SAMPLE_RATE/10,
                                         carpet.begin()+br::AUDIO_SAMPLE_RATE/4);
     check(energy(drag)>25,"heavy carpet step includes a quiet sole-drag tail");
@@ -311,7 +311,59 @@ void offlinePreview() {
     check(!silent.available(),"offline audio lifecycle never opens a device");
 }
 }
+void suppliedScare() {
+    const auto squeak=br::synthesizeSound({br::SoundKind::MouseSqueak});
+    const auto quietMouse=br::synthesizeSound({br::SoundKind::MouseAmbient});
+    check(energy(quietMouse)>100 && energy(quietMouse)<energy(squeak)*.3,"discovery chirp is audible but quieter than the contact alarm");
+    check(quietMouse.front()==0 && quietMouse.back()==0,"quiet mouse audio has clean edges");
+    check(energy(squeak)>100 && squeak.front()==0 && squeak.back()==0,"mouse squeak is audible and has clean edges");
+    br::AudioMixer squeakMixer;br::AudioScene squeakScene;squeakScene.lightPower=0;
+    squeakMixer.setScene(squeakScene);squeakMixer.play(br::SoundKind::MouseSqueak,{0,.1,0});
+    check(squeakMixer.activeVoices()==1 && energy(render(squeakMixer,22050))>100,"mouse squeak reaches positional mixer");
+    squeakMixer.play(br::SoundKind::MouseAmbient,{1,.12,0},.7f);
+    check(squeakMixer.activeVoices()==1 && energy(render(squeakMixer,22050))>100,"quiet discovery cue reaches positional mixer");
+    check(br::loadJumpscareSample(),"supplied roar loads as bounded PCM");
+    const auto growl=br::synthesizeSound({br::SoundKind::ThreatRoar});
+    const auto scream=br::readFootstepWav("assets/audio/jumpscare/scream.wav");
+    check(growl!=scream && growl.size()==std::size_t(1.35*br::AUDIO_SAMPLE_RATE),"pursuit has a separate short growl");
+    check(energy(growl)>0 && growl.front()==0 && growl.back()==0,"growl is audible with clean edges");
+    br::AudioMixer mixer;
+    br::AudioScene scene; scene.lightPower=1; scene.tension=1;
+    mixer.setScene(scene); mixer.reset(321);
+    mixer.play(br::SoundKind::Door,scene.listener);
+    mixer.play(br::SoundKind::Jumpscare,scene.listener);
+    check(mixer.activeVoices()==1,"supplied roar takes exclusive audio ownership");
+    const auto attack=render(mixer,128);
+    check(std::abs(int(attack.front()))>1000,"impact begins immediately without fade-in");
+    mixer.play(br::SoundKind::Door,scene.listener);
+    mixer.enqueue({br::SoundKind::Footstep});
+    check(mixer.activeVoices()==1,"capture rejects footsteps and other one-shots");
+    const auto body=render(mixer,2*br::AUDIO_SAMPLE_RATE);
+    for(auto sample:body) check(std::abs(int(sample))<29000,"supplied roar mix leaves headroom");
+    check(energy(render(mixer,3*br::AUDIO_SAMPLE_RATE))==0,"hum drone and scheduler stay silent after scream");
+    mixer.reset(321); mixer.play(br::SoundKind::Jumpscare,scene.listener);
+    check(attack==render(mixer,128),"reset permits repeatable scare playback");
+    mixer.reset(322); mixer.play(br::SoundKind::Door,scene.listener);
+    check(mixer.activeVoices()==1,"restart releases exclusive audio ownership");
+}
+void suppliedMonsterSteps() {
+    check(br::loadMonsterFootsteps(),"load four supplied heavy footsteps");
+    const auto clip=br::synthesizeSound({br::SoundKind::ThreatStep});
+    check(clip==br::readFootstepWav("assets/audio/footsteps-monster/step-02.wav"),"monster uses supplied heavy recording");
+    br::AudioMixer mixer;br::AudioScene scene;scene.lightPower=0;
+    scene.listener={0,1.65,0};mixer.setScene(scene);mixer.reset(123);
+    mixer.play(br::SoundKind::ThreatStep,{3,1.65,0});const auto clear=render(mixer,22050);
+    scene.threatTransmission=.38f;mixer.setScene(scene);mixer.reset(123);
+    mixer.play(br::SoundKind::ThreatStep,{3,1.65,0});const auto wall=render(mixer,22050);
+    // The output limiter compresses the louder clear signal more strongly.
+    check(energy(wall)<energy(clear)*.55,"wall transmission attenuates recorded steps");
+    scene.threatTransmission=1;mixer.setScene(scene);mixer.reset(123);
+    mixer.play(br::SoundKind::ThreatStep,{30,1.65,0});const auto distant=render(mixer,22050);
+    check(energy(distant)<energy(clear)*.15,"distance attenuates recorded steps");
+}
 int main() {
     try { recordedBank(); wavReader(); samples(); movement(); positionalAudio(); stereoMixer(); threatAudio(); offlinePreview(); std::cout<<"Audio tests passed: recorded carpet/damp/tile footsteps, bounded WAV parsing, cadence, 3D distance and stereo panning, seeded ambience, creature tracking cues, capture sting priority/spectrum/headroom, master volume, pause/reset, 12-second stereo preview.\n"; }
     catch (const std::exception& error) { std::cerr<<"Audio tests failed: "<<error.what()<<'\n'; return 1; }
+    try { suppliedScare(); suppliedMonsterSteps(); std::cout<<"Supplied scream and heavy steps: attack, exclusive mix, attenuation, headroom and reset passed.\n"; }
+    catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
 }

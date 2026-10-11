@@ -26,6 +26,10 @@ Write-Host "Building Backrooms with $taskCompiler"
 if ($LASTEXITCODE -ne 0) { throw "Build failed ($LASTEXITCODE)." }
 Write-Host 'Built Backrooms.exe. Start with Run.cmd.'
 if ($Test) {
+    & $taskCompiler @taskFlags 'world.cpp' 'common\threat.cpp' 'tests\progression_tests.cpp' '-o' 'tests\progression_tests.exe' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Progression test compilation failed.' }
+    & '.\tests\progression_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Progression tests failed.' }
     & $taskCompiler @taskFlags 'world.cpp' 'tests\world_tests.cpp' '-o' 'tests\world_tests.exe' '-static'
     if ($LASTEXITCODE -ne 0) { throw 'World test compilation failed.' }
     & '.\tests\world_tests.exe'

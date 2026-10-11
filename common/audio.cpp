@@ -19,9 +19,11 @@ namespace {
 constexpr double PI=3.14159265358979323846;
 constexpr std::size_t FOOTSTEP_COUNT=6;
 constexpr std::size_t POSITIONED_CLIP_COUNT=
-    std::size_t(SoundKind::Jumpscare)-std::size_t(SoundKind::AmbientCreak)+1;
+    std::size_t(SoundKind::MouseAmbient)-std::size_t(SoundKind::AmbientCreak)+1;
 std::array<std::vector<std::int16_t>,FOOTSTEP_COUNT> recordedSteps;
 std::size_t loadedSteps=0;
+std::array<std::vector<std::int16_t>,4> monsterSteps;
+std::vector<std::int16_t> recordedScream;
 double stride(Gait gait) {
     // Each impact follows real movement: about 1.2 crouch, 1.7 walk and
     // 2.2 sprint steps per second at the exploration movement speeds.
@@ -117,6 +119,25 @@ std::vector<std::int16_t> environmentalSound(const SoundEvent& event) {
     return result;
 }
 std::vector<std::int16_t> threatSound(const SoundEvent& event) {
+    if(event.kind==SoundKind::ThreatStep && !monsterSteps[event.variation%4].empty())
+        return monsterSteps[event.variation%4];
+    if(event.kind==SoundKind::ThreatRoar && recordedScream.size()>AUDIO_SAMPLE_RATE*2/3) {
+        // Pursuit is a short, low throaty growl; capture keeps its sharp scream.
+        const double pitch=.67+.018*(event.variation%4),duration=1.35;
+        std::vector<std::int16_t> growl(std::size_t(duration*AUDIO_SAMPLE_RATE));
+        double low=0;
+        for(std::size_t i=0;i<growl.size();++i) {
+            const double t=double(i)/AUDIO_SAMPLE_RATE;
+            const double source=.35*AUDIO_SAMPLE_RATE+i*pitch;
+            const auto j=std::min(std::size_t(source),recordedScream.size()-2);
+            const double sample=(recordedScream[j]+(recordedScream[j+1]-recordedScream[j])*(source-std::floor(source)))/32768.;
+            low+=.16*(sample-low);
+            const double envelope=std::min(1.,t/.055)*std::min(1.,(duration-t)/.24);
+            growl[i]=pcm(low*envelope*(.76+.24*std::sin(2*PI*31*t)));
+        }
+        growl.front()=growl.back()=0;
+        return growl;
+    }
     const bool step=event.kind==SoundKind::ThreatStep;
     const bool caught=event.kind==SoundKind::Jumpscare;
     const double duration=step?.42:(caught?.82:.95);
@@ -200,6 +221,18 @@ std::vector<std::int16_t> readFootstepWav(const std::string& path) {
     return result;
 }
 
+bool loadMonsterFootsteps(const std::string& directory) {
+    std::array<std::vector<std::int16_t>,4> pending;
+    for(std::size_t i=0;i<4;++i) {
+        pending[i]=readFootstepWav(directory+"/step-0"+std::to_string(i+1)+".wav");
+        if(pending[i].empty()) { monsterSteps={}; return false; }
+    }
+    monsterSteps=std::move(pending); return true;
+}
+bool loadJumpscareSample(const std::string& path) {
+    recordedScream=readFootstepWav(path); return !recordedScream.empty();
+}
+
 bool loadFootstepSamples(const std::string& directory) {
     std::array<std::vector<std::int16_t>,FOOTSTEP_COUNT> pending;
     for (std::size_t i=0;i<FOOTSTEP_COUNT;++i) {
@@ -211,8 +244,37 @@ bool loadFootstepSamples(const std::string& directory) {
 }
 std::size_t recordedFootstepCount() { return loadedSteps; }
 
-std::vector<std::int16_t> synthesizeSound(const SoundEvent& event) {
-    if (event.kind==SoundKind::ThreatNotice || event.kind==SoundKind::ThreatStep || event.kind==SoundKind::Jumpscare)
+std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
+    SoundEvent event=input;
+    if(event.kind==SoundKind::MouseAmbient) {
+        std::vector<std::int16_t> clip(std::size_t(.65*AUDIO_SAMPLE_RATE));
+        std::uint32_t state=event.variation*747796405u+2891336453u;
+        double phase=0,soft=0;
+        for(std::size_t i=0;i<clip.size();++i) {
+            const double t=double(i)/AUDIO_SAMPLE_RATE;
+            phase+=2*PI*(1850+350*std::sin(t*12)+45*(event.variation%4))/AUDIO_SAMPLE_RATE;
+            soft+=.24*(noise(state)-soft);
+            const double chirp=std::exp(-std::pow((t-.20)/.045,2));
+            const double rustle=std::exp(-std::pow((t-.42)/.13,2));
+            const double edges=std::min({1.,t/.015,(.65-t)/.04});
+            clip[i]=pcm((.14*std::sin(phase)*chirp+.075*soft*rustle)*edges);
+        }
+        clip.front()=clip.back()=0;return clip;
+    }
+    if(event.kind==SoundKind::MouseSqueak) {
+        std::vector<std::int16_t> clip(std::size_t(.48*AUDIO_SAMPLE_RATE));
+        double phase=0;
+        for(std::size_t i=0;i<clip.size();++i) {
+            const double t=double(i)/AUDIO_SAMPLE_RATE,local=std::fmod(t,.24);
+            const double envelope=local<.18?std::pow(std::sin(PI*local/.18),2):0;
+            const double frequency=2400+900*std::sin(PI*local/.24)+35*(event.variation%4);
+            phase+=2*PI*frequency/AUDIO_SAMPLE_RATE;
+            clip[i]=pcm(.35*envelope*(std::sin(phase)+.18*std::sin(phase*2)));
+        }
+        clip.front()=clip.back()=0;return clip;
+    }
+    if(event.kind==SoundKind::Footstep) event.surface=Surface::Carpet;
+    if (event.kind==SoundKind::ThreatNotice || event.kind==SoundKind::ThreatStep || event.kind==SoundKind::Jumpscare || event.kind==SoundKind::ThreatRoar)
         return threatSound(event);
     if (event.kind!=SoundKind::Footstep && event.kind!=SoundKind::ClothRustle)
         return environmentalSound(event);
@@ -322,6 +384,7 @@ struct AudioMixer::Impl {
         AudioPosition position{};
         bool positional=false;
         float gain=1;
+        bool occluded=false;
     };
     std::array<std::array<std::array<std::vector<std::int16_t>,6>,3>,3> steps;
     std::array<std::vector<std::int16_t>,3> cloth;
@@ -332,7 +395,7 @@ struct AudioMixer::Impl {
     std::uint32_t random=1,seed=1,variation=0;
     std::uint64_t sample=0,nextAmbient=0,lastStinger=0;
     float volume=1,currentVolume=1,humLeft=0,humRight=0,currentTension=0;
-    bool paused=false,tensionArmed=true;
+    bool paused=false,tensionArmed=true,captureOnly=false;
 
     Impl() {
         for (std::size_t gait=0;gait<3;++gait) {
@@ -344,6 +407,22 @@ struct AudioMixer::Impl {
         for (std::size_t kind=0;kind<ambience.size();++kind)
             for (std::size_t index=0;index<4;++index)
                 ambience[kind][index]=synthesizeSound({SoundKind(int(SoundKind::AmbientCreak)+int(kind)),Gait::Walk,Surface::Carpet,std::uint32_t(index+1)});
+        if(!recordedScream.empty()) {
+            const auto index=std::size_t(SoundKind::Jumpscare)-std::size_t(SoundKind::AmbientCreak);
+            for(std::size_t variant=0;variant<4;++variant) {
+                const double pitch=.96+.026*variant;
+                auto& clip=ambience[index][variant];
+                clip.resize(std::size_t(2*AUDIO_SAMPLE_RATE));
+                for(std::size_t i=0;i<clip.size();++i) {
+                    const double t=double(i)/AUDIO_SAMPLE_RATE, position=i*pitch;
+                    const auto a=std::size_t(position);
+                    double roar=0;
+                    if(a+1<recordedScream.size()) roar=(recordedScream[a]*(1-(position-a))+recordedScream[a+1]*(position-a))/32767.;
+                    const double impact=.40*std::cos(2*PI*(58*t-12*t*t))*std::exp(-t*11);
+                    clip[i]=pcm((roar*1.4+impact)*std::min(1.,(2-t)/.07));
+                }
+            }
+        }
         for (std::size_t i=0;i<humTable.size();++i) {
             const double t=double(i)/AUDIO_SAMPLE_RATE;
             humTable[i]=float(.017*std::sin(2*PI*60*t)+.008*std::sin(2*PI*120*t)+.004*std::sin(2*PI*240*t));
@@ -354,14 +433,14 @@ struct AudioMixer::Impl {
     double randomUnit() { return (noise(random)+1)*.5; }
     void restart(std::uint32_t value) {
         seed=value?value:1; random=seed; variation=0; sample=0;
-        voices={}; humLeft=humRight=currentTension=0;
+        voices={}; captureOnly=false; humLeft=humRight=currentTension=0;
         currentVolume=volume; tensionArmed=scene.tension<.65f; lastStinger=0;
         nextAmbient=std::uint64_t((5+randomUnit()*5)*AUDIO_SAMPLE_RATE);
     }
-    void add(const std::vector<std::int16_t>& clip,AudioPosition position,bool positional,float gain) {
+    void add(const std::vector<std::int16_t>& clip,AudioPosition position,bool positional,float gain,bool occluded=false) {
         if (paused || !std::isfinite(gain) || gain<=0) return;
         for (auto& voice:voices) if (!voice.clip) {
-            voice={&clip,0,position,positional,std::min(gain,1.0f)};
+            voice={&clip,0,position,positional,std::min(gain,1.0f),occluded};
             return;
         }
     }
@@ -371,10 +450,13 @@ struct AudioMixer::Impl {
         const bool capture=kind==SoundKind::Jumpscare;
         // Catch feedback must not be dropped by a full ambience queue, nor pile
         // on top of twelve existing sources. It belongs at the camera.
-        if (capture) voices={};
-        add(ambience[std::size_t(index)][variation++%4],position,!capture,gain);
+        if(captureOnly && !capture) return;
+        if (capture) { voices={}; captureOnly=true; humLeft=humRight=currentTension=0; currentVolume=volume; }
+        const std::size_t variant=capture?std::min(std::size_t(randomUnit()*4),std::size_t(3)):variation++%4;
+        add(ambience[std::size_t(index)][variant],position,!capture,gain,kind==SoundKind::ThreatStep || kind==SoundKind::ThreatRoar);
     }
     void schedule() {
+        if(captureOnly) return;
         if (sample>=nextAmbient) {
             const double angle=randomUnit()*PI*2,distance=14+randomUnit()*18;
             const AudioPosition source{scene.listener.x+std::cos(angle)*distance,
@@ -400,6 +482,7 @@ void AudioMixer::setScene(const AudioScene& scene) {
     impl_->scene.lightPower=bounded(scene.lightPower);
     impl_->scene.lightInstability=bounded(scene.lightInstability);
     impl_->scene.tension=bounded(scene.tension);
+    impl_->scene.threatTransmission=bounded(scene.threatTransmission);
 }
 void AudioMixer::setVolume(float volume) {
     impl_->volume=std::isfinite(volume)?std::clamp(volume,0.f,1.f):0;
@@ -415,6 +498,7 @@ void AudioMixer::setPaused(bool paused) {
     impl_->paused=paused;
 }
 void AudioMixer::enqueue(const SoundEvent& event) {
+    if(impl_->captureOnly) return;
     const auto gait=std::min<std::size_t>(std::size_t(event.gait),2);
     const auto surface=std::min<std::size_t>(std::size_t(event.surface),2);
     if (event.kind==SoundKind::Footstep)
@@ -455,11 +539,13 @@ void AudioMixer::render(std::int16_t* output,std::size_t frames) {
             const double drone=m.droneTable[table]*m.currentTension*m.currentTension;
             double left=m.humTable[table]*m.humLeft+drone;
             double right=m.humTable[table]*m.humRight+drone;
+            if(m.captureOnly) left=right=0;
             for (std::size_t v=0;v<m.voices.size();++v) {
                 auto& voice=m.voices[v];
                 if (!voice.clip) continue;
                 const double sound=(*voice.clip)[voice.cursor++]/32767.0*voice.gain;
-                left+=sound*gains[v].left; right+=sound*gains[v].right;
+                const float occlusion=voice.occluded?m.scene.threatTransmission:1.f;
+                left+=sound*gains[v].left*occlusion; right+=sound*gains[v].right*occlusion;
                 if (voice.cursor==voice.clip->size()) voice.clip=nullptr;
             }
             // Soft limiting preserves headroom even when several sources overlap.
@@ -556,7 +642,15 @@ bool Audio::available() const {
 void Audio::setScene(const AudioScene& scene) { impl_->mixer.setScene(scene); }
 void Audio::setVolume(float volume) { impl_->mixer.setVolume(volume); }
 void Audio::play(SoundKind kind,AudioPosition position,float gain) {
-    if (available()) impl_->mixer.play(kind,position,gain);
+    if (!available()) return;
+    if(kind==SoundKind::Jumpscare) {
+        impl_->mixer.setPaused(false); impl_->paused=false;
+#ifdef _WIN32
+        impl_->flush(); // Remove queued ambience before the very first scream sample.
+#endif
+    }
+    impl_->mixer.play(kind,position,gain);
+    if(kind==SoundKind::Jumpscare && !impl_->service()) stop();
 }
 void Audio::reset(std::uint32_t seed) {
     cadence_.reset(); impl_->mixer.reset(seed);

@@ -24,4 +24,5 @@ __pycache__/
 /threat_model_tests.exe
 /encounter_tests
 /encounter_tests.exe
+/progression_tests
 /assets/*-v8.png

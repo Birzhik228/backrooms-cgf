@@ -1,0 +1,27 @@
+{
+  "source": "universfield-heavy-walking-footsteps-352771.mp3",
+  "sha256": "8cc37d615c330686bc8e1b1c1c25212a2d721aebe62d62661d55a5748f899e06",
+  "sample_rate": 22050,
+  "clips": [
+    {
+      "file": "step-01.wav",
+      "start_seconds": 0.1346,
+      "duration": 0.42997732426303853
+    },
+    {
+      "file": "step-02.wav",
+      "start_seconds": 1.0924,
+      "duration": 0.42997732426303853
+    },
+    {
+      "file": "step-03.wav",
+      "start_seconds": 2.15,
+      "duration": 0.42997732426303853
+    },
+    {
+      "file": "step-04.wav",
+      "start_seconds": 4.1455,
+      "duration": 0.42997732426303853
+    }
+  ]
+}

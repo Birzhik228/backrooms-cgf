@@ -26,6 +26,8 @@ bool segmentClear(const World& world,double ax,double az,double bx,double bz,dou
     for (int i=0;i<=count;++i) {
         const double t=static_cast<double>(i)/count;
         if (world.blocked(ax+(bx-ax)*t,az+(bz-az)*t,radius)) return false;
+        // Movement capsules need space for the lowest rig pose; sight rays do not.
+        if(radius>.1 && world.headClearance(ax+(bx-ax)*t,az+(bz-az)*t,radius)<2.24f) return false;
     }
     return true;
 }
@@ -52,6 +54,7 @@ const char* threatStateName(ThreatState state) {
 }
 
 void Threat::reset(std::uint64_t seed) {
+    enraged_=false;alarmRemaining_=0;alarm_={};
     seed_=seed; random_=seed^0xd1b54a32d192ed03ULL;
     x_=z_=goalX_=goalZ_=lastX_=lastZ_=0;
     yaw_=speed_=age_=repath_=wanderWait_=spawnRetry_=0;
@@ -224,11 +227,28 @@ void Threat::walk(const World& world,float dt,float desiredSpeed) {
     speed_=dt>0?static_cast<float>(std::hypot(x_-initialX,z_-initialZ))/dt:0;
 }
 
+void Threat::hearAlarm(const World& world,const ThreatPlayer& player,double x,double z) {
+    if(caught() || !std::isfinite(x) || !std::isfinite(z)) return;
+    const double range=48*std::sqrt(world.soundTransmission(x,z,x_,z_));
+    if(active() && std::hypot(x-x_,z-z_)>range) return;
+    alarm_={x,z};alarmRemaining_=5;age_=std::max(age_,SPAWN_GRACE);spawnRetry_=0;
+    if(!active()) spawn(world,player);
+}
+
 void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool paused) {
     if (paused || caught() || !std::isfinite(dt) || dt<=0 ||
         !std::isfinite(player.x) || !std::isfinite(player.z)) return;
     dt=std::min(dt,.1f);
     age_+=dt; speed_=0; spawnRetry_-=dt; repath_-=dt; wanderWait_-=dt;
+    if(alarmRemaining_>0) {
+        alarmRemaining_=std::max(0.f,alarmRemaining_-dt);
+        if(active()) {
+            state_=ThreatState::Search;sinceSense_=0;repath_=0;hasGoal_=true;
+            lastX_=goalX_=alarm_.x;lastZ_=goalZ_=alarm_.z;
+            alarmRemaining_=0;
+        }
+    }
+    if(enraged_) age_=std::max(age_,SPAWN_GRACE);
     if (!active()) {
         if (age_>=SPAWN_GRACE && spawnRetry_<=0) {
             spawn(world,player); spawnRetry_=2;
@@ -245,7 +265,7 @@ void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool 
     }
     const bool clear=distance<=24 && visibleSegment(world,x_,z_,player.x,player.z);
     const double facing=distance>.01?(dx*std::sin(yaw_)-dz*std::cos(yaw_))/distance:1;
-    seesPlayer_=clear && distance<=SIGHT_RANGE && (facing>=.57 || distance<1.5);
+    seesPlayer_=!player.hidden && clear && distance<=SIGHT_RANGE && (facing>=.57 || distance<1.5);
     const float motion=std::isfinite(player.speed)?std::max(0.f,player.speed):0.f;
     const float noise=std::isfinite(player.noise)?std::clamp(player.noise,0.f,1.f):0.f;
     double hearing=motion>.12?std::clamp(2.0+motion*3.5,0.0,18.0):0;
@@ -253,7 +273,7 @@ void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool 
     hearing=std::max(hearing,20.0*noise);
     // A wall muffles sound but does not make running or a nearby door silent.
     if (!clear) hearing*=.45;
-    const bool heard=hearing>0 && distance<hearing;
+    const bool heard=!player.hidden && hearing>0 && distance<hearing;
     if (seesPlayer_ || heard) {
         const bool entering=state_!=ThreatState::Chase;
         state_=ThreatState::Chase; sinceSense_=0;
@@ -267,7 +287,7 @@ void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool 
             wanderWait_=1; repath_=0;
         }
     }
-    if (distance<CATCH_DISTANCE && clear) {
+    if (!player.hidden && distance<CATCH_DISTANCE && clear) {
         state_=ThreatState::Caught; speed_=0; path_.clear(); return;
     }
     if (world.blocked(x_,z_,RADIUS)) {
@@ -286,9 +306,9 @@ void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool 
         repath_=state_==ThreatState::Wander?1.8f:.65f;
         if (!valid && state_==ThreatState::Wander) { hasGoal_=false; wanderWait_=1; }
     }
-    walk(world,dt,state_==ThreatState::Wander?WANDER_SPEED:CHASE_SPEED);
+    walk(world,dt,(state_==ThreatState::Wander?WANDER_SPEED:CHASE_SPEED)*(enraged_?1.35f:1.f));
     // Test after the sweep as well, so high frame times cannot skip contact.
-    if (std::hypot(player.x-x_,player.z-z_)<CATCH_DISTANCE && visibleSegment(world,x_,z_,player.x,player.z)) {
+    if (!player.hidden && std::hypot(player.x-x_,player.z-z_)<CATCH_DISTANCE && visibleSegment(world,x_,z_,player.x,player.z)) {
         state_=ThreatState::Caught; speed_=0; path_.clear();
     }
 }
