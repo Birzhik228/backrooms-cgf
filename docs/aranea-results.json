@@ -1,0 +1,564 @@
+{
+  "model": {
+    "source": "assets\\models\\aranea\\source\\Scene.glb",
+    "sourceSha256": "62524b8b492de1b222c3c57700ef55eda6ed80e1e118b2e0d85c12aad2214d17",
+    "vertices": 11657,
+    "triangles": 15220,
+    "parts": 135,
+    "sourceRig": false,
+    "rig": "tools/aranea-rig.json",
+    "coordinateSystem": "metres, Y-up, -Z forward",
+    "walkStride": 1.3,
+    "runStride": 2.0,
+    "feet": [
+      "front_left",
+      "front_right",
+      "rear_left",
+      "rear_right"
+    ],
+    "clips": [
+      {
+        "name": "idle",
+        "frames": 16,
+        "duration": 3.2,
+        "bounds": [
+          [
+            -1.3727103216170229,
+            0.01199999451637268,
+            -1.2581323144395786
+          ],
+          [
+            1.186973214149475,
+            2.063274129882849,
+            1.6750410795211792
+          ]
+        ]
+      },
+      {
+        "name": "walk",
+        "frames": 40,
+        "duration": 1.2,
+        "bounds": [
+          [
+            -1.4018779797691276,
+            0.01199999451637268,
+            -1.7286853790283203
+          ],
+          [
+            1.186973214149475,
+            2.2456049262659357,
+            2.1755411624908447
+          ]
+        ]
+      },
+      {
+        "name": "run",
+        "frames": 40,
+        "duration": 0.65,
+        "bounds": [
+          [
+            -1.4081424785952237,
+            0.01199999451637268,
+            -1.8016854524612427
+          ],
+          [
+            1.186973214149475,
+            2.365582133000919,
+            2.2474005222320557
+          ]
+        ]
+      },
+      {
+        "name": "idle_duck",
+        "frames": 16,
+        "duration": 3.2,
+        "bounds": [
+          [
+            -0.5872384551086149,
+            0.01199999451637268,
+            -1.5077693873390867
+          ],
+          [
+            0.525962233543396,
+            1.9720586546991725,
+            1.6750410795211792
+          ]
+        ]
+      },
+      {
+        "name": "walk_duck",
+        "frames": 40,
+        "duration": 1.2,
+        "bounds": [
+          [
+            -0.6212604993908601,
+            0.01199999451637268,
+            -1.745740814638653
+          ],
+          [
+            0.525962233543396,
+            2.110686684366705,
+            2.1755411624908447
+          ]
+        ]
+      },
+      {
+        "name": "run_duck",
+        "frames": 40,
+        "duration": 0.65,
+        "bounds": [
+          [
+            -0.6211188164299644,
+            0.01199999451637268,
+            -1.8132319451503125
+          ],
+          [
+            0.525962233543396,
+            2.130939039315262,
+            2.2474005222320557
+          ]
+        ]
+      },
+      {
+        "name": "scare",
+        "frames": 28,
+        "duration": 2.0,
+        "bounds": [
+          [
+            -1.0479220036464578,
+            0.013000041246414185,
+            -0.5319093478061063
+          ],
+          [
+            1.5102732181549072,
+            2.8704514223619015,
+            2.918612807792531
+          ]
+        ]
+      }
+    ],
+    "bytes": 31171529,
+    "sha256": "a4ea250549c831da2e4a268a5c9e77ca2e9963bdfc9c8bf4cc2d40337383cdbb"
+  },
+  "graphicsCases": [
+    {
+      "case": "walk-support",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/walk-support.bmp",
+        "--threat-preview",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--yaw",
+        "0",
+        "--pitch",
+        "2",
+        "--camera-view",
+        "--threat-time",
+        "0.12",
+        "--threat-speed",
+        "1.1"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/walk-support.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 43.83. Last FPS: 41.28. Max frame ms: 183.29. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "walk-transfer",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/walk-transfer.bmp",
+        "--threat-preview",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--yaw",
+        "0",
+        "--pitch",
+        "2",
+        "--camera-view",
+        "--threat-time",
+        "0.43",
+        "--threat-speed",
+        "1.1"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/walk-transfer.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 49.13. Last FPS: 65.61. Max frame ms: 148.41. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "run-support",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/run-support.bmp",
+        "--threat-preview",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--yaw",
+        "0",
+        "--pitch",
+        "2",
+        "--camera-view",
+        "--threat-time",
+        "0.08",
+        "--threat-speed",
+        "3.3"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/run-support.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 52.51. Last FPS: 47.93. Max frame ms: 125.42. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "run-reach",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/run-reach.bmp",
+        "--threat-preview",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--yaw",
+        "0",
+        "--pitch",
+        "2",
+        "--camera-view",
+        "--threat-time",
+        "0.38",
+        "--threat-speed",
+        "3.3"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/run-reach.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 48.30. Last FPS: 86.24. Max frame ms: 158.28. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "head-left",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/head-left.bmp",
+        "--threat-preview",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--yaw",
+        "0",
+        "--pitch",
+        "2",
+        "--camera-view",
+        "--threat-head-yaw",
+        "-45",
+        "--threat-head-pitch",
+        "-8"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/head-left.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 25.15. Last FPS: 25.15. Max frame ms: 203.07. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "head-right",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/head-right.bmp",
+        "--threat-preview",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--yaw",
+        "0",
+        "--pitch",
+        "2",
+        "--camera-view",
+        "--threat-head-yaw",
+        "45"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/head-right.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 46.09. Last FPS: 55.10. Max frame ms: 170.48. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "stoop",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/stoop.bmp",
+        "--x",
+        "-3.75",
+        "--z",
+        "3.75",
+        "--yaw",
+        "-90",
+        "--threat-preview",
+        "--threat-x",
+        "-3.75",
+        "--threat-z",
+        ".95",
+        "--threat-yaw",
+        "180",
+        "--threat-speed",
+        "1.1",
+        "--threat-time",
+        ".3"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/stoop.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 47.03. Last FPS: 48.13. Max frame ms: 123.75. Position: -3.75, 3.75. Shifts: 0. Room: Repeating corridor. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "wall-fold",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "30",
+        "--capture",
+        "tests/artifacts/aranea/wall-fold.bmp",
+        "--x",
+        "-11.5",
+        "--z",
+        "7.5",
+        "--yaw",
+        "0",
+        "--threat-preview",
+        "--threat-x",
+        "-8.5",
+        "--threat-z",
+        "7.5",
+        "--threat-yaw",
+        "-90",
+        "--threat-speed",
+        "1.1",
+        "--threat-time",
+        ".3"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/wall-fold.bmp\r\nCompleted 30 frames. Max resident chunks: 25. Average FPS: 49.03. Last FPS: 49.04. Max frame ms: 115.83. Position: -11.50, 7.50. Shifts: 0. Room: Open hall. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.12. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "door-chase",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "240",
+        "--capture",
+        "tests/artifacts/aranea/door-chase.bmp",
+        "--x",
+        "-3.75",
+        "--z",
+        "1",
+        "--yaw",
+        "-90",
+        "--threat-x",
+        "-3.75",
+        "--threat-z",
+        "-4",
+        "--threat-yaw",
+        "180",
+        "--auto-door"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nOPENING DOOR / 3211077657719367256\r\nThreat: CHASING / distance 5.03 m\r\nThreat: SEARCHING / distance 5.05 m\r\nThreat: CHASING / distance 3.63 m\r\nThreat: SEARCHING / distance 3.63 m\r\nThreat: CHASING / distance 3.30 m\r\nCaptured: 3D jumpscare started.\r\nScreenshot saved: tests/artifacts/aranea/door-chase.bmp\r\nCompleted 240 frames. Max resident chunks: 25. Average FPS: 76.75. Last FPS: 46.26. Max frame ms: 286.73. Position: -3.75, 1.00. Shifts: 0. Room: Repeating corridor. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 1. Tension: 0.51. Creature footfalls: 9. Head yaw: 1.50. Threat: CHASING. Catches: 1. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: game-over. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 312\r\n"
+    },
+    {
+      "case": "walking",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "440",
+        "--capture",
+        "tests/artifacts/aranea/walking.bmp",
+        "--auto-crouch",
+        "--yaw",
+        "0",
+        "--threat-x",
+        "28",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "90"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nThreat: CHASING / distance 21.94 m\r\nScreenshot saved: tests/artifacts/aranea/walking.bmp\r\nCompleted 440 frames. Max resident chunks: 25. Average FPS: 119.30. Last FPS: 118.34. Max frame ms: 136.15. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.08. Crouched: yes. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.94. Creature footfalls: 38. Head yaw: -0.00. Threat: CHASING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "chasing",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "100",
+        "--capture",
+        "tests/artifacts/aranea/chasing.bmp",
+        "--yaw",
+        "0",
+        "--threat-x",
+        "12",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nThreat: CHASING / distance 8.19 m\r\nScreenshot saved: tests/artifacts/aranea/chasing.bmp\r\nCompleted 100 frames. Max resident chunks: 25. Average FPS: 97.86. Last FPS: 84.85. Max frame ms: 143.42. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.63. Creature footfalls: 11. Head yaw: 0.00. Threat: CHASING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "pause",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "100",
+        "--capture",
+        "tests/artifacts/aranea/pause.bmp",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--auto-pause"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nThreat: CHASING / distance 4.19 m\r\nScreenshot saved: tests/artifacts/aranea/pause.bmp\r\nCompleted 100 frames. Max resident chunks: 25. Average FPS: 81.60. Last FPS: 90.53. Max frame ms: 151.26. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.02. Creature footfalls: 0. Head yaw: 0.00. Threat: CHASING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "capture",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "75",
+        "--capture",
+        "tests/artifacts/aranea/capture.bmp",
+        "--auto-catch"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nThreat: CAUGHT / distance 0.50 m\r\nCaptured: 3D jumpscare started.\r\nScreenshot saved: tests/artifacts/aranea/capture.bmp\r\nCompleted 75 frames. Max resident chunks: 25. Average FPS: 77.17. Last FPS: 84.31. Max frame ms: 145.92. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.00. Creature footfalls: 0. Head yaw: 0.07. Threat: CAUGHT. Catches: 1. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: jumpscare. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: yes. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "restart",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "180",
+        "--capture",
+        "tests/artifacts/aranea/restart.bmp",
+        "--auto-catch",
+        "--auto-restart"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nThreat: CAUGHT / distance 0.50 m\r\nCaptured: 3D jumpscare started.\r\nReturned to the first room.\r\nRestarted after capture with the same seed.\r\nScreenshot saved: tests/artifacts/aranea/restart.bmp\r\nCompleted 180 frames. Max resident chunks: 25. Average FPS: 81.55. Last FPS: 57.30. Max frame ms: 252.33. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.02. Creature footfalls: 0. Head yaw: 6.03. Threat: DORMANT. Catches: 1. Restarts: 1. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    },
+    {
+      "case": "odd-size",
+      "args": [
+        "--hidden",
+        "--demo",
+        "--frames",
+        "15",
+        "--capture",
+        "tests/artifacts/aranea/odd-size.bmp",
+        "--threat-preview",
+        "--threat-x",
+        "8",
+        "--threat-z",
+        "3.75",
+        "--threat-yaw",
+        "-90",
+        "--yaw",
+        "0",
+        "--pitch",
+        "2",
+        "--camera-view",
+        "--threat-speed",
+        "1.1",
+        "--threat-time",
+        ".43",
+        "--width",
+        "1919",
+        "--height",
+        "1027"
+      ],
+      "log": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nScreenshot saved: tests/artifacts/aranea/odd-size.bmp\r\nCompleted 15 frames. Max resident chunks: 25. Average FPS: 34.69. Last FPS: 51.31. Max frame ms: 171.25. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.01. Creature footfalls: 0. Head yaw: 0.00. Threat: WANDERING. Catches: 0. Restarts: 0. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 15, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+    }
+  ],
+  "buildLog": "Building Backrooms with C:\\msys64\\mingw64\\bin\\g++.exe\nBuilt Backrooms.exe. Start with Run.cmd.\nProgression tests passed: key gate, streaming/reset, hiding geometry, wall attenuation, rage and hidden perception.\nNearby demo door: -3.75, 0; approach from -3.75, 1\nPASS: coordinates, seeded topology, connectivity, mesh winding, six room variants, seeded surfaces, merged surface coverage, room dimensions, uniform ceilings, lights, exit approach, streaming, and safe shifts\nStreaming tests passed: bounded 25+24 cache, zero sprint/diagonal/turn-back generation misses, deterministic lamp and door promotion, animated-door cache persistence, teleport and seed reset, distant exit journey and persistence.\nMovement/settings tests passed: movement, stamina, recovery, smoothing, reset, settings roundtrip and malformed input.\nPerception, crouch, hearing, catch, reset: PASS\nWalls, closed and animated doors, open-door pursuit: PASS\nPause, last-known search, five-second forgetting, bounded detour: PASS\nGrace, deterministic reachable safe spawn, endless streaming: PASS\nUnreachable path budget and varied-seed reachable spawning: PASS\nThreat tests: PASS\nAranea model tests passed: 15220 supplied triangles, four articulated feet, sequential walk and diagonal run, planted contacts, independent head, preserved UVs, full stoop 2.13102m, half stoop 2.19493m; malformed asset validation passed.\nEncounter tests passed: one-shot capture, suspension, timed game over, restart and skip.\nAudio tests passed: recorded carpet/damp/tile footsteps, bounded WAV parsing, cadence, 3D distance and stereo panning, seeded ambience, creature tracking cues, capture sting priority/spectrum/headroom, master volume, pause/reset, 12-second stereo preview.\nSupplied scream and heavy steps: attack, exclusive mix, attenuation, headroom and reset passed.\nMusic tests passed: missing/corrupt input, Unicode WAV fallback, pause/resume, mute, loop and clean close.\nSlanted-plane AO 1920x1000: minimum=255, unoccluded samples=1593908\nSlanted-plane AO 1920x1027: minimum=255, unoccluded samples=1641798\nSlanted-plane AO 1919x1027: minimum=255, unoccluded samples=1641165\nSlanted-plane AO 127x95: minimum=255, unoccluded samples=9091\nGraphics tests passed: 28 rendered occlusion probes, 24 slanted-plane AO fixtures, flat-wall/contact checks, smooth/depth-edge AO reconstruction, six lamp directions, flashlight, doors, metal, creature and transparent clues.\nLens noise renderer: Intel(R) UHD Graphics\ngrain time=0: mean=-0.000003 sd=0.004791 max-correlation=0.001387 column-band=0.031723 row-band=0.022724\ngrain time=60: mean=-0.000001 sd=0.004794 max-correlation=0.001614 column-band=0.031033 row-band=0.023161\ngrain time=300: mean=0.000001 sd=0.004795 max-correlation=0.001367 column-band=0.031478 row-band=0.023456\ngrain time=1200: mean=-0.000004 sd=0.004791 max-correlation=0.001407 column-band=0.031360 row-band=0.023176\ngrain time=3600: mean=0.000001 sd=0.004791 max-correlation=0.000850 column-band=0.031594 row-band=0.021920\ngrain time=10000: mean=-0.000001 sd=0.004793 max-correlation=0.001125 column-band=0.031200 row-band=0.023196\ngrain time=30000: mean=0.000001 sd=0.004792 max-correlation=0.001156 column-band=0.032087 row-band=0.023004\nscare static time=0: mean=-0.000022 sd=0.034633 max-correlation=0.002072 column-band=0.031751 row-band=0.023095\nscare static time=60: mean=0.000011 sd=0.034661 max-correlation=0.002179 column-band=0.031565 row-band=0.023002\nscare static time=300: mean=-0.000015 sd=0.034639 max-correlation=0.001863 column-band=0.031265 row-band=0.023282\nscare static time=1200: mean=0.000007 sd=0.034656 max-correlation=0.002398 column-band=0.030436 row-band=0.022085\nscare static time=3600: mean=0.000048 sd=0.034652 max-correlation=0.001377 column-band=0.031788 row-band=0.021965\nscare static time=10000: mean=0.000030 sd=0.034630 max-correlation=0.001309 column-band=0.031016 row-band=0.023379\nscare static time=30000: mean=0.000010 sd=0.034625 max-correlation=0.001424 column-band=0.031803 row-band=0.022520\nodd-size grain time=3600: mean=0.000002 sd=0.004791 max-correlation=0.000814 column-band=0.031590 row-band=0.021910\nLens noise tests passed: production shader, long-session grain/static, spatial statistics, frozen/advanced time, odd dimensions, scare flash/blackout.\n",
+  "finalBuildLog": "Building Backrooms with C:\\msys64\\mingw64\\bin\\g++.exe\nBuilt Backrooms.exe. Start with Run.cmd.\n",
+  "limits": "Automated geometry, callback and framebuffer tests; no physical listening or manual play session.",
+  "installation": {
+    "backup": "C:\\Users\\Adina\\Desktop\\Backrooms CGF Project\\backups\\before-aranea-20261012-213017.zip",
+    "baselineFiles": 167,
+    "updatedFiles": [
+      "backrooms.cpp",
+      "Backrooms.exe",
+      "common\\threat_model.cpp",
+      "common\\threat_model.h",
+      "common\\textures.cpp",
+      "common\\textures.h",
+      "fshader_backrooms.glsl",
+      "tests\\threat_model_tests.cpp",
+      "tools\\bake_aranea.py",
+      "tools\\aranea-rig.json",
+      "tools\\preview_aranea.py",
+      "tools\\prepare_aranea_textures.py",
+      "tools\\verify-aranea.ps1",
+      "tools\\verify-motion.ps1",
+      "tools\\verify.ps1",
+      "README.md",
+      "THIRD_PARTY.md",
+      "assets\\models\\README.md",
+      "docs\\AI_USE.md",
+      "docs\\aranea-motion.md",
+      "docs\\aranea-results.json",
+      "assets\\models\\aranea\\aranea-manifest.json",
+      "assets\\models\\aranea\\aranea.brm",
+      "assets\\models\\aranea\\creature-color.rgb",
+      "assets\\models\\aranea\\creature-normal.rgb",
+      "assets\\models\\aranea\\preview.png",
+      "assets\\models\\aranea\\README.md",
+      "assets\\models\\aranea\\source\\Scene.glb",
+      "assets\\models\\aranea\\textures\\Carpet_LowPile_norm_0.png",
+      "assets\\models\\aranea\\textures\\UGC_Carpet_Berber_tex_1.png"
+    ],
+    "removedFiles": [
+      "assets/models/smiler/preview.png",
+      "assets/models/smiler/README.md",
+      "assets/models/smiler/smiler-manifest.json",
+      "assets/models/smiler/smiler.brm",
+      "assets/models/smiler/source/Zombie Scream.fbx",
+      "tools/bake_smiler.py",
+      "tools/inspect_smiler.py",
+      "tools/preview_smiler_source.py",
+      "tools/preview_smiler_motion.py"
+    ],
+    "installedLog": "Loaded supplied heavy footsteps.\r\nLoaded supplied jumpscare roar.\r\nBackrooms / Threshold v0.12 | seed 12071998\r\nLoaded 6 recorded footstep samples.\r\nOpenGL: 3.3.0 - Build 32.0.101.5768\r\nRenderer: Intel(R) UHD Graphics\r\nLoaded Aranea model: 15220 triangles.\r\nBackground music loaded.\r\nThreat: CAUGHT / distance 0.50 m\r\nCaptured: 3D jumpscare started.\r\nReturned to the first room.\r\nRestarted after capture with the same seed.\r\nScreenshot saved: tests/artifacts/aranea/installed.bmp\r\nCompleted 180 frames. Max resident chunks: 25. Average FPS: 94.01. Last FPS: 97.52. Max frame ms: 145.98. Position: 3.75, 3.75. Shifts: 0. Room: Yellow halls. Exit used: no. Escaped: no. Eye height: 1.65. Crouched: no. FOV: 78.00. Velocity: 0.00. Stamina: 100.00. Minimum stamina: 100.00. Doors used: 0. Tension: 0.02. Creature footfalls: 0. Head yaw: 6.03. Threat: DORMANT. Catches: 1. Restarts: 1. Mouse squeaks: 0. Guide: closed. Guide page: 1. Key: missing. Hiding: no. Encounter: exploring. Music loaded: yes. Music enabled: yes. Brightness: 1.00. Volume: 0.75. Paused: no. GL errors: 0.\r\nStreaming: max prepared chunks 24, cached promotions 0, synchronous fallback chunks 0.\r\nLamp shadow cache updates: 24\r\n"
+  }
+}

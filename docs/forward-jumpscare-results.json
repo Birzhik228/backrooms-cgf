@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-12",
+  "sourceSha256": "62524b8b492de1b222c3c57700ef55eda6ed80e1e118b2e0d85c12aad2214d17",
+  "bankSha256": "917d97edde96979472ccf98978cfc4ec3caf53bd5545c59da9ba6b5da44e6a91",
+  "executableSha256": "803fb9f0fed5711f1495012d3505020bce3adaaaaa5f66dcbe8a03ebe71d014c",
+  "nativeSuitesPassed": [
+    "progression",
+    "world",
+    "streaming",
+    "movement/settings",
+    "threat",
+    "model",
+    "encounter",
+    "audio",
+    "music"
+  ],
+  "finalRetests": [
+    "model after capture head-pitch correction",
+    "encounter after final default tuning"
+  ],
+  "jumpscareCases": [
+    "PASS normal",
+    "PASS flash",
+    "PASS closeup",
+    "PASS late",
+    "PASS black",
+    "PASS gameover",
+    "PASS restart",
+    "PASS debug-repeat",
+    "PASS proximity",
+    "PASS crouched"
+  ],
+  "araneaCases": [
+    "PASS walk-support",
+    "PASS walk-transfer",
+    "PASS run-support",
+    "PASS run-reach",
+    "PASS head-left",
+    "PASS head-right",
+    "PASS stoop",
+    "PASS wall-fold",
+    "PASS door-chase",
+    "PASS walking",
+    "PASS chasing",
+    "PASS pause",
+    "PASS capture",
+    "PASS restart",
+    "PASS odd-size"
+  ],
+  "integration": [
+    {
+      "case": "side90",
+      "measurements": {
+        "turnDegrees": 89.73948918534968,
+        "lateToEarlyShakeEnergy": 0.002157522237430726,
+        "shakeSignChanges": 9
+      }
+    },
+    {
+      "case": "rear180",
+      "measurements": {
+        "turnDegrees": 179.73947428732475,
+        "lateToEarlyShakeEnergy": 0.0022693279657636303,
+        "shakeSignChanges": 9
+      }
+    },
+    {
+      "case": "three-seconds-hold",
+      "measurements": {
+        "finalScareTime": 2.61666
+      }
+    },
+    {
+      "case": "three-seconds-end",
+      "measurements": {
+        "finalScareTime": 3.3
+      }
+    },
+    {
+      "case": "walking-forward",
+      "measurements": {
+        "movingFrames": 80,
+        "minimumForwardDot": 0.9999874417799514,
+        "walkingFrames": 80,
+        "runningFrames": 0
+      }
+    },
+    {
+      "case": "chasing-forward",
+      "measurements": {
+        "movingFrames": 99,
+        "minimumForwardDot": 0.9999999999932537,
+        "walkingFrames": 0,
+        "runningFrames": 99
+      }
+    }
+  ],
+  "defaults": {
+    "duration": 2.0,
+    "cameraTurnSeconds": 0.2,
+    "lungeSeconds": 0.22,
+    "faceDistanceMetres": 0.9,
+    "closeupScale": 2.2,
+    "fovDegrees": [
+      70,
+      95
+    ]
+  },
+  "visualReview": [
+    "neutral frontal skull",
+    "front run pose",
+    "standing and crouched capture",
+    "early and late close-up"
+  ],
+  "limitations": [
+    "Automated OpenGL captures and audio lifecycle checks; no physical listening or manual play session.",
+    "Existing navigation uses a body collision radius, not per-leg collision simulation."
+  ]
+}

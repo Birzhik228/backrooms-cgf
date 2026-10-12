@@ -1,4 +1,4 @@
-param([switch]$Test, [switch]$DebugBuild)
+param([switch]$Test, [switch]$DebugBuild, [switch]$GraphicsTest)
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $taskOutputPath = Join-Path $PSScriptRoot 'Backrooms.exe'
@@ -62,4 +62,15 @@ if ($Test) {
     if ($LASTEXITCODE -ne 0) { throw 'Music test compilation failed.' }
     & '.\tests\music_tests.exe'
     if ($LASTEXITCODE -ne 0) { throw 'Music tests failed.' }
+}
+
+if ($GraphicsTest) {
+    & $taskCompiler @taskFlags 'tests\graphics_tests.cpp' 'common\Shader.cpp' 'common\glad.c' '-o' 'tests\graphics_tests.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Graphics test compilation failed.' }
+    & '.\tests\graphics_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Graphics tests failed.' }
+    & $taskCompiler @taskFlags 'tests\lens_noise_tests.cpp' 'common\Shader.cpp' 'common\glad.c' '-o' 'tests\lens_noise_tests.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Lens noise test compilation failed.' }
+    & '.\tests\lens_noise_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Lens noise tests failed.' }
 }

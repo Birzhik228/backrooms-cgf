@@ -1,6 +1,6 @@
-# BACKROOMS / Threshold v0.12 — Smiler update
+# BACKROOMS / Threshold v0.12 — Aranea Membri update
 
-An effectively endless, connected yellow interior in **C++17 and OpenGL 3.3 core** for the Computer Graphics Fundamentals project. Explore worn rooms, repeating corridors and open halls with smooth first-person controls, stamina, interactive doors and spatial sound. One tall, dark creature wanders the level, hears movement and chases when it detects you. Break contact, hide and follow optional clues toward an exit.
+An effectively endless, connected yellow interior in **C++17 and OpenGL 3.3 core** for the Computer Graphics Fundamentals project. Explore worn rooms, repeating corridors and open halls with smooth first-person controls, stamina, interactive doors and spatial sound. One four-legged Aranea Membri creature wanders the level, hears movement and chases when it detects you. Break contact, hide and follow optional clues toward an exit.
 
 ![In-game view](assets/preview.png)
 
@@ -10,7 +10,7 @@ An effectively endless, connected yellow interior in **C++17 and OpenGL 3.3 core
 2. Click **Enter the Backrooms**, or select it with **Up/Down** and press **Enter**.
 3. Use **WASD** and the mouse. Press **Escape** to pause and release the cursor.
 
-The GitHub repository contains source code and assets; the build produces `Backrooms.exe`. The local Desktop copy already contains this executable. Keep the four `.glsl` files and the complete `assets/` directory beside it. No batch launcher is required. Project code generates environment textures, normal maps and ambient sound; footsteps use the bundled recordings credited in [THIRD_PARTY.md](THIRD_PARTY.md). The user's supplied **“Numbers” by Temporex** plays as background music. The game requires no photo assets or runtime downloads. If it cannot start, read `backrooms.log` and confirm that the graphics driver supports OpenGL 3.3.
+The GitHub repository contains source code and assets; the build produces `Backrooms.exe`. The local Desktop copy already contains this executable. Keep the seven `.glsl` files and the complete `assets/` directory beside it. No batch launcher is required. Project code generates environment textures, normal maps and ambient sound; footsteps use the bundled recordings credited in [THIRD_PARTY.md](THIRD_PARTY.md). The user's supplied **“Numbers” by Temporex** plays as background music. The game requires no photo assets or runtime downloads. If it cannot start, read `backrooms.log` and confirm that the graphics driver supports OpenGL 3.3.
 
 ## Controls
 
@@ -65,13 +65,19 @@ Stamina starts at **100**, drains at **18 points per second** during actual spri
 
 Mouse look is smoothly eased, and restrained head bob follows actual movement. The default camera has light soft focus and a field-of-view change from **78° to 82°** during sprint travel. Version 0.10 reduces the blur radius from 1.7 to **0.8 reference pixels** at the image centre, roughly halving the previous softness while keeping existing settings. The interface remains sharp. Rooms have dim fluorescent lighting and deep shadows; use **F** to toggle the flashlight. V hides the ordinary navigation HUD for a cleaner camera view; it does not record video.
 
-The clickable main and pause menus provide play/resume, settings, a new seed, a return to the entrance and quit. Settings include **mouse sensitivity, master volume, music on/off, music volume, brightness, field of view, head bob, camera softness and VSync**, plus a reset-defaults option. Music volume defaults to **35%**, multiplied by master volume. Changes are saved to `settings.cfg` beside the executable. Head bob and camera softness can be set to zero. Press Escape in settings to return to the menu.
+The clickable main and pause menus provide play/resume, settings, a new seed, a return to the entrance and quit. Settings include **mouse sensitivity, master volume, music on/off, music volume, brightness, field of view, head bob, camera softness and VSync**, plus **Contact Shading** (0–100%, default 65%) and a reset-defaults option. Music volume defaults to **35%**, multiplied by master volume. Changes are saved to `settings.cfg` beside the executable. Head bob and camera softness can be set to zero. Press Escape in settings to return to the menu.
 
 The yellow wallpaper and acoustic-ceiling style continues through classic rooms, repeating corridors, open halls, pillar halls, dead ends and occasional odd rooms with hard tiled floors. Layouts vary across **7.5, 15 and 22.5 metre** footprints under a uniform 3.2 metre ceiling. Procedural wall scars, peeling patches and damp marks combine with normal-mapped wallpaper, dry/damp carpet, ceiling tiles and hard flooring. The connected world continues generating as you walk. The older photo Nextbots and separate themed districts remain removed. Seeded recesses carved into existing yellow walls provide hiding places; **H** marks them on the minimap. Approach and press **E** to hide or leave. Break the creature's line of sight before entering. Hiding stops movement, lowers the camera, and suppresses the flashlight while allowing you to look out.
 
-The **Smiler** uses the actual 3D mesh from the user-supplied `smiler-backrooms.zip`, whose model file is `source/Zombie Scream.fbx`. Its dark humanoid body, pale eyes and teeth are retained from the supplied mesh. Walk and run cycles are added through its skeleton; an imported scream animation supplies the capture pose. The offline conversion produces `assets/models/smiler/smiler.brm` for the game, so Blender is not needed to build or play. Source and conversion details are recorded in the [model notes](assets/models/smiler/README.md). This replaces the procedural Watcher introduced in v0.11. After an initial **8-second grace period**, one creature can enter unseen, reachable space **16–22 metres** from the player, closer than the previous 25–34 metre range. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
+The Aranea animation update replaces the humanoid with the supplied four-legged creature. A staggered walking gait lifts one leg at a time while three support the body; running uses faster diagonal pairs. The head leads turns and follows a visible player, the jaw moves, and step sounds follow all four foot contacts. The legs fold inward for doorways. See [Aranea animation and validation notes](docs/aranea-motion.md). The [earlier Smiler animation results](docs/smiler-motion.md) are historical and do not validate this replacement.
 
-The creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, automatically stoops through low doorways and cannot catch through a closed door. Positional footfalls help you hear its direction during a chase. Contact or unobstructed proximity within **1.5 m** triggers a **2-second 3D jumpscare**, then **0.3 seconds of black** before the game-over screen. **J** triggers a debug scare. Camera lunge/shake, glowing face, static, RGB separation and the supplied roar are configurable in `common/jumpscare.h`; see [jumpscare details](docs/jumpscare.md). Click **Restart Run** or press **Enter** with that option selected to restart the same seed. Restart restores stamina and resets the creature and doors; settings remain saved. **Main Menu** prepares a fresh run with the same seed and leaves it paused at the menu. Escape cannot resume a defeated run. Music pauses during capture and the game-over screen. **M** and master volume also apply to the jumpscare sound.
+The **Aranea Membri** uses the actual 3D mesh from the user-supplied `rec-room-backrooms-entity-62-aranea-membri.zip`, including `source/Scene.glb` and its two carpet textures. All 135 mesh parts and 15,220 triangles are retained. The source has no rig or animation; the project adds four articulated leg chains, head/jaw movement, walk/run cycles and a capture pose. Offline conversion produces `assets/models/aranea/aranea.brm` and two texture caches, so Blender and Python are not needed to build or play. Source provenance and rebuild instructions are in the [model notes](assets/models/aranea/README.md). This replaces the previous Smiler; its earlier source and animation remain in local backups. After an initial **8-second grace period**, one creature can enter unseen, reachable space **16–22 metres** from the player. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
+
+Before the key is collected, the creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, folds its legs through doorways and cannot catch through a closed door. Its corrected skull and body both face forward: it turns before moving along a new route segment, and its head stays centered while walking or running. Positional footfalls help you hear its direction during a chase.
+
+Contact or unobstructed proximity within **1.5 m** triggers a **2-second 3D jumpscare**, then **0.3 seconds of black** before Game Over. The camera turns toward the animated head over **0.20 seconds** with ease-out. The creature faces the camera and lunges to an eye-anchor distance of **0.90 m**, with a large close-up, reaching claws and head jitter. Random camera shake and roll fade over time, while FOV punches from **70° to 95°**. Edit `jumpscare.cfg` and restart to change duration, distance, timing and effects; `--jumpscare-config` selects an alternative file. **J** triggers a debug scare. See [jumpscare settings and implementation](docs/jumpscare.md).
+
+Click **Restart Run** or press **Enter** with that option selected to restart the same seed. Restart restores stamina and resets the creature and doors; settings remain saved. **Main Menu** prepares a fresh run with the same seed and leaves it paused at the menu. Escape cannot resume a defeated run. Music pauses during capture and the game-over screen. **M** and master volume also apply to the jumpscare sound.
 
 Ceiling fixtures have seeded **working, dying or off** states. Working lamps fluctuate gently, dying fixtures flicker more strongly, and off fixtures contribute no light. Each selected local light uses distance attenuation. The flashlight provides a separate directional beam.
 
@@ -88,10 +94,11 @@ To see the first clue, stand in the starting room, face its first north doorway,
 - Seeded, connected yellow rooms, corridors, halls, pillars, dead ends and occasional tiled rooms.
 - Smooth mouse look, gradual acceleration/braking, adjustable head bob, crouching, stamina and collision sliding.
 - Animated hinged doors, a farther wall-integrated exit about 270 m from the entrance, and flashlight-revealed clues.
-- The supplied 3D Smiler with walk/run animation, closer 16–22 m spawns, sight/hearing detection, collision-aware pursuit, last-position searching and a timed loss of interest.
+- The supplied textured 3D Aranea Membri with four-legged walk/run animation, independent head/jaw movement, 16–22 m spawns, sight/hearing detection, collision-aware pursuit, last-position searching and a timed loss of interest.
 - A 3D capture jumpscare, generated threat audio, game-over screen and same-seed restart.
 - Procedural worn materials with UV mapping, mipmaps and normal maps.
-- Working/dying/off fluorescent fixtures, per-light attenuation, a flashlight cone, Blinn-Phong shading and distance fog.
+- Working/dying/off fluorescent fixtures, per-light attenuation, cached six-face lamp shadows, PCF-filtered flashlight shadows, Blinn-Phong shading and distance fog.
+- Half-resolution, depth-aware contact shading with adjustable strength, plus restrained paper, carpet and ceiling wear.
 - An offscreen scene framebuffer with light soft focus, analog grain and vignette, followed by a sharp HUD.
 - Stereo spatial hum, distant ambience, environmental tension, door sounds, universal player footsteps, wall-attenuated heavy creature footsteps and the supplied Temporex soundtrack.
 - Main/pause menus and persistent camera, audio and display settings.
@@ -145,12 +152,15 @@ Backrooms CGF Project/
   vshader_backrooms.glsl     Model / view / projection vertex stage
   fshader_backrooms.glsl     Textures, local lighting, flashlight and fog
   vshader_lens.glsl          Fullscreen postprocess vertex stage
-  fshader_lens.glsl          Soft focus, grain and vignette
+  fshader_lens.glsl          Soft focus, depth-aware contact shading, grain and vignette
+  vshader_shadow.glsl / fshader_shadow.glsl   Flashlight and cached lamp depth maps
+  fshader_ao.glsl            Half-resolution screen-space contact occlusion
+  common/graphics.h         Shadow/AO targets and lamp face transforms
   common/gameplay.h         Movement speed and field-of-view settings
   common/movement.h         Acceleration and braking
   common/player_state.h     Stamina and smooth mouse-look state
   common/threat.h / .cpp    Single-creature sensing, navigation and behavior
-  common/threat_model.h/.cpp Converted Smiler mesh, walk/run clips and capture pose
+  common/threat_model.h/.cpp Converted Aranea mesh, four-leg clips and capture pose
   common/settings.h         Validated persistent user settings
   common/audio.h / .cpp     Recorded steps, cached spatial mixer and Windows playback
   common/music.h / .cpp     Supplied soundtrack playback through Windows MCI
@@ -160,11 +170,15 @@ Backrooms CGF Project/
   assets/audio/footsteps-player/   Supplied universal player contacts
   assets/audio/footsteps-monster/  Supplied heavy creature contacts
   assets/audio/music/        User-supplied Numbers by Temporex
-  assets/models/             Supplied FBX source and converted creature animation cache
+  assets/models/aranea/      Supplied GLB, PNGs, animation bank and RGB texture caches
+  tools/bake_aranea.py       Offline four-chain IK and head/jaw animation baker
+  tools/aranea-rig.json      Original mesh-part joint and pivot mapping
+  tools/prepare_aranea_textures.py   Offline texture-cache converter
   assets/                   In-game preview and exported audio preview
   docs/                     Report draft, slides, demo and learning guide
   build.ps1                 Windows build and test
   settings.cfg              User preferences, created when settings change
+  jumpscare.cfg             Optional capture duration, camera, lunge and effect settings
   Makefile / CMakeLists.txt  Alternative build definitions
 ```
 
@@ -178,6 +192,8 @@ Read [verification.md](docs/verification.md) for executed checks and their limit
 .\Backrooms.exe --demo --x 6.225 --z -265.8 --yaw -90
 .\Backrooms.exe --audio-preview assets\audio-preview.wav
 ```
+
+For this model replacement, `build.ps1 -Test` covers native behavior and model checks, and `tools/verify-aranea.ps1` exercises walk/run poses, head turns, door folding, live footfalls, pause, capture and restart. See [Aranea notes](docs/aranea-motion.md) for the current validation status. Install the rebuilt executable, `aranea.brm` and both Aranea `.rgb` caches together; the previous Smiler bank is not compatible.
 
 The 12-second stereo sound preview demonstrates carpet walking, damp-carpet crouching, hard-floor sprinting, left/right ambience and environmental tension. It mixes the bundled footstep recordings with generated sounds and does not record a playthrough. Supporting materials:
 
@@ -194,3 +210,23 @@ The 12-second stereo sound preview demonstrates carpet walking, damp-carpet crou
 This version combines exploration with one simple threat. It has no photo sprites, separate themed districts, furniture, weapons, network play or saved gameplay sessions. The creature uses bounded local pathfinding and a short memory, without complex tactics or a general-purpose navigation system. Settings persist, but world progress does not. Lighting can contribute across walls because it has no shadow maps or full global illumination. Audible spatial playback uses stereo panning and distance attenuation plus direct-ray wall attenuation for creature sounds, without HRTF filtering or acoustic propagation; the creature's hearing uses a separate obstruction-based detection rule. Normal maps change shading, not geometry. The exit presents an ending screen. Initial loading and cache misses remain synchronous, and procedural architectural motifs repeat.
 
 This educational prototype includes substantial Codex assistance. Review and adapt the implementation, record student contributions and be able to explain it. The supplied syllabus's restrictions and disclosure requirements still apply. Team details, the official report template, defence date and final instructor rubric remain to be confirmed before an assessed submission. Nothing has been submitted to Moodle.
+
+## Lighting and material update — 11 October 2026
+
+The flashlight now casts filtered shadows from room geometry, swinging doors,
+ventilation slats and the animated creature. Its emitter sits slightly below and
+to the right of the camera, making nearby shadows visible. It returns to the
+camera position when that offset would penetrate a wall.
+
+Each of the selected ceiling lights has six cached 256px depth views. Walls,
+frames, grilles and live door panels block its direct light; moving a nearby door
+or changing nearby streamed geometry refreshes that light's cache. Lamp flicker
+changes intensity without rebuilding the depth maps. Small ambient fill remains.
+
+Contact Shading adds restrained screen-space occlusion in corners and joints.
+Set it to zero in Settings to disable its rendering pass. Paper, carpet and
+ceiling variations retain the existing yellow palette, layout and texture banks;
+rare wet patches use lighting highlights rather than mirror reflections.
+
+See [graphics-update.md](docs/graphics-update.md) for measurements and limitations.
+Use `build.ps1 -Test -GraphicsTest` for native tests and rendered shadow/AO probes.

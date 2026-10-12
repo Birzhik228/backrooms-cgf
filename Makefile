@@ -11,7 +11,7 @@ TARGET = Backrooms
 LDLIBS = -lglfw -lGL -ldl -lpthread
 endif
 all: $(TARGET)
-$(TARGET): $(SOURCES) world.h common/math.h common/Shader.h common/ui.h common/controls_guide.h common/textures.h common/audio.h common/music.h common/gameplay.h common/movement.h common/player_state.h common/settings.h common/threat.h common/threat_model.h common/encounter.h common/jumpscare.h common/mouse.h
+$(TARGET): $(SOURCES) world.h common/math.h common/Shader.h common/ui.h common/graphics.h common/controls_guide.h common/textures.h common/audio.h common/music.h common/gameplay.h common/movement.h common/player_state.h common/settings.h common/threat.h common/threat_model.h common/encounter.h common/jumpscare.h common/mouse.h
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOURCES) -o $@ $(LDLIBS)
 test: world.cpp tests/world_tests.cpp tests/streaming_tests.cpp tests/movement_tests.cpp tests/threat_tests.cpp tests/threat_model_tests.cpp tests/encounter_tests.cpp tests/audio_tests.cpp common/audio.cpp common/audio.h common/gameplay.h common/movement.h common/player_state.h common/settings.h common/threat.cpp common/threat.h common/threat_model.cpp common/threat_model.h common/encounter.h common/jumpscare.h common/mouse.h world.h
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) world.cpp tests/world_tests.cpp -o world_tests

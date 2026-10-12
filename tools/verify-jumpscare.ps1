@@ -1,4 +1,4 @@
-param([string]$Executable='Backrooms.exe')
+param([string]$Executable='Backrooms.exe',[string]$CaseFilter='*')
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $taskRoot
@@ -12,18 +12,24 @@ $taskCases=@(
     @{name='late';frames=110;args=@('--auto-catch');expected='Encounter: jumpscare'},
     @{name='black';frames=129;args=@('--auto-catch');expected='Encounter: jumpscare'},
     @{name='gameover';frames=150;args=@('--auto-catch');expected='Encounter: game-over'},
-    @{name='restart';frames=170;args=@('--auto-catch','--auto-restart');expected='Restarts: 1. Key: missing. Hiding: no. Encounter: exploring'},
+    @{name='restart';frames=170;args=@('--auto-catch','--auto-restart');expected='Restarts: 1'},
     @{name='debug-repeat';frames=205;args=@('--auto-jumpscare','--auto-restart');expected='Catches: 2. Restarts: 1'},
     @{name='proximity';frames=38;args=@('--threat-x','3.75','--threat-z','2.4');expected='Catches: 1'},
     @{name='crouched';frames=75;args=@('--auto-jumpscare','--auto-crouch');expected='Encounter: jumpscare'}
 )
 foreach($taskCase in $taskCases) {
+    if($taskCase.name -notlike $CaseFilter){continue}
     $taskArgs=@('--hidden','--demo','--frames',$taskCase.frames,'--capture',"$taskEvidence/$($taskCase.name).bmp")+$taskCase.args
     $taskP=Start-Process -FilePath $taskExecutable -WorkingDirectory $taskRoot -ArgumentList $taskArgs -WindowStyle Hidden -Wait -PassThru
     $taskLog=Get-Content backrooms.log -Raw
     Copy-Item backrooms.log "$taskEvidence/$($taskCase.name).log"
     if($taskP.ExitCode -ne 0 -or !$taskLog.Contains('GL errors: 0') -or !$taskLog.Contains($taskCase.expected) -or !$taskLog.Contains('Loaded supplied jumpscare roar.')) {
         throw "Failed $($taskCase.name): $taskLog"
+    }
+    if($taskCase.name -eq 'restart') {
+        foreach($taskState in @('Key: missing','Hiding: no','Encounter: exploring')) {
+            if(!$taskLog.Contains($taskState)){throw "Restart missing $taskState"}
+        }
     }
     if($taskCase.name -eq 'black' -or $taskCase.name -eq 'flash') {
         $taskPixels=[IO.File]::ReadAllBytes((Join-Path $taskRoot "$taskEvidence/$($taskCase.name).bmp"))

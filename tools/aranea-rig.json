@@ -1,0 +1,166 @@
+{
+  "coordinate_system": "Blender world after GLB import: Z up; authored body and skull are diagonal. Baker aligns hip centerline and paired orbital rims independently to runtime Y-up/-Z forward.",
+  "notes": "End caps are actual center vertices at N-22 and N-11; knee is midpoint of closest upper/lower cap pair to preserve original overlapping geometry. Foot cap center differs slightly from minimum surface point; ground each leg using its lowest tip mesh vertices.",
+  "legs": [
+    {
+      "name": "front_left",
+      "upper_mesh": "Shape_CURVE_Tube_f7a6bf3255c84d64b2f365a48e59db57",
+      "lower_mesh": "Shape_CURVE_Tube_318836c04c5f4e4088371d2290585a3f",
+      "upper_parent": "SHAPE_CONTAINER_8c3d4d65be99475a8cc541c20689c432",
+      "lower_parent": "SHAPE_CONTAINER_71a3f8f094f4408398b73bfbd7e46dae",
+      "hip": [
+        -0.35517603158950806,
+        0.8215662837028503,
+        -0.14682374894618988
+      ],
+      "knee": [
+        -2.0570181608200073,
+        0.32603469491004944,
+        0.6518101990222931
+      ],
+      "tip": [
+        -1.8258693218231201,
+        0.6875870227813721,
+        -3.096168279647827
+      ],
+      "upper_knee_cap": [
+        -2.208470106124878,
+        0.2882760167121887,
+        0.5890380144119263
+      ],
+      "lower_knee_cap": [
+        -1.9055662155151367,
+        0.36379337310791016,
+        0.7145823836326599
+      ],
+      "upper_vertex_count": 77,
+      "lower_vertex_count": 88
+    },
+    {
+      "name": "front_right",
+      "upper_mesh": "Shape_CURVE_Tube_36590ec8ce024c9398439a27f798bd5c",
+      "lower_mesh": "Shape_CURVE_Tube_225b0a9ad82447cea41029f5457bc8d7",
+      "upper_parent": "SHAPE_CONTAINER_da1342f3d778424ba2a5a361682d86fe",
+      "lower_parent": "SHAPE_CONTAINER_c67103d5dad944d09ab37e9325f9f868",
+      "hip": [
+        0.2173488438129425,
+        0.602638304233551,
+        -0.1895798146724701
+      ],
+      "knee": [
+        1.6181704998016357,
+        1.36111319065094,
+        0.9041307270526886
+      ],
+      "tip": [
+        2.146212339401245,
+        2.113312005996704,
+        -2.7295703887939453
+      ],
+      "upper_knee_cap": [
+        1.7680566310882568,
+        1.4585022926330566,
+        0.8702678084373474
+      ],
+      "lower_knee_cap": [
+        1.4682843685150146,
+        1.2637240886688232,
+        0.9379936456680298
+      ],
+      "upper_vertex_count": 77,
+      "lower_vertex_count": 88
+    },
+    {
+      "name": "rear_left",
+      "upper_mesh": "Shape_CURVE_Tube_85410d5bd31b42e89fea9fa4c3d63a18",
+      "lower_mesh": "Shape_CURVE_Tube_44cc10bd292346aaa2a0d72e9c8d1f23",
+      "upper_parent": "SHAPE_CONTAINER_7c20b3962f9141ac9e6705da3c16d417",
+      "lower_parent": "SHAPE_CONTAINER_60d0dc28cef24a91a25b42de7e90b4f9",
+      "hip": [
+        -0.05487878620624542,
+        -0.08616778254508972,
+        -0.48193448781967163
+      ],
+      "knee": [
+        -0.7599913477897644,
+        -1.8370565176010132,
+        0.08412791416049004
+      ],
+      "tip": [
+        -0.42529988288879395,
+        -2.3351500034332275,
+        -3.3502628803253174
+      ],
+      "upper_knee_cap": [
+        -0.7671697735786438,
+        -1.966812252998352,
+        -0.01675502210855484
+      ],
+      "lower_knee_cap": [
+        -0.752812922000885,
+        -1.7073007822036743,
+        0.1850108504295349
+      ],
+      "upper_vertex_count": 77,
+      "lower_vertex_count": 88
+    },
+    {
+      "name": "rear_right",
+      "upper_mesh": "Shape_CURVE_Tube_f53c2a8a08c54d4890204f43d5958733",
+      "lower_mesh": "Shape_CURVE_Tube_67f84f8d8caa4f16bc02896dd1f6b751",
+      "upper_parent": "SHAPE_CONTAINER_3926269f74fb45ffbe37dbf42b9f200f",
+      "lower_parent": "SHAPE_CONTAINER_9a77e1cc1cc54d68bcf296fbce993dda",
+      "hip": [
+        0.37301671504974365,
+        -0.2256762981414795,
+        -0.4947926998138428
+      ],
+      "knee": [
+        1.4705467820167542,
+        -1.7870213985443115,
+        -0.10763948038220406
+      ],
+      "tip": [
+        2.300328493118286,
+        -3.1977624893188477,
+        -3.240215539932251
+      ],
+      "upper_knee_cap": [
+        1.4387179613113403,
+        -1.9588406085968018,
+        -0.14683248102664948
+      ],
+      "lower_knee_cap": [
+        1.502375602722168,
+        -1.6152021884918213,
+        -0.06844647973775864
+      ],
+      "upper_vertex_count": 77,
+      "lower_vertex_count": 88
+    }
+  ],
+  "head": {
+    "skull_parent": "SHAPE_CONTAINER_893c84ce5a0348218596e07aa1739384",
+    "jaw_parent": "SHAPE_CONTAINER_d84e4569dc644379b18514d8b171abe9",
+    "neck_pivot": [
+      -0.43,
+      1.18,
+      -0.2
+    ],
+    "jaw_pivot": [
+      -0.37,
+      1.35,
+      -0.34
+    ],
+    "pivot_notes": "Pivots estimated visually at skull/cephalothorax and posterior jaw junctions. Both skull and jaw should follow head; lower jaw may additionally open around X.",
+    "rest_alignment": {
+      "left_socket_mesh": "Shape_CURVE_Tube_2c02299825e840beac6905359e147047",
+      "right_socket_mesh": "Shape_CURVE_Tube_d39fec973a0c421d9cd998d4140509be",
+      "notes": "Paired orbital rim meshes define the anatomical lateral axis. Source up crossed with that axis defines forward. Level the orbital rims, center their midpoint on runtime X=0 and rotate skull/jaw normals identically; preserve all source vertices, triangles and UVs. Whole body uses the front/rear hip pair centerline. No animation direction offsets are used."
+    }
+  },
+  "body_parents": [
+    "SHAPE_CONTAINER_3a14075aa0084258af09cd4fb157a3e0",
+    "SHAPE_CONTAINER_2f9b9b17ba45440f9f8b10f6fa6658e6"
+  ]
+}

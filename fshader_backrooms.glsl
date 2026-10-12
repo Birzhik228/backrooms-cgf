@@ -9,6 +9,11 @@ out vec4 fragColor;
 
 uniform vec3 uCamera;
 uniform vec3 uForward;
+uniform vec3 uFlashPosition;
+uniform mat4 uFlashVP;
+uniform bool uFlashShadows;
+uniform sampler2DShadow uFlashShadow;
+uniform sampler2DArrayShadow uLampShadows;
 uniform vec3 uWorldPhase;
 uniform float uTime;
 uniform float uExposure;
@@ -28,9 +33,12 @@ uniform sampler2D uCarpetNormal;
 uniform sampler2D uCeilingNormal;
 uniform sampler2D uHardFloor;
 uniform sampler2D uHardFloorNormal;
+uniform sampler2D uCreatureColor;
+uniform sampler2D uCreatureNormal;
 
-// Texture and authored material RGB values are display-space colors. All
-// illumination is linear, with a single tone map and gamma conversion below.
+// Color images and room material RGB values are display-space colors. The
+// creature's imported glTF factors are already linear. All illumination is
+// linear, with a single tone map and gamma conversion below.
 vec3 linearColor(vec3 c) { return pow(max(c, vec3(0.0)), vec3(2.2)); }
 
 float lampEnvelope(int state, float phase) {
@@ -96,6 +104,41 @@ float exitText(vec2 uv) {
     return exitLetter(pixel.x / 6, ivec2(pixel.x % 6, pixel.y)) ? 1.0 : 0.0;
 }
 
+float flashVisibility(vec3 normal) {
+    if(!uFlashShadows)return 1.0;
+    vec4 clip=uFlashVP*vec4(vPosition+normal*.008,1);
+    if(clip.w<=0.0)return 0.0;
+    vec3 p=clip.xyz/clip.w*.5+.5;
+    if(any(lessThan(p,vec3(0)))||any(greaterThan(p,vec3(1))))return 0.0;
+    float visibility=0.0;
+    vec2 texel=1.0/vec2(textureSize(uFlashShadow,0));
+    for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++)
+        visibility+=texture(uFlashShadow,vec3(p.xy+vec2(x,y)*texel,p.z-.00015));
+    return visibility/9.0;
+}
+float lampVisibility(int index,vec3 normal) {
+    vec3 delta=vPosition+normal*.018-uLights[index];
+    vec3 a=abs(delta);vec3 f;vec3 up=vec3(0,1,0);int face;
+    if(a.x>=a.y&&a.x>=a.z){face=delta.x>0?0:1;f=vec3(sign(delta.x),0,0);}
+    else if(a.y>=a.z){face=delta.y>0?2:3;f=vec3(0,sign(delta.y),0);up=vec3(0,0,1);}
+    else {face=delta.z>0?4:5;f=vec3(0,0,sign(delta.z));}
+    vec3 s=normalize(cross(f,up));vec3 u=cross(s,f);
+    float distance=dot(delta,f);
+    if(distance<.05)return 1.0;
+    vec2 at=vec2(dot(delta,s),dot(delta,u))/distance*.5+.5;
+    // Exact same .05..10 perspective depth as the six lamp render views.
+    float depth=10.0/9.95-(10.0*.05)/(9.95*distance);
+    return texture(uLampShadows,vec4(at,float(index*6+face),depth-.0003));
+}
+float wearHash(vec2 cell){return fract(sin(dot(mod(cell,36.0),vec2(127.1,311.7)))*43758.5453);}
+float wearNoise(vec2 p) {
+    vec2 cell=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
+    float a=wearHash(cell);
+    float b=wearHash(cell+vec2(1,0));
+    float c=wearHash(cell+vec2(0,1));
+    float d=wearHash(cell+vec2(1,1));
+    return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}
 void main() {
     // Integer material IDs remain unchanged; fluorescent tubes additionally
     // encode their stable phase in the fractional part of IDs 32, 33 and 34.
@@ -105,8 +148,12 @@ void main() {
     vec3 toEye = uCamera - vPosition;
     float distanceToEye = length(toEye);
     vec3 viewDirection = toEye / max(distanceToEye, 0.0001);
-    float cone = smoothstep(0.84, 0.955, dot(-viewDirection, normalize(uForward)));
-    float flashlight = uFlashlight ? cone / (1.0 + distanceToEye * distanceToEye * 0.115) : 0.0;
+    vec3 flashDelta=uFlashPosition-vPosition;
+    float flashDistance=length(flashDelta);
+    vec3 flashDirection=flashDelta/max(flashDistance,.0001);
+    float cone = smoothstep(0.84, 0.955, dot(-flashDirection, normalize(uForward)));
+    float flashlight = uFlashlight ? cone / (1.0 + flashDistance * flashDistance * 0.115) : 0.0;
+    if(flashlight>0.0001)flashlight*=flashVisibility(geometricNormal);
 
     vec3 albedo = linearColor(vec3(0.50));
     vec3 emission = vec3(0.0);
@@ -128,6 +175,11 @@ void main() {
         albedo = linearColor(texture(uWallpaper, wallpaperUV).rgb);
         normal = mappedNormal(geometricNormal, wallpaperUV,
                               texture(uWallpaperNormal, wallpaperUV).rgb, 1.0);
+        // Restrained extra wear uses the same bounded world phase as the paper.
+        float age=wearNoise(vec2(alongWall*.2+planePhase*9.0,vPosition.y*.7));
+        albedo*=mix(.93,1.03,age);
+        float ripple=sin(alongWall*4.188790205+age*4.0)*.025;
+        normal=normalize(normal+vec3(eastWall?0.0:ripple,ripple*.25,eastWall?ripple:0.0));
         // Damp staining is material color, not a simulated contact shadow.
         float dampHeight = 0.25 + 0.10 * sin(wallpaperUV.x * 12.566371)
                                   + 0.035 * sin(wallpaperUV.x * 56.548668);
@@ -140,10 +192,19 @@ void main() {
         albedo *= wet ? vec3(0.58, 0.63, 0.65) : vec3(1.0);
         specularStrength = wet ? 0.26 : 0.003;
         shininess = wet ? 48.0 : 8.0;
+        vec2 floorPosition=(vPosition.xz+uWorldPhase.xz);
+        float wear=wearNoise(floorPosition*.4);
+        albedo*=mix(.92,1.015,wear);
+        normal=normalize(mix(normal,geometricNormal,(1.0-smoothstep(.25,.65,wear))*.24));
+        float wetPatch=smoothstep(.78,.92,wearNoise(floorPosition*.2+vec2(31,7)));
+        specularStrength=mix(specularStrength,wet?.32:.09,wetPatch);
+        shininess=mix(shininess,48.0,wetPatch);
     } else if (material == 2) {
         albedo = linearColor(texture(uCeiling, vUV).rgb);
         normal = mappedNormal(geometricNormal, vUV, texture(uCeilingNormal, vUV).rgb, 1.0);
         specularStrength = 0.009;
+        float age=wearNoise((vPosition.xz+uWorldPhase.xz)*.2+vec2(19,3));
+        albedo*=mix(.91,1.0,smoothstep(.18,.65,age));
     } else if (material == 3) {
         albedo = linearColor(vec3(0.34, 0.295, 0.18));
         specularStrength = 0.04;
@@ -202,27 +263,31 @@ void main() {
         albedo=linearColor(vec3(.72,.51,.12));
         emission=vec3(.10,.063,.009);
         specularStrength=.65;shininess=70.0;
-    } else if (material == 20) {
-        // Preserve the supplied Smiler's black skin; a restrained specular
-        // response reveals the imported rounded surface under the flashlight.
-        albedo = linearColor(vec3(0.075, 0.078, 0.080));
-        specularStrength = 0.025;
-        shininess = 28.0;
-    } else if (material == 21) {
-        // The original mesh provides the eyes and every tooth of the grin.
-        // Subtle constant emission preserves the Smiler silhouette in darkness.
-        albedo = linearColor(vec3(0.82, 0.83, 0.79));
-        emission = mix(vec3(0.22, 0.23, 0.21),vec3(5.0),uScareGlow);
-        specularStrength = 0.0;
+    } else if (material >= 20 && material <= 22) {
+        // All three source materials share sRGB carpet and linear normal
+        // images. glTF base factors are already LINEAR and are not decoded.
+        // Original mesh UVs preserve its carpet weave across articulated legs.
+        vec3 factor = material == 20 ? vec3(0.520995677, 0.502886593, 0.491020888)
+                    : material == 21 ? vec3(0.921582043, 0.854992807, 0.806952477)
+                                     : vec3(0.00972121768, 0.00856812485, 0.00856812485);
+        albedo = linearColor(texture(uCreatureColor, vUV).rgb) * factor;
+        normal = mappedNormal(geometricNormal, vUV,
+                              texture(uCreatureNormal, vUV).rgb, 0.635);
+        specularStrength = 0.012;
+        shininess = 12.0;
+        // The face receives scene lighting, with a brief fill at capture.
+        // No persistent Smiler eye/teeth emission remains on this new model.
+        if (material == 21) emission = albedo * (0.30 * uScareGlow);
     }
 
     // Low ambient fill leaves deep shadows between dim fluorescent pools.
-    // This is direct Blinn-Phong lighting, without shadow maps or GI.
+    // Direct lighting uses geometric shadow maps; ambient remains restrained.
     float facingFill = mix(0.83, 1.0, geometricNormal.y * 0.5 + 0.5);
     vec3 ambient = vec3(0.035, 0.034, 0.026) * facingFill;
     vec3 color = albedo * ambient;
     // Match the fixed light capacity; zeroed unused slots contribute no light.
     for (int i = 0; i < 24; ++i) {
+        if(uLightPower[i]<=0.0)continue;
         vec3 delta = uLights[i] - vPosition;
         float d = length(delta);
         if (d >= 10.0) continue;
@@ -234,12 +299,14 @@ void main() {
         float diffuse = max(dot(normal, lightDirection), 0.0);
         vec3 halfSum = lightDirection + viewDirection;
         vec3 halfVector = halfSum / max(length(halfSum), 0.0001);
+        if(diffuse<=0.0)continue;
+        power*=lampVisibility(i,geometricNormal);
         float specular = diffuse > 0.0 ? pow(max(dot(normal, halfVector), 0.0), shininess) : 0.0;
         vec3 lightColor = max(uLightColor[i], vec3(0.0));
         color += (albedo * diffuse + vec3(specular * specularStrength)) * lightColor * power;
     }
 
-    float flashDiffuse = max(dot(normal, viewDirection), 0.0);
+    float flashDiffuse = max(dot(normal, flashDirection), 0.0);
     color += albedo * vec3(1.0, 0.98, 0.90) * flashlight * (0.10 + 1.9 * flashDiffuse);
     float flashSpecular = pow(flashDiffuse, shininess) * specularStrength;
     color += vec3(1.0, 0.98, 0.90) * flashlight * flashSpecular * 1.9;

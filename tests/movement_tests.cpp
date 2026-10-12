@@ -70,18 +70,21 @@ int main() {
     Settings settings;
     const auto path=std::filesystem::temp_directory_path()/"backrooms-v10-settings-test.cfg";
     settings.volume=.3f;settings.blur=0;settings.vsync=false;
-    settings.musicEnabled=false;settings.musicVolume=.65f;
+    settings.musicEnabled=false;settings.musicVolume=.65f;settings.ambientOcclusion=.4f;
     check(settings.save(path.string()),"Settings save succeeds");
     Settings loaded;
     check(loaded.load(path.string()) && loaded.volume==.3f && loaded.blur==0 && !loaded.vsync,"Settings reload preserves user preferences");
     check(!loaded.musicEnabled && loaded.musicVolume==.65f,"Music toggle and independent volume persist");
+    check(loaded.ambientOcclusion==.4f,"Contact shading strength persists");
     {std::ofstream malformed(path);malformed<<"volume 200\nfov -500\nbrightness nan\nunknown 10\nsensitivity garbage\nblur -1\n";}
     Settings bounded;bounded.load(path.string());
     check(bounded.volume==1 && bounded.fov==65 && bounded.brightness==1 && bounded.sensitivity==.095f && bounded.blur==0,"Malformed and out-of-range settings stay safe");
     check(bounded.musicEnabled && bounded.musicVolume==.35f,"Old settings files retain new music defaults");
-    {std::ofstream musicSettings(path);musicSettings<<"musicVolume 12\nmusicEnabled 0\n";}
+    check(bounded.ambientOcclusion==.65f,"Old settings preserve contact shading defaults");
+    {std::ofstream musicSettings(path);musicSettings<<"musicVolume 12\nmusicEnabled 0\nambientOcclusion -12\n";}
     bounded.load(path.string());
     check(bounded.musicVolume==1 && !bounded.musicEnabled,"Music volume is bounded and toggle works independently");
+    check(bounded.ambientOcclusion==0,"Contact shading clamps invalid strength to off");
     std::filesystem::remove(path);
     std::cout << "Movement/settings tests passed: movement, stamina, recovery, smoothing, reset, settings roundtrip and malformed input.\n";
 }

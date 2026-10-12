@@ -38,7 +38,7 @@ $taskResults=foreach($taskCase in $taskCases){
  $taskProcess=Start-Process -FilePath $taskExecutable -WorkingDirectory $taskRoot -ArgumentList $taskArguments -PassThru -Wait -WindowStyle Hidden
  $taskLog=[string](Get-Content -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Raw)
  Copy-Item -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Destination (Join-Path $taskArtifacts "$($taskCase.name).log")
- if($taskProcess.ExitCode -ne 0 -or $taskLog -notmatch 'GL errors: 0' -or $taskLog -notmatch 'Loaded 6 recorded footstep samples' -or $taskLog -notmatch 'Music loaded: yes' -or $taskLog -notmatch 'Loaded Smiler model: 8728 triangles' -or !$taskLog.ToLowerInvariant().Contains($taskCase.expect.ToLowerInvariant())){throw "$($taskCase.name) failed: $taskLog"}
+ if($taskProcess.ExitCode -ne 0 -or $taskLog -notmatch 'GL errors: 0' -or $taskLog -notmatch 'Loaded 6 recorded footstep samples' -or $taskLog -notmatch 'Music loaded: yes' -or $taskLog -notmatch 'Loaded Aranea model: 15220 triangles' -or !$taskLog.ToLowerInvariant().Contains($taskCase.expect.ToLowerInvariant())){throw "$($taskCase.name) failed: $taskLog"}
  if($taskCase.name -eq 'natural-spawn') {
   if($taskLog -notmatch 'Threat: WANDERING / distance ([0-9.]+) m'){throw 'No natural spawn distance logged'}
   $taskDistance=[double]::Parse($Matches[1],[Globalization.CultureInfo]::InvariantCulture)

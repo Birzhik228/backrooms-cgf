@@ -5,6 +5,10 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 namespace br {
@@ -16,6 +20,41 @@ constexpr int kWallHeight = 512;
 constexpr float kWallMeters = 12.0f;
 constexpr float kWallHeightMeters = 3.2f;
 constexpr float kPi = 3.14159265358979323846f;
+
+std::vector<unsigned char> readCreatureTexture(const std::filesystem::path& path) {
+    // This deliberately small format needs no runtime image dependency. Check
+    // the exact bounded file before allocating or creating any GL resources.
+    constexpr std::size_t kHeaderBytes = 16;
+    constexpr std::size_t kPixelBytes = std::size_t(kSize) * kSize * 3;
+    const auto fail = [&path](const char* reason) -> void {
+        throw std::runtime_error("Cannot load creature texture " + path.generic_string()
+            + ": " + reason + ". Restore assets/models/aranea/*.rgb or regenerate them "
+              "with python tools/prepare_aranea_textures.py.");
+    };
+    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    if (!file) fail("file is missing or unreadable");
+    if (file.tellg() != std::streamoff(kHeaderBytes + kPixelBytes))
+        fail("invalid RGB cache byte count");
+    file.seekg(0);
+    std::array<unsigned char, kHeaderBytes> header{};
+    if (!file.read(reinterpret_cast<char*>(header.data()), header.size()))
+        fail("truncated RGB cache header");
+    constexpr std::array<unsigned char, 8> magic{'A','R','A','T','E','X','1',0};
+    if (!std::equal(magic.begin(), magic.end(), header.begin()))
+        fail("unsupported RGB cache version");
+    const auto read32 = [&header](std::size_t offset) {
+        return std::uint32_t(header[offset]) | (std::uint32_t(header[offset+1]) << 8)
+            | (std::uint32_t(header[offset+2]) << 16) | (std::uint32_t(header[offset+3]) << 24);
+    };
+    if (read32(8) != kSize || read32(12) != kSize)
+        fail("RGB cache must be exactly 512 by 512 pixels");
+    std::vector<unsigned char> pixels(kPixelBytes);
+    if (!file.read(reinterpret_cast<char*>(pixels.data()), pixels.size()))
+        fail("truncated RGB cache pixels");
+    if (file.peek() != std::char_traits<char>::eof())
+        fail("unexpected trailing RGB cache data");
+    return pixels;
+}
 
 float clamp01(float x) { return std::max(0.0f, std::min(1.0f, x)); }
 float fract(float x) { return x - std::floor(x); }
@@ -177,6 +216,8 @@ void scarColor(const std::array<PaperScar, 11>& scars, float x, float y, float r
 } // namespace
 
 Textures createTextures() {
+    const auto creatureColor = readCreatureTexture("assets/models/aranea/creature-color.rgb");
+    const auto creatureNormal = readCreatureTexture("assets/models/aranea/creature-normal.rgb");
     Textures textures;
     std::vector<unsigned char> image(kWallWidth * kWallHeight * 3);
     std::vector<float> heights(kWallWidth * kWallHeight);
@@ -278,6 +319,10 @@ Textures createTextures() {
     }
     textures.hardFloor = upload(image);
     textures.hardFloorNormal = uploadNormals(heights, kSize, kSize, 1.0f, 1.0f);
+    // GL_RGB8 preserves source bytes for both maps. Only the shader's color
+    // branch decodes sRGB; decoding the normal map would bend the normals.
+    textures.creatureColor = upload(creatureColor);
+    textures.creatureNormal = upload(creatureNormal);
     glBindTexture(GL_TEXTURE_2D, 0);
     return textures;
 }
@@ -285,8 +330,9 @@ Textures createTextures() {
 void destroyTextures(Textures& textures) {
     const unsigned int ids[] = {textures.wallpaper, textures.carpet, textures.ceiling,
         textures.wallpaperNormal, textures.carpetNormal, textures.ceilingNormal,
-        textures.hardFloor, textures.hardFloorNormal};
-    glDeleteTextures(8, ids);
+        textures.hardFloor, textures.hardFloorNormal,
+        textures.creatureColor, textures.creatureNormal};
+    glDeleteTextures(10, ids);
     textures = Textures{};
 }
 

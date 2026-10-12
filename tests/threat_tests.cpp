@@ -17,6 +17,95 @@ void tick(br::Threat& threat,const br::World& world,const br::ThreatPlayer& play
     }
 }
 
+void checkForwardStep(const br::Threat& threat,double previousX,double previousZ,float previousYaw,float dt) {
+    const double dx=threat.x()-previousX,dz=threat.z()-previousZ,distance=std::hypot(dx,dz);
+    check(std::abs(std::remainder(threat.yaw()-previousYaw,2*PI))<=9*dt+1e-5,
+          "all movement substeps share one bounded angular budget");
+    if (distance>1e-7) {
+        const double forwardDot=(dx*std::sin(threat.yaw())-dz*std::cos(threat.yaw()))/distance;
+        check(forwardDot>=std::cos(2*PI/180)-1e-6,
+              "each translated frame faces within two degrees of its actual travel direction");
+    } else check(threat.speed()==0,"turning in place has zero gait speed");
+}
+
+void forwardLocomotion() {
+    br::World world(42); world.update(3.75,3.75);
+    // Four world directions catch model/AI conventions that only work north.
+    for (const float heading:{0.f,PI/2,PI,-PI/2}) {
+        br::ThreatPlayer player; player.x=3.75+2.85*std::sin(heading);
+        player.z=3.75-2.85*std::cos(heading); player.noise=1;
+        check(!world.blocked(player.x,player.z,br::Threat::RADIUS),"cardinal pursuit target is clear");
+        br::Threat actor; actor.resetAt(3.75,3.75,heading);
+        for (int i=0;i<3;++i) {
+            const double x=actor.x(),z=actor.z(); const float yaw=actor.yaw();
+            actor.update(world,player,.1f);
+            checkForwardStep(actor,x,z,yaw,.1f);
+            check(actor.speed()>3.2f,"aligned pursuit runs forward in every cardinal direction");
+        }
+
+        // A noisy player behind the creature must cause a physical turn before
+        // its first step, including large timesteps with several swept samples.
+        actor.resetAt(3.75,3.75,heading+PI);
+        bool moved=false; int stationaryTurns=0;
+        for (int i=0;i<8 && !moved;++i) {
+            const double x=actor.x(),z=actor.z(); const float yaw=actor.yaw();
+            actor.update(world,player,.1f);
+            checkForwardStep(actor,x,z,yaw,.1f);
+            check(actor.state()==br::ThreatState::Chase,"heard player behind starts pursuit intent");
+            moved=std::hypot(actor.x()-x,actor.z()-z)>1e-7;
+            if (!moved) {
+                ++stationaryTurns;
+                check(actor.x()==3.75 && actor.z()==3.75,"turnaround stays exactly at the original position");
+            }
+        }
+        check(stationaryTurns>=3 && moved,"bounded 180-degree turnaround precedes a forward run");
+
+        actor.resetAt(3.75,3.75,heading+PI/2);
+        actor.update(world,player,.1f);
+        check(actor.x()==3.75 && actor.z()==3.75 && actor.speed()==0,
+              "a 90-degree pursuit turn cannot begin with a sideways step");
+        const float quarterTurnYaw=actor.yaw();
+        actor.update(world,player,.1f);
+        checkForwardStep(actor,3.75,3.75,quarterTurnYaw,.1f);
+        check(actor.speed()>3.2f,"a completed 90-degree turn immediately resumes forward running");
+    }
+
+    // Quiet patrol uses a slower turn budget even when multiple collision
+    // samples are necessary; hiding isolates this from sight/hearing changes.
+    br::Threat patrol; patrol.resetAt(3.75,3.75,PI);
+    br::ThreatPlayer hidden; hidden.x=hidden.z=3.75; hidden.hidden=true;
+    bool walked=false,turned=false;
+    for (int i=0;i<70;++i) {
+        const double x=patrol.x(),z=patrol.z(); const float yaw=patrol.yaw();
+        patrol.update(world,hidden,.1f);
+        checkForwardStep(patrol,x,z,yaw,.1f);
+        check(patrol.state()==br::ThreatState::Wander && patrol.speed()<1.101f,
+              "quiet patrol retains its walking speed and state");
+        const float turn=std::abs(std::remainder(patrol.yaw()-yaw,2*PI));
+        check(turn<=.60001f,"walking spends at most six radians per second on turning");
+        walked|=patrol.speed()>.1f; turned|=turn>.1f;
+    }
+    check(walked && turned,"patrol fixture exercises both forward walking and turns");
+
+    // The north-wall detour has several grid corners. At a corner even a
+    // 100 ms frame may advance only one straight segment, then turn in place.
+    br::Threat actor; actor.resetAt(.9,.7,0);
+    br::ThreatPlayer player; player.x=.9; player.z=-.7; player.noise=1;
+    bool pathUsed=false; int cornerTurns=0,movingFrames=0;
+    for (int i=0;i<140 && !actor.caught();++i) {
+        const double x=actor.x(),z=actor.z(); const float yaw=actor.yaw();
+        actor.update(world,player,.1f);
+        checkForwardStep(actor,x,z,yaw,.1f);
+        check(!world.blocked(actor.x(),actor.z(),br::Threat::RADIUS),"turning around a corner preserves capsule clearance");
+        pathUsed|=actor.pathNodesVisited()>0;
+        if (std::hypot(actor.x()-x,actor.z()-z)>1e-7) ++movingFrames;
+        else if (movingFrames>0 && std::abs(std::remainder(actor.yaw()-yaw,2*PI))>.1f) ++cornerTurns;
+    }
+    check(pathUsed && actor.caught() && cornerTurns>=2,
+          "nontrivial wall detour visibly pivots at successive corners before catching the player");
+    std::cout<<"Forward movement, four directions, bounded turnarounds and corner pivots: PASS\n";
+}
+
 void perceptionAndCatch() {
     br::World world(42); world.update(3.75,3.75);
     br::Threat enemy(42);
@@ -188,7 +277,7 @@ void unreachableBudgetAndSeedSweep() {
 
 int main() {
     try {
-        perceptionAndCatch(); occlusionAndDoor(); memoryPauseAndNavigation(); safeSpawnAndStreaming(); unreachableBudgetAndSeedSweep();
+        forwardLocomotion(); perceptionAndCatch(); occlusionAndDoor(); memoryPauseAndNavigation(); safeSpawnAndStreaming(); unreachableBudgetAndSeedSweep();
         std::cout<<"Threat tests: PASS\n"; return 0;
     } catch (const std::exception& error) {
         std::cerr<<"Threat tests: FAIL: "<<error.what()<<'\n'; return 1;

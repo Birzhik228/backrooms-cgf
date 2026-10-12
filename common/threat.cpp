@@ -208,21 +208,31 @@ void Threat::chooseWanderGoal(const World& world,const ThreatPlayer& player) {
 
 void Threat::walk(const World& world,float dt,float desiredSpeed) {
     const double initialX=x_,initialZ=z_;
-    double remaining=desiredSpeed*dt;
-    while (remaining>1e-7 && pathIndex_<path_.size()) {
-        const auto point=path_[pathIndex_];
-        const double dx=point.x-x_,dz=point.z-z_,distance=std::hypot(dx,dz);
-        if (distance<.025) { ++pathIndex_; continue; }
-        const double step=std::min({remaining,distance,.12});
+    // Skip already reached attachment points before spending this frame's one
+    // turning budget. Never translate toward a route while looking sideways.
+    while (pathIndex_<path_.size() &&
+           std::hypot(path_[pathIndex_].x-x_,path_[pathIndex_].z-z_)<.025) ++pathIndex_;
+    if (pathIndex_==path_.size()) return;
+    const auto point=path_[pathIndex_];
+    const double dx=point.x-x_,dz=point.z-z_,distance=std::hypot(dx,dz);
+    const float desiredYaw=static_cast<float>(std::atan2(dx,-dz));
+    const float delta=std::remainder(desiredYaw-yaw_,static_cast<float>(2*PI));
+    const float turnRate=state_==ThreatState::Wander?6.f:9.f;
+    yaw_+=std::clamp(delta,-dt*turnRate,dt*turnRate);
+    constexpr float alignmentTolerance=static_cast<float>(2*PI/180);
+    if (std::abs(std::remainder(desiredYaw-yaw_,static_cast<float>(2*PI)))>alignmentTolerance) return;
+
+    // Sweep only this straight segment. Reaching a corner ends translation for
+    // the frame; the next frame turns toward the next leg before moving again.
+    double remaining=std::min(static_cast<double>(desiredSpeed)*dt,distance);
+    while (remaining>1e-7) {
+        const double step=std::min(remaining,.12);
         const double nextX=x_+dx/distance*step,nextZ=z_+dz/distance*step;
         if (!segmentClear(world,x_,z_,nextX,nextZ,RADIUS)) {
             path_.clear(); pathIndex_=0; repath_=.35f;
             break;
         }
         x_=nextX; z_=nextZ; remaining-=step;
-        const float desiredYaw=static_cast<float>(std::atan2(dx,-dz));
-        const float delta=std::remainder(desiredYaw-yaw_,static_cast<float>(2*PI));
-        yaw_+=std::clamp(delta,-dt*6.f,dt*6.f);
     }
     speed_=dt>0?static_cast<float>(std::hypot(x_-initialX,z_-initialZ))/dt:0;
 }

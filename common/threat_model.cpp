@@ -13,7 +13,7 @@
 namespace br {
 namespace {
 
-constexpr std::size_t MAX_ASSET_BYTES=16*1024*1024;
+constexpr std::size_t MAX_ASSET_BYTES=48*1024*1024;
 constexpr std::size_t CLIP_COUNT=7;
 constexpr float POSITION_UNIT=1.f/8192.f,NORMAL_UNIT=1.f/32767.f;
 struct Point { float x=0,y=0,z=0; };
@@ -26,15 +26,18 @@ Point normalized(Point p) {
 struct Sample { Point p,n; };
 struct PackedVertex { std::int16_t px,py,pz,nx,ny,nz; };
 struct Triangle { std::array<std::uint32_t,3> vertices; std::uint8_t material; };
-struct Clip { std::uint32_t frames=0; float duration=0; bool loop=false; std::vector<PackedVertex> values; };
-struct Model { std::uint32_t vertices=0; std::vector<Triangle> triangles; std::array<Clip,CLIP_COUNT> clips; };
+struct FrameInfo { Point pivot; std::uint8_t contacts=0; };
+struct SkinMask { std::uint8_t head; std::array<std::uint8_t,4> feet; };
+struct TexCoord { float u,v; };
+struct Clip { std::uint32_t frames=0; float duration=0; bool loop=false; std::vector<PackedVertex> values; std::vector<FrameInfo> info; };
+struct Model { std::uint32_t vertices=0; std::vector<Triangle> triangles; std::vector<SkinMask> masks; std::vector<TexCoord> uvs; std::array<Clip,CLIP_COUNT> clips; };
 
 struct Reader {
     std::vector<unsigned char> bytes;
     std::size_t offset=0;
     explicit Reader(const std::filesystem::path& path) {
         std::ifstream input(path,std::ios::binary|std::ios::ate);
-        if(!input)throw std::runtime_error("Smiler model is missing: "+path.string()+". Keep assets/models/smiler beside Backrooms.exe.");
+        if(!input)throw std::runtime_error("Aranea model is missing: "+path.string()+". Keep assets/models/aranea beside Backrooms.exe.");
         const auto size=input.tellg();
         if(size<32||size>static_cast<std::streamoff>(MAX_ASSET_BYTES))fail("invalid file size");
         bytes.resize(static_cast<std::size_t>(size));
@@ -43,7 +46,7 @@ struct Reader {
         if(!input)fail("incomplete read");
     }
     [[noreturn]] static void fail(const char* reason) {
-        throw std::runtime_error(std::string("Invalid Smiler animation asset: ")+reason);
+        throw std::runtime_error(std::string("Invalid Aranea animation asset: ")+reason);
     }
     void require(std::size_t count)const {if(count>bytes.size()-offset)fail("truncated data");}
     std::uint8_t u8(){require(1);return bytes[offset++];}
@@ -55,11 +58,11 @@ struct Reader {
 };
 Model readModel(const std::filesystem::path& path) {
     Reader in(path);
-    if(in.chars(8)!=std::string("BRSMIL1\0",8)||in.u32()!=1)Reader::fail("unsupported format");
+    if(in.chars(8)!=std::string("BRARAN3\0",8)||in.u32()!=3)Reader::fail("unsupported format");
     Model model;
     model.vertices=in.u32();
     const auto triangles=in.u32(),clips=in.u32();
-    if(model.vertices<100||model.vertices>6000||triangles<100||triangles>15000||clips!=CLIP_COUNT)
+    if(model.vertices<100||model.vertices>20000||triangles<100||triangles>25000||clips!=CLIP_COUNT)
         Reader::fail("count exceeds model budget");
     if(in.f32()!=POSITION_UNIT||in.f32()!=NORMAL_UNIT)Reader::fail("unsupported quantization");
     constexpr std::array<const char*,CLIP_COUNT> names={"idle","walk","run","idle_duck","walk_duck","run_duck","scare"};
@@ -74,30 +77,55 @@ Model readModel(const std::filesystem::path& path) {
             Reader::fail("invalid clip descriptor");
         c.loop=loop!=0;totalFrames+=c.frames;
     }
-    const std::size_t expected=in.offset+std::size_t(triangles)*16+totalFrames*model.vertices*12;
+    const std::size_t expected=in.offset+std::size_t(triangles)*16+model.vertices*13+totalFrames*(model.vertices*12+8);
     if(expected!=in.bytes.size())Reader::fail("size/count mismatch or trailing data");
     model.triangles.reserve(triangles);
     for(std::uint32_t k=0;k<triangles;++k) {
         Triangle t{{in.u32(),in.u32(),in.u32()},in.u8()};
-        if(t.material!=20&&t.material!=21)Reader::fail("unknown material");
+        if(t.material!=20&&t.material!=21&&t.material!=22)Reader::fail("unknown material");
         if(t.vertices[0]>=model.vertices||t.vertices[1]>=model.vertices||t.vertices[2]>=model.vertices||
            t.vertices[0]==t.vertices[1]||t.vertices[0]==t.vertices[2]||t.vertices[1]==t.vertices[2])Reader::fail("invalid triangle indices");
         if(in.u8()!=0||in.u8()!=0||in.u8()!=0)Reader::fail("nonzero reserved bytes");
         model.triangles.push_back(t);
     }
+    std::size_t headCount=0;
+    std::array<std::size_t,4> footCounts{};
+    model.masks.reserve(model.vertices);model.uvs.reserve(model.vertices);
+    for(std::size_t k=0;k<model.vertices;++k) {
+        SkinMask mask{in.u8(),{{in.u8(),in.u8(),in.u8(),in.u8()}}};
+        unsigned footWeight=0;
+        for(std::size_t foot=0;foot<4;++foot) {
+            footWeight+=mask.feet[foot];footCounts[foot]+=mask.feet[foot]>128;
+        }
+        if(footWeight>255)Reader::fail("overlapping foot weights");
+        headCount+=mask.head>128;
+        model.masks.push_back(mask);
+        const TexCoord uv{in.f32(),in.f32()};
+        if(!std::isfinite(uv.u)||!std::isfinite(uv.v)||std::abs(uv.u)>=100000.f||std::abs(uv.v)>=100000.f)
+            Reader::fail("invalid texture coordinates");
+        model.uvs.push_back(uv);
+    }
+    if(headCount<5 || std::any_of(footCounts.begin(),footCounts.end(),[](std::size_t count){return count<3;}))
+        Reader::fail("missing head or foot weights");
     for(auto& clip:model.clips) {
         clip.values.reserve(std::size_t(clip.frames)*model.vertices);
-        for(std::size_t k=0;k<std::size_t(clip.frames)*model.vertices;++k) {
-            PackedVertex p{in.i16(),in.i16(),in.i16(),in.i16(),in.i16(),in.i16()};
-            const float n=float(p.nx)*p.nx+float(p.ny)*p.ny+float(p.nz)*p.nz;
-            if(n<.90f/(NORMAL_UNIT*NORMAL_UNIT)||n>1.10f/(NORMAL_UNIT*NORMAL_UNIT))Reader::fail("invalid vertex normal");
-            clip.values.push_back(p);
+        for(std::size_t frame=0;frame<clip.frames;++frame) {
+            FrameInfo info{{in.i16()*POSITION_UNIT,in.i16()*POSITION_UNIT,in.i16()*POSITION_UNIT},in.u8()};
+            if(info.contacts>15 || in.u8()!=0 || info.pivot.y<.5f || info.pivot.y>3.3f ||
+               std::abs(info.pivot.x)>2 || std::abs(info.pivot.z)>3)Reader::fail("invalid pose metadata");
+            clip.info.push_back(info);
+            for(std::size_t k=0;k<model.vertices;++k) {
+                PackedVertex p{in.i16(),in.i16(),in.i16(),in.i16(),in.i16(),in.i16()};
+                const float n=float(p.nx)*p.nx+float(p.ny)*p.ny+float(p.nz)*p.nz;
+                if(n<.90f/(NORMAL_UNIT*NORMAL_UNIT)||n>1.10f/(NORMAL_UNIT*NORMAL_UNIT))Reader::fail("invalid vertex normal");
+                clip.values.push_back(p);
+            }
         }
     }
     return model;
 }
 const Model& cachedModel() {
-    static const Model model=readModel("assets/models/smiler/smiler.brm");
+    static const Model model=readModel("assets/models/aranea/aranea.brm");
     return model;
 }
 float finite(float x,float fallback=0){return std::isfinite(x)?x:fallback;}
@@ -120,21 +148,51 @@ Sample sample(const Cursor& c,std::size_t index) {
 }
 } // namespace
 
+ThreatFootContacts threatFootContacts(float speed,float locomotionPhase) {
+    const auto& model=cachedModel();
+    const float run=smooth((finite(speed)-1.4f)/1.7f);
+    const float phase=cycle(finite(locomotionPhase));
+    auto support=[&](std::size_t clip,int bit) {
+        const auto c=cursor(model,clip,phase);
+        const auto a=model.clips[clip].info[c.a/model.vertices].contacts;
+        const auto b=model.clips[clip].info[c.b/model.vertices].contacts;
+        return float((a>>bit)&1)*(1-c.fraction)+float((b>>bit)&1)*c.fraction;
+    };
+    ThreatFootContacts contacts;
+    for(int foot=0;foot<4;++foot)
+        contacts.feet[foot]=support(1,foot)*(1-run)+support(2,foot)*run;
+    return contacts;
+}
+
+float threatStrideLength(float speed) {
+    const float run=smooth((finite(speed)-1.4f)/1.7f);
+    return 1.30f*(1-run)+2.0f*run;
+}
+
 void validateThreatModelAsset(const std::filesystem::path& path){(void)readModel(path);}
 
 std::vector<Vertex> threatModelVertices(float animationTime,float speed,bool chasing,
-                                      float scareAmount,float stoopAmount,float locomotionPhase) {
+                                      float scareAmount,float stoopAmount,float locomotionPhase,float headYaw,float headPitch) {
     (void)chasing; // Actual motion selects the gait, including Search and stalls.
     const auto& model=cachedModel();
     const float time=std::fmod(std::max(0.f,finite(animationTime)),100000.f);
     speed=std::clamp(finite(speed),0.f,8.f);
     const float scare=unit(scareAmount),duck=unit(stoopAmount);
     const float walkWeight=smooth(speed/.7f),runWeight=smooth((speed-1.4f)/1.7f);
-    const float phase=std::isfinite(locomotionPhase)&&locomotionPhase>=0?cycle(locomotionPhase):cycle(time/(1.05f*(1-runWeight)+.58f*runWeight));
+    const float phase=std::isfinite(locomotionPhase)&&locomotionPhase>=0?cycle(locomotionPhase):cycle(time/(model.clips[1].duration*(1-runWeight)+model.clips[2].duration*runWeight));
     std::array<Cursor,CLIP_COUNT> cursors={cursor(model,0,time/3.2f),cursor(model,1,phase),cursor(model,2,phase),
         cursor(model,3,time/3.2f),cursor(model,4,phase),cursor(model,5,phase),cursor(model,6,scare)};
     const std::array<float,6> weights={(1-walkWeight)*(1-duck),walkWeight*(1-runWeight)*(1-duck),walkWeight*runWeight*(1-duck),
         (1-walkWeight)*duck,walkWeight*(1-runWeight)*duck,walkWeight*runWeight*duck};
+    Point pivot{};
+    for(std::size_t k=0;k<6;++k)if(weights[k]>0) {
+        const auto& c=cursors[k];
+        const auto& a=c.clip->info[c.a/model.vertices];
+        const auto& b=c.clip->info[c.b/model.vertices];
+        pivot=pivot+(a.pivot*(1-c.fraction)+b.pivot*c.fraction)*weights[k];
+    }
+    headYaw=std::clamp(finite(headYaw),-.8f,.8f);
+    headPitch=std::clamp(finite(headPitch),-.25f,.20f);
     std::vector<Sample> posed(model.vertices);
     float floor=std::numeric_limits<float>::max();
     for(std::size_t i=0;i<model.vertices;++i) {
@@ -144,16 +202,27 @@ std::vector<Vertex> threatModelVertices(float animationTime,float speed,bool cha
             const auto s=sample(cursors[k],i);
             v.p=v.p+s.p*weights[k];v.n=v.n+s.n*weights[k];
         }
+        if(scare<=0 && model.masks[i].head>0) {
+            const float weight=model.masks[i].head/255.f;
+            const float cy=std::cos(headYaw*weight),sy=std::sin(headYaw*weight);
+            const float cp=std::cos(headPitch*weight),sp=std::sin(headPitch*weight);
+            auto rotate=[&](Point p) {
+                const float y=p.y*cp-p.z*sp,z=p.y*sp+p.z*cp;
+                return Point{p.x*cy-z*sy,y,p.x*sy+z*cy};
+            };
+            const auto r=rotate({v.p.x-pivot.x,v.p.y-pivot.y,v.p.z-pivot.z});
+            v.p=pivot+r;v.n=rotate(v.n);
+        }
         v.n=normalized(v.n);floor=std::min(floor,v.p.y);
     }
     // Interpolation between alternating foot contacts can lift both soles a
     // fraction; floor normalization keeps locomotion grounded, never the scare.
-    const float groundOffset=scare>0?0.f:.012f-floor;
+    const float groundOffset=scare>0?0.f:std::max(0.f,.012f-floor);
     std::vector<Vertex> vertices;vertices.reserve(model.triangles.size()*3);
     for(const auto& t:model.triangles)for(const auto index:t.vertices) {
-        const auto& v=posed[index];
+        const auto& v=posed[index];const auto& uv=model.uvs[index];
         vertices.push_back({v.p.x,v.p.y+groundOffset,v.p.z,v.n.x,v.n.y,v.n.z,
-                            v.p.x,v.p.y,static_cast<float>(t.material)});
+                            uv.u,uv.v,static_cast<float>(t.material)});
     }
     return vertices;
 }

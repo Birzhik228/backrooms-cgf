@@ -21,3 +21,9 @@ This is not a claim that the student independently authored the implementation. 
 The supplied syllabus, p. 5, permits disclosed, scoped assistance including brainstorming, explanation, boilerplate, refactoring and debugging. It prohibits presenting AI-generated solutions as one's own or bypassing required learning. A generated prototype of this scope needs the instructor's interpretation or approval before inclusion in an assessed submission. Disclosure alone does not establish that the full prototype is permitted.
 
 Student contribution log: add dated entries naming code reviewed, experiments performed, changes authored and tests personally repeated. Leave claims of independent work out until they are accurate.
+
+## Aranea replacement — 12 October 2026
+
+The user supplied `rec-room-backrooms-entity-62-aranea-membri.zip` and requested replacing the current creature with four-legged spider-like movement and head animation. Codex assisted with inspecting the unrigged GLB, authoring four inverse-kinematic leg chains and a separate head/jaw articulation, generating grounded walk and diagonal chase cycles, retaining the supplied mesh topology/UVs/textures, runtime animation/contact integration, and validation. The supplied source geometry and textures are not claimed as project-created assets. Runtime dependencies remain unchanged. See [model notes](../assets/models/aranea/README.md) and [implementation](aranea-motion.md).
+
+For the follow-up forward-facing and jumpscare update, Codex helped correct embedded body/skull rest axes, make navigation turn before moving, add configurable camera/lunge timing and decaying random shake, and author capture head/claw motion. Tests check actual eye landmarks, forward displacement, capture timing and restart. The supplied source GLB remains unchanged; authored animation and presentation code are project additions.
