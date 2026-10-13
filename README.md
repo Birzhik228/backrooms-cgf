@@ -153,9 +153,6 @@ ctest --test-dir build --output-on-failure
 The primary verified build is the Windows PowerShell route. Other toolchains require testing on their target machines. CMake copies the runtime shaders and assets beside its executable, including the converted creature mesh and audio.
 
 ## Source organization
-
-The structure follows the familiar BR_A1 arrangement of root source/shader files, `common/` and `include/`.
-
 ```text
 Backrooms CGF Project/
   backrooms.cpp              Application, input, camera, rendering and HUD
