@@ -2,7 +2,9 @@
 
 An effectively endless, connected yellow interior in **C++17 and OpenGL 3.3 core** for the Computer Graphics Fundamentals project. Explore worn rooms, repeating corridors and open halls with smooth first-person controls, stamina, interactive doors and spatial sound. One four-legged Aranea Membri creature wanders the level, hears movement and chases when it detects you. Break contact, hide and follow optional clues toward an exit.
 
-![In-game view](assets/preview.png)
+![Aranea Membri in-game](assets/preview.png)
+
+*The current four-legged Aranea Membri, captured in-game.*
 
 ## Aranea audio update — 13 October 2026
 
