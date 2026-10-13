@@ -1,9 +1,12 @@
 #include "../common/audio.h"
 #include "../common/gameplay.h"
 #include <algorithm>
+#include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <fstream>
+#include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <set>
@@ -188,7 +191,7 @@ void threatAudio() {
               "creature footsteps and recognition identify its world-space direction");
         mixer.reset(543); mixer.play(kind,{-25,1.65,0});
         auto far=render(mixer,br::AUDIO_SAMPLE_RATE);
-        check(channelEnergy(far,0)<channelEnergy(near,0)*.2,
+        check(channelEnergy(far,0)<channelEnergy(near,0)*(kind==br::SoundKind::ThreatNotice?.35:.2),
               "distant threat cues fade rather than staying at full volume");
     }
     mixer.reset(543);
@@ -361,9 +364,292 @@ void suppliedMonsterSteps() {
     mixer.play(br::SoundKind::ThreatStep,{30,1.65,0});const auto distant=render(mixer,22050);
     check(energy(distant)<energy(clear)*.15,"distance attenuates recorded steps");
 }
-int main() {
+void threatVocalCadence() {
+    using br::SoundKind;
+    br::ThreatVocalCadence cues;
+    auto is=[](const std::vector<SoundKind>& events,SoundKind kind){return events==std::vector<SoundKind>{kind};};
+    check(cues.update(.016f,true,false,false).empty(),"Hearing without sight does not play a visual notice");
+    check(is(cues.update(.016f,true,true,false),SoundKind::ThreatNotice),"Acquiring sight plays a notice even after a hearing-only chase");
+    check(cues.update(6.99f,true,true,false).empty(),"Continuous visibility waits seven seconds before repeating");
+    check(is(cues.update(.02f,true,true,false),SoundKind::ThreatNotice),"Sustained visible pursuit repeats a notice without needing the key");
+    check(cues.update(0,true,true,false).empty(),"Sustained pursuit never emits a burst of repeated calls");
+    cues.reset();cues.update(0,true,true,false);
+    check(cues.update(10,true,false,false,true).empty(),"Menus freeze vocal clocks and visibility history");
+    check(cues.update(0,true,true,false).empty(),"Resuming while still visible does not create a new notice");
+    cues.update(.1f,true,false,false);
+    check(cues.update(.1f,true,true,false).empty(),"Rapid sight loss and reacquisition respects the five-second cooldown");
+    check(cues.update(4.79f,true,true,false).empty(),"Reacquired sight waits until the notice cooldown expires");
+    check(is(cues.update(.02f,true,true,false),SoundKind::ThreatNotice),"Reacquired sight inside cooldown is queued rather than lost");
+    cues.update(.1f,true,false,false);cues.update(.1f,true,true,false);cues.update(.1f,true,false,false);
+    check(cues.update(6,true,false,false).empty(),"Losing sight cancels queued reacquisition and sustained repeats");
+    cues.update(5,true,false,false);
+    check(is(cues.update(0,true,true,false),SoundKind::ThreatNotice),"A later visual reacquisition can play a fresh notice");
+    cues.reset();cues.keyCollected();
+    check(is(cues.update(0,true,true,true),SoundKind::ThreatNotice),"Visual notice takes priority over simultaneous key roar");
+    check(cues.update(1.99f,true,true,true).empty(),"Notice and key roar cannot start within two seconds");
+    check(is(cues.update(.02f,true,true,true),SoundKind::ThreatRoar),"Key roar waits until the shared vocal interval ends");
+    check(cues.update(6.9f,true,true,true).empty(),"Rage does not repeat before seven seconds");
+    check(is(cues.update(.11f,true,true,true),SoundKind::ThreatRoar),"Rage retains its seven-second recurrence");
+    cues.reset();cues.keyCollected();
+    check(cues.update(1,false,false,true).empty(),"Key roar waits for an active creature");
+    check(is(cues.update(0,true,false,true),SoundKind::ThreatRoar),"Pending key roar starts when the creature becomes active");
+    check(cues.update(.1f,true,true,true).empty(),"Sight acquired during a roar queues a notice");
+    check(cues.update(1.89f,true,true,true).empty(),"Queued notice still honors the shared interval");
+    check(is(cues.update(.02f,true,true,true),SoundKind::ThreatNotice),"Queued notice plays once if the player is still visible");
+    cues.reset();cues.keyCollected();cues.update(0,true,false,true);cues.update(.1f,true,true,true);
+    cues.update(.1f,true,false,true);
+    check(cues.update(2,true,false,true).empty(),"A queued notice is cancelled if sight is lost");
+    cues.keyCollected();
+    check(cues.update(10,true,true,true,false,false).empty(),"Death suppresses pending and periodic vocals");
+    cues.reset();
+    check(is(cues.update(0,true,true,false),SoundKind::ThreatNotice),"Restart resets vocal acquisition and cooldowns");
+}
+void araneaAudio() {
+    using br::SoundKind;
+    const std::array<SoundKind,4> kinds={SoundKind::ThreatStep,SoundKind::ThreatRunStep,SoundKind::ThreatNotice,SoundKind::ThreatRoar};
+    const std::array<const char*,4> names={"walk","run","notice","roar"};
+    check(!br::loadAraneaSamples("missing-aranea-bank"),"Missing Aranea bank restores legacy fallback");
+    std::array<std::vector<std::int16_t>,4> fallback;
+    for(std::size_t kind=0;kind<kinds.size();++kind)fallback[kind]=br::synthesizeSound({kinds[kind]});
+    check(fallback[0]==fallback[1],"Legacy running falls back to the supplied monster footstep bank");
+    const auto playerBefore=br::synthesizeSound({SoundKind::Footstep});
+    br::AudioScene scene;scene.listener={0,1.65,0};scene.lightPower=0;scene.tension=0;
+    br::AudioMixer oldCapture;oldCapture.setScene(scene);oldCapture.reset(987);
+    oldCapture.play(SoundKind::Jumpscare,scene.listener);const auto captureBefore=render(oldCapture,2*br::AUDIO_SAMPLE_RATE);
+    check(br::loadAraneaSamples(),"Load all sixteen Aranea walking/running/notice/roar samples");
+    std::array<std::vector<std::int16_t>,4> first;
+    for(std::size_t kind=0;kind<kinds.size();++kind) {
+        std::set<std::vector<std::int16_t>> variants;
+        for(std::uint32_t variant=1;variant<=4;++variant) {
+            const auto clip=br::synthesizeSound({kinds[kind],br::Gait::Walk,br::Surface::Carpet,variant});
+            const auto source=br::readFootstepWav(std::string("assets/audio/aranea/")+names[kind]+"-0"+std::to_string(variant)+".wav");
+            check(clip==source,"Creature cues use their exact preloaded Aranea recording");
+            check(!clip.empty()&&clip.size()<4*br::AUDIO_SAMPLE_RATE&&energy(clip)>100,"Aranea clips remain bounded and audible");
+            check(clip.front()==0&&clip.back()==0,"Aranea sample endpoints prevent clicks");
+            for(auto sample:clip)check(std::abs(int(sample))<29000,"Aranea recordings leave source headroom");
+            variants.insert(clip);if(variant==1)first[kind]=clip;
+        }
+        check(variants.size()==4,"Each Aranea cue bank contains four distinct variations");
+    }
+    check(first[0]!=first[1],"Walking and running use different ground-contact recordings");
+    check(first[2]!=first[3],"Visual notice and recurring roar remain distinct cues");
+    check(br::synthesizeSound({SoundKind::Footstep})==playerBefore,"Player footsteps are unchanged by Aranea loading");
+    br::AudioMixer capture;capture.setScene(scene);capture.reset(987);capture.play(SoundKind::Jumpscare,scene.listener);
+    check(render(capture,2*br::AUDIO_SAMPLE_RATE)==captureBefore,"Existing capture scream and mix are unchanged by Aranea loading");
+
+    // Fail late in the last bank, after fifteen valid files, to catch partial
+    // updates that would silently mix new recordings with stale loaded clips.
+    namespace fs=std::filesystem;
+    const fs::path partial=fs::temp_directory_path()/("backrooms-aranea-test-"+
+        std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    fs::create_directory(partial);
+    std::vector<fs::path> copied;
+    for(std::size_t kind=0;kind<names.size();++kind)for(int variant=1;variant<=4;++variant) {
+        if(kind==3&&variant==4)continue;
+        const auto filename=std::string(names[kind])+"-0"+std::to_string(variant)+".wav";
+        fs::copy_file(fs::path("assets/audio/aranea")/filename,partial/filename);copied.push_back(partial/filename);
+    }
+    const bool partialLoaded=br::loadAraneaSamples(partial.string());
+    for(const auto& path:copied)fs::remove(path);
+    fs::remove(partial);
+    check(!partialLoaded,"An incomplete final Aranea bank is rejected atomically");
+    for(std::size_t kind=0;kind<kinds.size();++kind)
+        check(br::synthesizeSound({kinds[kind]})==fallback[kind],"A partial reload clears every Aranea override");
+    check(br::loadAraneaSamples(),"Aranea bank can be restored after an atomic load failure");
+
+    br::AudioMixer mixer;mixer.setScene(scene);
+    for(auto kind:kinds) {
+        mixer.reset(123);scene.threatTransmission=1;mixer.setScene(scene);
+        mixer.play(kind,{-3,1.65,0});const auto near=render(mixer,br::AUDIO_SAMPLE_RATE);
+        check(channelEnergy(near,0)>100&&channelEnergy(near,1)==0,"All Aranea cues retain stereo source direction");
+        mixer.reset(123);scene.threatTransmission=.38f;mixer.setScene(scene);
+        mixer.play(kind,{-3,1.65,0});const auto blocked=render(mixer,br::AUDIO_SAMPLE_RATE);
+        check(energy(blocked)<energy(near)*.55,"Walls attenuate Aranea walk/run/notice/roar cues");
+        mixer.reset(123);scene.threatTransmission=1;mixer.setScene(scene);
+        mixer.play(kind,{-30,1.65,0});const auto far=render(mixer,br::AUDIO_SAMPLE_RATE);
+        const bool vocal=kind==SoundKind::ThreatNotice||kind==SoundKind::ThreatRoar;
+        check(energy(far)<energy(near)*(vocal?.30:.2),"Distant Aranea cues are attenuated");
+    }
+    // Each bank owns its variant counter: inserting a run must not skip the
+    // next walking contact. Diagonal pairs must use two distinct variations.
+    const auto frames=std::max(first[0].size(),first[1].size())+64;
+    mixer.reset(731);mixer.play(SoundKind::ThreatStep,scene.listener);const auto firstWalk=render(mixer,frames);
+    mixer.play(SoundKind::ThreatStep,scene.listener);const auto secondWalk=render(mixer,frames);
+    check(firstWalk!=secondWalk,"Successive walking contacts rotate sample variations");
+    mixer.reset(731);mixer.play(SoundKind::ThreatStep,scene.listener);render(mixer,frames);
+    mixer.play(SoundKind::ThreatRunStep,scene.listener);render(mixer,frames);
+    mixer.play(SoundKind::ThreatStep,scene.listener);
+    check(render(mixer,frames)==secondWalk,"Running has an independent variation counter from walking");
+    mixer.reset(731);mixer.play(SoundKind::ThreatRunStep,scene.listener);const auto firstRun=render(mixer,frames);
+    mixer.play(SoundKind::ThreatRunStep,scene.listener);const auto secondRun=render(mixer,frames);
+    check(firstRun!=secondRun,"Successive running contacts rotate sample variations");
+    mixer.reset(731);mixer.play(SoundKind::ThreatRunStep,scene.listener);render(mixer,frames);
+    mixer.play(SoundKind::ThreatStep,scene.listener);render(mixer,frames);
+    mixer.play(SoundKind::ThreatRunStep,scene.listener);
+    check(render(mixer,frames)==secondRun,"Walking does not skip the next running variation");
+
+    mixer.reset(52);
+    mixer.play(SoundKind::ThreatRunStep,scene.listener,.8f);mixer.play(SoundKind::ThreatRunStep,scene.listener,.8f);
+    mixer.play(SoundKind::ThreatNotice,scene.listener,1.f);
+    check(mixer.activeVoices()==3,"Two diagonal foot contacts and the detection cue can overlap");
+    const auto combined=render(mixer,2*br::AUDIO_SAMPLE_RATE);
+    for(auto sample:combined)check(std::abs(int(sample))<29000,"Paired ground contacts plus notice retain mixer headroom");
+    mixer.reset(52);mixer.play(SoundKind::ThreatNotice,scene.listener);mixer.setPaused(true);
+    check(energy(render(mixer,1024))==0&&mixer.activeVoices()==0,"Pause clears Aranea audio without a delayed restart");
+    mixer.play(SoundKind::ThreatRunStep,scene.listener);mixer.setPaused(false);
+    check(mixer.activeVoices()==0,"Footstep requests made while paused cannot leak into play");
+    mixer.setVolume(0);mixer.reset(52);mixer.play(SoundKind::ThreatNotice,scene.listener);
+    check(energy(render(mixer,1024))==0,"Master mute applies to the new Aranea recordings");
+    mixer.setVolume(1);mixer.reset(731);mixer.play(SoundKind::ThreatStep,scene.listener);
+    check(render(mixer,frames)==firstWalk,"Reset restores deterministic monster variation playback");
+    mixer.reset(52);mixer.play(SoundKind::ThreatRunStep,scene.listener);mixer.play(SoundKind::Jumpscare,scene.listener);
+    check(mixer.activeVoices()==1,"Capture still replaces all new monster cues exclusively");
+}
+void resumedThreatAudio() {
+    using br::SoundKind;
+    // A pending vocal becomes due on the very first frame after Resume. The
+    // production order must synchronize pause before consuming that event.
+    auto firstResumedFrame=[](bool notice,bool syncBeforeEvents) {
+        br::ThreatVocalCadence cues;br::AudioMixer mixer;br::AudioScene scene;
+        scene.listener={0,1.65,0};scene.lightPower=0;scene.tension=0;
+        mixer.setScene(scene);mixer.reset(842);cues.keyCollected();
+        cues.update(0,true,!notice,true); // Start either notice or roar cooldown.
+        check(cues.update(1.99f,true,true,true).empty(),"A pending vocal waits before pause");
+        mixer.setPaused(true);
+        check(cues.update(30,true,true,true,true).empty(),"Pause does not consume a queued vocal");
+        if(syncBeforeEvents)mixer.setPaused(false);
+        const auto due=cues.update(.02f,true,true,true);
+        check(due==std::vector<SoundKind>{notice?SoundKind::ThreatNotice:SoundKind::ThreatRoar},
+              "The queued vocal is due on the first resumed frame");
+        for(auto cue:due)mixer.play(cue,scene.listener);
+        // The later Audio::update repeats the same pause state without clearing
+        // accepted voices. In the old order the one-shot had already been lost.
+        mixer.setPaused(false);
+        check(cues.update(0,true,true,true).empty(),"A resumed vocal remains one-shot");
+        return render(mixer,4096);
+    };
+    for(bool notice:{false,true}) {
+        check(energy(firstResumedFrame(notice,false))==0,"Negative control reproduces the lost cue with late resume sync");
+        check(energy(firstResumedFrame(notice,true))>100,"Early pause sync preserves the first resumed notice/roar in PCM");
+    }
+    br::AudioMixer capture;capture.play(SoundKind::Jumpscare,{});
+    capture.setPaused(false);capture.play(SoundKind::ThreatNotice,{});
+    check(capture.activeVoices()==1,"Repeated live pause synchronization preserves capture-only playback");
+    capture.setPaused(true);capture.setPaused(false);capture.play(SoundKind::ThreatRunStep,{});
+    check(capture.activeVoices()==0,"Pause synchronization does not release capture-only ownership");
+    br::Audio deviceLess;
+    deviceLess.setPaused(true);deviceLess.setPaused(false);
+    check(!deviceLess.available(),"Synchronizing pause neither opens nor requires an audio device");
+}
+void audibleThreatCalls() {
+    using br::SoundKind;
+    br::AudioScene scene;scene.listener={0,1.65,0};scene.lightPower=0;scene.tension=0;
+    br::AudioMixer mixer;mixer.setScene(scene);mixer.setVolume(.75f);
+    for(auto kind:{SoundKind::ThreatNotice,SoundKind::ThreatRoar})for(double distance:{14.32,22.0}) {
+        std::array<double,4> levels{};double largestOld=0;
+        for(std::uint32_t variant=1;variant<=4;++variant) {
+            const auto clip=br::synthesizeSound({kind,br::Gait::Walk,br::Surface::Carpet,variant});
+            const br::AudioPosition source{0,1.65,-distance};
+            mixer.reset(53);
+            // Advance only this bank's selector. These voices are out of range.
+            for(std::uint32_t skip=1;skip<variant;++skip)mixer.play(kind,{0,1.65,-1000});
+            mixer.play(kind,source,1.f);
+            const auto actual=render(mixer,clip.size());levels[variant-1]=energy(actual);
+            // Negative control: the former 3m reference distance and notice .8
+            // gain, with the same sample, master level, pan and output limiter.
+            const auto oldGains=br::positionalGains(scene,source,3,64);
+            std::vector<std::int16_t> old(clip.size()*2);
+            for(std::size_t i=0;i<clip.size();++i)for(std::size_t channel=0;channel<2;++channel) {
+                const double value=clip[i]/32767.0*(kind==SoundKind::ThreatNotice?.8:1.0)*
+                    (channel?oldGains.right:oldGains.left);
+                old[i*2+channel]=std::int16_t(std::lround(32767*.75*.88*value/(1+std::abs(value))));
+            }
+            const double oldLevel=energy(old),floor=distance<20?1250:850;
+            largestOld=std::max(largestOld,oldLevel);
+            check(levels[variant-1]>floor,"Every scream variant meets the 14-22m pursuit audibility floor at master .75");
+            check(oldLevel<floor,"Former attenuation fails the pursuit audibility floor with identical samples");
+            check(levels[variant-1]>oldLevel*2,"Pursuit call is at least twice as strong as its old-distance negative control");
+            for(auto value:actual)check(std::abs(int(value))<29000,"Distant pursuit calls leave limiter headroom");
+        }
+        double mean=0,variance=0;for(auto value:levels)mean+=value/levels.size();
+        for(auto value:levels)variance+=(value-mean)*(value-mean)/levels.size();
+        const double cv=std::sqrt(variance)/mean;
+        check(cv<.18,"Call variants have consistent perceived level instead of intermittent quiet variants");
+        std::cout<<(kind==SoundKind::ThreatNotice?"Notice":"Roar")<<" at "<<distance
+                 <<"m, master .75: PCM RMS "<<*std::min_element(levels.begin(),levels.end())
+                 <<".."<<*std::max_element(levels.begin(),levels.end())<<", variant CV "<<cv
+                 <<", old 3m maximum "<<largestOld<<'\n';
+    }
+}
+void threatVoicePriority() {
+    using br::SoundKind;
+    br::AudioScene scene;scene.listener={0,1.65,0};scene.lightPower=0;scene.tension=0;
+    br::AudioMixer full,isolated;full.setScene(scene);isolated.setScene(scene);
+    for(auto call:{SoundKind::ThreatNotice,SoundKind::ThreatRoar}) {
+        full.reset(93);isolated.reset(93);
+        // The oldest slot is audible: replacing any other slot would leave it
+        // in the PCM. Other slots are outside the audible range.
+        full.play(SoundKind::Door,scene.listener);
+        for(int i=1;i<12;++i)full.play(SoundKind::Door,{0,1.65,-1000});
+        check(full.activeVoices()==12,"Priority regression starts with every voice occupied");
+        full.play(call,{0,1.65,-14.32});isolated.play(call,{0,1.65,-14.32});
+        check(full.activeVoices()==12,"Important call steals one lower-priority slot without increasing budget");
+        full.enqueue({SoundKind::Footstep});full.play(SoundKind::ThreatRunStep,scene.listener);
+        full.play(SoundKind::AmbientCreak,scene.listener);
+        check(render(full,br::AUDIO_SAMPLE_RATE)==render(isolated,br::AUDIO_SAMPLE_RATE),
+              "Call replaces the oldest ordinary voice and later feet/ambience cannot displace it");
+        full.reset(93);
+        for(int i=0;i<12;++i)full.play(call,{0,1.65,-1000});
+        full.play(call,scene.listener);
+        check(energy(render(full,1024))==0,"A call never steals an equal-priority call");
+        full.play(SoundKind::Jumpscare,scene.listener);
+        check(full.activeVoices()==1,"Capture retains exclusive priority even over twelve calls");
+        full.play(call,scene.listener);full.enqueue({SoundKind::Footstep});
+        check(full.activeVoices()==1,"Ordinary priority logic cannot bypass capture-only ownership");
+    }
+}
+void writeAraneaMixerPreview(const std::filesystem::path& directory) {
+    using br::SoundKind;
+    std::filesystem::create_directories(directory);
+    auto write=[&](const std::string& name,const std::vector<std::int16_t>& samples) {
+        std::ofstream file(directory/name,std::ios::binary);check(bool(file),"Create actual mixer preview");
+        auto u16=[&](std::uint16_t value){file.put(char(value));file.put(char(value>>8));};
+        auto u32=[&](std::uint32_t value){u16(std::uint16_t(value));u16(std::uint16_t(value>>16));};
+        const auto bytes=std::uint32_t(samples.size()*2);
+        file.write("RIFF",4);u32(36+bytes);file.write("WAVEfmt ",8);u32(16);u16(1);u16(2);
+        u32(br::AUDIO_SAMPLE_RATE);u32(br::AUDIO_SAMPLE_RATE*4);u16(4);u16(16);
+        file.write("data",4);u32(bytes);for(auto value:samples)u16(std::uint16_t(value));
+        check(bool(file),"Write stereo PCM from the real mixer without normalization");
+    };
+    br::AudioScene scene;scene.listener={0,1.65,0};scene.lightPower=.5f;scene.tension=.3f;
+    scene.fluorescent={3,3.2,3};
+    br::AudioMixer mixer;mixer.setScene(scene);mixer.setVolume(.75f);mixer.reset(123);
+    std::vector<std::int16_t> preview(12*br::AUDIO_SAMPLE_RATE*2);std::size_t cursor=0;
+    for(int frame=0;frame<12*60;++frame) {
+        // Paired ground contacts walk at 6m, then run at 8m. At 7s, a
+        // left/front creature cries from the measured 14.32m encounter range.
+        if(frame<4*60&&frame%48==0)for(int contact=0;contact<2;++contact)mixer.play(SoundKind::ThreatStep,{-3,.2,-5.0},.8f);
+        if(frame>=4*60&&frame<7*60&&frame%27==0)for(int contact=0;contact<2;++contact)mixer.play(SoundKind::ThreatRunStep,{4,.2,-6.8},.8f);
+        if(frame==7*60)mixer.play(SoundKind::ThreatNotice,{-7.16,1.65,-12.401},1.f);
+        if(frame==10*60)mixer.play(SoundKind::ThreatRoar,{11,1.65,-19.05256},1.f);
+        const auto end=std::size_t((frame+1)*br::AUDIO_SAMPLE_RATE/60);
+        mixer.render(preview.data()+cursor*2,end-cursor);cursor=end;
+    }
+    write("soil-and-calls-mixer.wav",preview);
+    scene.lightPower=scene.tension=0;mixer.setScene(scene);
+    for(double distance:{14.32,22.0}) {
+        mixer.reset(123);mixer.play(SoundKind::ThreatNotice,{0,1.65,-distance},1.f);
+        write(distance<20?"notice-14m-mixer.wav":"notice-22m-mixer.wav",render(mixer,2*br::AUDIO_SAMPLE_RATE));
+    }
+    std::cout<<"Actual mixer previews saved to "<<directory.string()<<" (master .75, no normalization).\n";
+}
+int main(int argc,char** argv) {
     try { recordedBank(); wavReader(); samples(); movement(); positionalAudio(); stereoMixer(); threatAudio(); offlinePreview(); std::cout<<"Audio tests passed: recorded carpet/damp/tile footsteps, bounded WAV parsing, cadence, 3D distance and stereo panning, seeded ambience, creature tracking cues, capture sting priority/spectrum/headroom, master volume, pause/reset, 12-second stereo preview.\n"; }
     catch (const std::exception& error) { std::cerr<<"Audio tests failed: "<<error.what()<<'\n'; return 1; }
     try { suppliedScare(); suppliedMonsterSteps(); std::cout<<"Supplied scream and heavy steps: attack, exclusive mix, attenuation, headroom and reset passed.\n"; }
     catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
+    try { threatVocalCadence();araneaAudio();resumedThreatAudio();audibleThreatCalls();threatVoicePriority();
+        if(argc==3&&std::string(argv[1])=="--aranea-preview")writeAraneaMixerPreview(argv[2]);
+        std::cout<<"Aranea audio passed: atomic banks, soil walk/run variants, queued and sustained visual calls, 14-22m audibility, voice priority, wall attenuation, paired-contact headroom, first-frame resume cues, pause/mute/reset and unchanged player/capture audio.\n"; }
+    catch(const std::exception& error) { std::cerr<<"Aranea audio tests failed: "<<error.what()<<'\n';return 1; }
 }

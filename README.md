@@ -4,6 +4,15 @@ An effectively endless, connected yellow interior in **C++17 and OpenGL 3.3 core
 
 ![In-game view](assets/preview.png)
 
+## Aranea audio update — 13 October 2026
+
+- **Soil footsteps:** separate walking and running banks use Fantozzi's CC0 sand recordings, with a soft impact and ground rustle. The hard clank and extra toe click were removed. Four variations per gait follow the creature's animated foot contacts and actual movement speed.
+- **Sighting screams:** the creature screams when it sees the player, including when sound has already started a chase. Sustained visual pursuit repeats a call about every seven seconds; collecting the key enables the periodic rage roar. A cooldown limits repeated detection calls.
+- **Audible distant calls:** screams carry farther than footsteps and take priority when the mixer is busy. Stereo direction, distance, walls, closed doors, master volume and mute still affect them.
+- **Reliable playback:** resuming from pause preserves cues triggered on the first frame. The complete 16-clip bank loads before gameplay; player footsteps and the capture sound retain their existing recordings.
+
+The expanded audio tests, rebuilt game and five automated gameplay scenarios passed, covering walking, chasing, pause, key pickup and capture/restart. See [audio implementation and verification](docs/aranea-audio.md), [asset sources](assets/audio/aranea/README.md), and the bundled [sound preview](assets/audio/aranea/preview.wav).
+
 ## Play on this Windows computer
 
 1. If you cloned or downloaded the source from GitHub, follow [Build from source](#build-from-source) below first. Then open **Backrooms.exe** in the built project folder.
@@ -69,7 +78,7 @@ The clickable main and pause menus provide play/resume, settings, a new seed, a 
 
 The yellow wallpaper and acoustic-ceiling style continues through classic rooms, repeating corridors, open halls, pillar halls, dead ends and occasional odd rooms with hard tiled floors. Layouts vary across **7.5, 15 and 22.5 metre** footprints under a uniform 3.2 metre ceiling. Procedural wall scars, peeling patches and damp marks combine with normal-mapped wallpaper, dry/damp carpet, ceiling tiles and hard flooring. The connected world continues generating as you walk. The older photo Nextbots and separate themed districts remain removed. Seeded recesses carved into existing yellow walls provide hiding places; **H** marks them on the minimap. Approach and press **E** to hide or leave. Break the creature's line of sight before entering. Hiding stops movement, lowers the camera, and suppresses the flashlight while allowing you to look out.
 
-The Aranea animation update replaces the humanoid with the supplied four-legged creature. A staggered walking gait lifts one leg at a time while three support the body; running uses faster diagonal pairs. The head leads turns and follows a visible player, the jaw moves, and step sounds follow all four foot contacts. The legs fold inward for doorways. See [Aranea animation and validation notes](docs/aranea-motion.md). The [earlier Smiler animation results](docs/smiler-motion.md) are historical and do not validate this replacement.
+The Aranea animation update replaces the humanoid with the supplied four-legged creature. A staggered walking gait lifts one leg at a time while three support the body; running uses faster diagonal pairs. The body turns before moving, the head stays centered during locomotion and tracks independently while idle, the jaw moves, and step sounds follow all four foot contacts. The legs fold inward for doorways. See [Aranea animation and validation notes](docs/aranea-motion.md). The [earlier Smiler animation results](docs/smiler-motion.md) are historical and do not validate this replacement.
 
 The **Aranea Membri** uses the actual 3D mesh from the user-supplied `rec-room-backrooms-entity-62-aranea-membri.zip`, including `source/Scene.glb` and its two carpet textures. All 135 mesh parts and 15,220 triangles are retained. The source has no rig or animation; the project adds four articulated leg chains, head/jaw movement, walk/run cycles and a capture pose. Offline conversion produces `assets/models/aranea/aranea.brm` and two texture caches, so Blender and Python are not needed to build or play. Source provenance and rebuild instructions are in the [model notes](assets/models/aranea/README.md). This replaces the previous Smiler; its earlier source and animation remain in local backups. After an initial **8-second grace period**, one creature can enter unseen, reachable space **16–22 metres** from the player. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
 
@@ -79,9 +88,9 @@ Contact or unobstructed proximity within **1.5 m** triggers a **2-second 3D jump
 
 Click **Restart Run** or press **Enter** with that option selected to restart the same seed. Restart restores stamina and resets the creature and doors; settings remain saved. **Main Menu** prepares a fresh run with the same seed and leaves it paused at the menu. Escape cannot resume a defeated run. Music pauses during capture and the game-over screen. **M** and master volume also apply to the jumpscare sound.
 
-Ceiling fixtures have seeded **working, dying or off** states. Working lamps fluctuate gently, dying fixtures flicker more strongly, and off fixtures contribute no light. Each selected local light uses distance attenuation. The flashlight provides a separate directional beam.
+Ceiling fixtures have seeded **working, dying or off** states. Working lamps fluctuate gently, dying fixtures flicker more strongly, and off fixtures contribute no light. Each selected local light uses distance attenuation and cached shadows from walls, frames and doors. The flashlight provides a separate directional beam with filtered shadows, including the animated creature.
 
-Sound uses the existing Windows **WinMM** output API, with no additional library. The stereo mixer pans world-space sources relative to the camera and attenuates them using their three-dimensional distance. The nearest active fluorescent fixture hums; seeded distant creaks and drips add ambience. The player uses the supplied freesound indoor footsteps uniformly on every floor; gait still controls cadence and volume. The monster uses the supplied Universfield heavy footsteps, with distance attenuation and wall/closed-door attenuation updated every 0.1 seconds. A subdued drone and occasional electrical stinger respond to environmental tension. The creature adds positional heavy steps and a recognition cue; capture uses the user-supplied roar with a low impact, exclusive playback and controlled headroom. Ambient, door and recognition cues remain generated placeholders. Supplied footsteps and roars are cached before gameplay; source recordings and conversion manifests are retained.
+Sound uses the existing Windows **WinMM** output API, with no additional library. The stereo mixer pans world-space sources relative to the camera and attenuates them using their three-dimensional distance. The nearest active fluorescent fixture hums; seeded distant creaks and drips add ambience. The player uses the supplied freesound indoor footsteps uniformly on every floor; gait still controls cadence and volume. Aranea has separate ground walk/run contacts, a scream on seeing the player and lower pursuit calls, with four variants each. Footfalls follow the four animated feet; calls and steps use distance and wall/closed-door attenuation. See [Aranea audio](docs/aranea-audio.md) for the user's reference and processing. A subdued drone and occasional electrical stinger respond to environmental tension. Capture retains the user-supplied roar with a low impact, exclusive playback and controlled headroom. Ambient and door cues remain generated placeholders. All sound banks are cached before gameplay; source excerpts and conversion manifests are retained.
 
 The soundtrack plays from `assets/audio/music/numbers-temporex.mp3`, converted locally from the supplied file for compatibility with this computer's Windows decoder. The original `numbers-temporex.m4a` is preserved in the same directory. Windows WinMM/MCI plays the music separately from positional environmental sounds, without another runtime library. Pause, **M**, or switching music off pauses the track; resuming keeps its playback position. Music volume can be lowered independently of footsteps and ambience. The generated audio-preview WAV contains the environmental mix, not the song.
 
@@ -95,12 +104,12 @@ To see the first clue, stand in the starting room, face its first north doorway,
 - Smooth mouse look, gradual acceleration/braking, adjustable head bob, crouching, stamina and collision sliding.
 - Animated hinged doors, a farther wall-integrated exit about 270 m from the entrance, and flashlight-revealed clues.
 - The supplied textured 3D Aranea Membri with four-legged walk/run animation, independent head/jaw movement, 16–22 m spawns, sight/hearing detection, collision-aware pursuit, last-position searching and a timed loss of interest.
-- A 3D capture jumpscare, generated threat audio, game-over screen and same-seed restart.
+- A 3D capture jumpscare, Aranea ground footsteps and sighting/pursuit calls, game-over screen and same-seed restart.
 - Procedural worn materials with UV mapping, mipmaps and normal maps.
 - Working/dying/off fluorescent fixtures, per-light attenuation, cached six-face lamp shadows, PCF-filtered flashlight shadows, Blinn-Phong shading and distance fog.
 - Half-resolution, depth-aware contact shading with adjustable strength, plus restrained paper, carpet and ceiling wear.
 - An offscreen scene framebuffer with light soft focus, analog grain and vignette, followed by a sharp HUD.
-- Stereo spatial hum, distant ambience, environmental tension, door sounds, universal player footsteps, wall-attenuated heavy creature footsteps and the supplied Temporex soundtrack.
+- Stereo spatial hum, distant ambience, environmental tension, door sounds, universal player footsteps, wall-attenuated creature soil contacts and calls, and the supplied Temporex soundtrack.
 - Main/pause menus and persistent camera, audio and display settings.
 - Bounded room streaming, origin rebasing for distant travel, local map and rendering diagnostics.
 
@@ -168,12 +177,15 @@ Backrooms CGF Project/
   include/                  Generated GLAD and Khronos headers
   tests/                    CPU tests and graphics verification evidence
   assets/audio/footsteps-player/   Supplied universal player contacts
-  assets/audio/footsteps-monster/  Supplied heavy creature contacts
+  assets/audio/footsteps-monster/  Previous heavy contacts and fallback
+  assets/audio/aranea/       Soil walk/run, sighting and pursuit banks
   assets/audio/music/        User-supplied Numbers by Temporex
   assets/models/aranea/      Supplied GLB, PNGs, animation bank and RGB texture caches
   tools/bake_aranea.py       Offline four-chain IK and head/jaw animation baker
   tools/aranea-rig.json      Original mesh-part joint and pivot mapping
   tools/prepare_aranea_textures.py   Offline texture-cache converter
+  tools/prepare_aranea_audio.py     Offline audio-bank rebuild from retained sources
+  tools/verify-aranea-audio.ps1     Automated audio gameplay scenarios
   assets/                   In-game preview and exported audio preview
   docs/                     Report draft, slides, demo and learning guide
   build.ps1                 Windows build and test
@@ -195,6 +207,15 @@ Read [verification.md](docs/verification.md) for executed checks and their limit
 
 For this model replacement, `build.ps1 -Test` covers native behavior and model checks, and `tools/verify-aranea.ps1` exercises walk/run poses, head turns, door folding, live footfalls, pause, capture and restart. See [Aranea notes](docs/aranea-motion.md) for the current validation status. Install the rebuilt executable, `aranea.brm` and both Aranea `.rgb` caches together; the previous Smiler bank is not compatible.
 
+For the current creature audio, run these from the project folder after building the tests:
+
+```powershell
+.\tools\verify-aranea-audio.ps1
+.\tests\audio_tests.exe --aranea-preview tests\artifacts\aranea-soil
+```
+
+The mixer preview contains walking, running, a detection scream at 14.32 metres and a pursuit call at 22 metres. It uses master volume 0.75 without normalization. The separate `assets/audio/aranea/preview.wav` demonstrates the source bank without world attenuation. Rebuilding those assets with `python tools/prepare_aranea_audio.py` requires NumPy only for offline processing; playing the game does not.
+
 The 12-second stereo sound preview demonstrates carpet walking, damp-carpet crouching, hard-floor sprinting, left/right ambience and environmental tension. It mixes the bundled footstep recordings with generated sounds and does not record a playthrough. Supporting materials:
 
 - [Course requirements and status](docs/requirements.md)
@@ -207,7 +228,7 @@ The 12-second stereo sound preview demonstrates carpet walking, damp-carpet crou
 
 ## Scope and remaining work
 
-This version combines exploration with one simple threat. It has no photo sprites, separate themed districts, furniture, weapons, network play or saved gameplay sessions. The creature uses bounded local pathfinding and a short memory, without complex tactics or a general-purpose navigation system. Settings persist, but world progress does not. Lighting can contribute across walls because it has no shadow maps or full global illumination. Audible spatial playback uses stereo panning and distance attenuation plus direct-ray wall attenuation for creature sounds, without HRTF filtering or acoustic propagation; the creature's hearing uses a separate obstruction-based detection rule. Normal maps change shading, not geometry. The exit presents an ending screen. Initial loading and cache misses remain synchronous, and procedural architectural motifs repeat.
+This version combines exploration with one simple threat. It has no photo sprites, separate themed districts, furniture, weapons, network play or saved gameplay sessions. The creature uses bounded local pathfinding and a short memory, without complex tactics or a general-purpose navigation system. Settings persist, but world progress does not. Direct lamp and flashlight lighting use shadow maps; small ambient fill remains, without full global illumination. Audible spatial playback uses stereo panning and distance attenuation plus direct-ray wall attenuation for creature sounds, without HRTF filtering or acoustic propagation; the creature's hearing uses a separate obstruction-based detection rule. Normal maps change shading, not geometry. The exit presents an ending screen. Initial loading and cache misses remain synchronous, and procedural architectural motifs repeat.
 
 This educational prototype includes substantial Codex assistance. Review and adapt the implementation, record student contributions and be able to explain it. The supplied syllabus's restrictions and disclosure requirements still apply. Team details, the official report template, defence date and final instructor rubric remain to be confirmed before an assessed submission. Nothing has been submitted to Moodle.
 
@@ -227,6 +248,8 @@ Contact Shading adds restrained screen-space occlusion in corners and joints.
 Set it to zero in Settings to disable its rendering pass. Paper, carpet and
 ceiling variations retain the existing yellow palette, layout and texture banks;
 rare wet patches use lighting highlights rather than mirror reflections.
+
+Follow-up fixes removed the repeating screen-grain grid and vertical contact-shading bands on angled walls. Grain now uses integer hashing, while contact shading uses matching depth texels and pixel centers with depth-aware upsampling. The existing wallpaper textures and visual style are preserved.
 
 See [graphics-update.md](docs/graphics-update.md) for measurements and limitations.
 Use `build.ps1 -Test -GraphicsTest` for native tests and rendered shadow/AO probes.

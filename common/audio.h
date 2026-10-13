@@ -9,7 +9,7 @@ enum class Surface { Carpet, HardFloor, DampCarpet };
 enum class Gait { Walk, Crouch, Sprint };
 enum class SoundKind {
     Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door,
-    ThreatNotice, ThreatStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient
+    ThreatNotice, ThreatStep, ThreatRunStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient
 };
 struct SoundEvent {
     SoundKind kind=SoundKind::Footstep;
@@ -22,6 +22,9 @@ struct SoundEvent {
 // A missing or invalid bank returns false and keeps the procedural fallback.
 bool loadFootstepSamples(const std::string& directory="assets/audio/footsteps-player");
 bool loadMonsterFootsteps(const std::string& directory="assets/audio/footsteps-monster");
+// Load all sixteen Aranea clips together before constructing the mixer.
+// A partial/invalid bank clears the override and restores the legacy sounds.
+bool loadAraneaSamples(const std::string& directory="assets/audio/aranea");
 std::size_t recordedFootstepCount();
 // Preload user-supplied roar before constructing the mixer.
 bool loadJumpscareSample(const std::string& path="assets/audio/jumpscare/scream.wav");
@@ -40,6 +43,18 @@ private:
     bool crouched_=false,walking_=false;
     Gait previousGait_=Gait::Walk;
     std::uint32_t variation_=1;
+};
+// Visibility acquisition and sustained pursuit share a vocal interval with
+// rage. Pause freezes both detection and clocks; hidden players never cue a call.
+class ThreatVocalCadence {
+public:
+    void reset();
+    void keyCollected();
+    std::vector<SoundKind> update(float dt,bool active,bool visible,bool enraged,
+                                bool paused=false,bool alive=true);
+private:
+    float noticeCooldown_=0,roarCooldown_=0,vocalCooldown_=0,visibleRepeat_=7;
+    bool wasVisible_=false,pendingNotice_=false,pendingKeyRoar_=false;
 };
 bool writeAudioPreview(const std::string& path);
 
@@ -89,6 +104,9 @@ public:
     void stop();
     void setScene(const AudioScene& scene);
     void setVolume(float volume);
+    // Synchronize menu/focus state before submitting this frame's one-shots.
+    // This does not reset capture-only ownership or service/open a device.
+    void setPaused(bool paused);
     void reset(std::uint32_t seed=1);
     void play(SoundKind kind,AudioPosition position,float gain=1);
     void update(float dt,float actualDistance,bool crouched,bool sprinting,

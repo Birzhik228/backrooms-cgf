@@ -24,6 +24,10 @@ std::array<std::vector<std::int16_t>,FOOTSTEP_COUNT> recordedSteps;
 std::size_t loadedSteps=0;
 std::array<std::vector<std::int16_t>,4> monsterSteps;
 std::vector<std::int16_t> recordedScream;
+struct AraneaSamples {
+    std::array<std::vector<std::int16_t>,4> walk,run,notice,roar;
+};
+AraneaSamples araneaSamples;
 double stride(Gait gait) {
     // Each impact follows real movement: about 1.2 crouch, 1.7 walk and
     // 2.2 sprint steps per second at the exploration movement speeds.
@@ -119,7 +123,13 @@ std::vector<std::int16_t> environmentalSound(const SoundEvent& event) {
     return result;
 }
 std::vector<std::int16_t> threatSound(const SoundEvent& event) {
-    if(event.kind==SoundKind::ThreatStep && !monsterSteps[event.variation%4].empty())
+    const auto* bank=event.kind==SoundKind::ThreatStep?&araneaSamples.walk:
+        event.kind==SoundKind::ThreatRunStep?&araneaSamples.run:
+        event.kind==SoundKind::ThreatNotice?&araneaSamples.notice:
+        event.kind==SoundKind::ThreatRoar?&araneaSamples.roar:nullptr;
+    if(bank&&!(*bank)[0].empty())return (*bank)[(event.variation?event.variation-1:0)%4];
+    const bool step=event.kind==SoundKind::ThreatStep||event.kind==SoundKind::ThreatRunStep;
+    if(step && !monsterSteps[event.variation%4].empty())
         return monsterSteps[event.variation%4];
     if(event.kind==SoundKind::ThreatRoar && recordedScream.size()>AUDIO_SAMPLE_RATE*2/3) {
         // Pursuit is a short, low throaty growl; capture keeps its sharp scream.
@@ -138,7 +148,6 @@ std::vector<std::int16_t> threatSound(const SoundEvent& event) {
         growl.front()=growl.back()=0;
         return growl;
     }
-    const bool step=event.kind==SoundKind::ThreatStep;
     const bool caught=event.kind==SoundKind::Jumpscare;
     const double duration=step?.42:(caught?.82:.95);
     const auto count=static_cast<std::size_t>(duration*AUDIO_SAMPLE_RATE);
@@ -229,6 +238,18 @@ bool loadMonsterFootsteps(const std::string& directory) {
     }
     monsterSteps=std::move(pending); return true;
 }
+bool loadAraneaSamples(const std::string& directory) {
+    AraneaSamples pending;
+    const std::array<const char*,4> names={"walk","run","notice","roar"};
+    const std::array<std::array<std::vector<std::int16_t>,4>*,4> banks={
+        &pending.walk,&pending.run,&pending.notice,&pending.roar};
+    for(std::size_t kind=0;kind<banks.size();++kind)for(std::size_t variant=0;variant<4;++variant) {
+        auto& clip=(*banks[kind])[variant];
+        clip=readFootstepWav(directory+"/"+names[kind]+"-0"+std::to_string(variant+1)+".wav");
+        if(clip.empty()){araneaSamples={};return false;}
+    }
+    araneaSamples=std::move(pending);return true;
+}
 bool loadJumpscareSample(const std::string& path) {
     recordedScream=readFootstepWav(path); return !recordedScream.empty();
 }
@@ -274,7 +295,7 @@ std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
         clip.front()=clip.back()=0;return clip;
     }
     if(event.kind==SoundKind::Footstep) event.surface=Surface::Carpet;
-    if (event.kind==SoundKind::ThreatNotice || event.kind==SoundKind::ThreatStep || event.kind==SoundKind::Jumpscare || event.kind==SoundKind::ThreatRoar)
+    if (event.kind==SoundKind::ThreatNotice || event.kind==SoundKind::ThreatStep || event.kind==SoundKind::ThreatRunStep || event.kind==SoundKind::Jumpscare || event.kind==SoundKind::ThreatRoar)
         return threatSound(event);
     if (event.kind!=SoundKind::Footstep && event.kind!=SoundKind::ClothRustle)
         return environmentalSound(event);
@@ -318,6 +339,35 @@ std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
     }
     result.front()=0; result.back()=0;
     return result;
+}
+
+void ThreatVocalCadence::reset() { *this={}; }
+void ThreatVocalCadence::keyCollected() { pendingKeyRoar_=true;roarCooldown_=7; }
+std::vector<SoundKind> ThreatVocalCadence::update(float dt,bool active,bool visible,bool enraged,bool paused,bool alive) {
+    if(paused)return {};
+    if(!alive){wasVisible_=pendingNotice_=pendingKeyRoar_=false;visibleRepeat_=7;return {};}
+    dt=std::isfinite(dt)?std::max(0.f,dt):0.f;
+    noticeCooldown_=std::max(0.f,noticeCooldown_-dt);
+    vocalCooldown_=std::max(0.f,vocalCooldown_-dt);
+    if(enraged)roarCooldown_=std::max(0.f,roarCooldown_-dt);
+    if(!active){wasVisible_=pendingNotice_=false;visibleRepeat_=7;return {};}
+    // Reacquisition inside the cooldown stays queued while sight is held.
+    // Before the key, sustained pursuit also gets a call every seven seconds;
+    // after the key the existing rage roar supplies that periodic cue instead.
+    if(visible&&!wasVisible_)pendingNotice_=true;
+    if(visible)visibleRepeat_=std::max(0.f,visibleRepeat_-dt);
+    else { pendingNotice_=false;visibleRepeat_=7; }
+    wasVisible_=visible;
+    if(vocalCooldown_>0)return {};
+    if(visible&&noticeCooldown_<=0&&(pendingNotice_||(!enraged&&visibleRepeat_<=0))) {
+        pendingNotice_=false;noticeCooldown_=5;visibleRepeat_=7;vocalCooldown_=2;
+        return {SoundKind::ThreatNotice};
+    }
+    if(pendingKeyRoar_||(enraged&&roarCooldown_<=0)) {
+        pendingKeyRoar_=false;roarCooldown_=7;vocalCooldown_=2;
+        return {SoundKind::ThreatRoar};
+    }
+    return {};
 }
 
 void FootstepCadence::reset(bool crouched) {
@@ -385,6 +435,9 @@ struct AudioMixer::Impl {
         bool positional=false;
         float gain=1;
         bool occluded=false;
+        float nearDistance=3;
+        unsigned priority=0;
+        std::uint64_t started=0;
     };
     std::array<std::array<std::array<std::vector<std::int16_t>,6>,3>,3> steps;
     std::array<std::vector<std::int16_t>,3> cloth;
@@ -393,7 +446,8 @@ struct AudioMixer::Impl {
     std::array<Voice,MAX_VOICES> voices{};
     AudioScene scene{};
     std::uint32_t random=1,seed=1,variation=0;
-    std::uint64_t sample=0,nextAmbient=0,lastStinger=0;
+    std::array<std::uint32_t,2> monsterVariation{};
+    std::uint64_t sample=0,nextAmbient=0,lastStinger=0,voiceSequence=0;
     float volume=1,currentVolume=1,humLeft=0,humRight=0,currentTension=0;
     bool paused=false,tensionArmed=true,captureOnly=false;
 
@@ -432,17 +486,25 @@ struct AudioMixer::Impl {
     }
     double randomUnit() { return (noise(random)+1)*.5; }
     void restart(std::uint32_t value) {
-        seed=value?value:1; random=seed; variation=0; sample=0;
-        voices={}; captureOnly=false; humLeft=humRight=currentTension=0;
+        seed=value?value:1; random=seed; variation=0; monsterVariation={}; sample=0;
+        voices={}; voiceSequence=0; captureOnly=false; humLeft=humRight=currentTension=0;
         currentVolume=volume; tensionArmed=scene.tension<.65f; lastStinger=0;
         nextAmbient=std::uint64_t((5+randomUnit()*5)*AUDIO_SAMPLE_RATE);
     }
-    void add(const std::vector<std::int16_t>& clip,AudioPosition position,bool positional,float gain,bool occluded=false) {
+    void add(const std::vector<std::int16_t>& clip,AudioPosition position,bool positional,float gain,
+             bool occluded=false,float nearDistance=3,unsigned priority=0) {
         if (paused || !std::isfinite(gain) || gain<=0) return;
+        Voice* slot=nullptr;
         for (auto& voice:voices) if (!voice.clip) {
-            voice={&clip,0,position,positional,std::min(gain,1.0f),occluded};
-            return;
+            slot=&voice;break;
         }
+        // Calls cannot disappear behind a full queue of feet and ambience.
+        // Equal/higher priority voices stay intact; capture owns its own mix.
+        if(!slot)for(auto& voice:voices)if(voice.priority<priority&&
+            (!slot||voice.priority<slot->priority||
+             (voice.priority==slot->priority&&voice.started<slot->started)))slot=&voice;
+        if(slot)*slot={&clip,0,position,positional,std::min(gain,1.0f),occluded,
+                       nearDistance,priority,voiceSequence++};
     }
     void environmental(SoundKind kind,AudioPosition position,float gain) {
         const auto index=int(kind)-int(SoundKind::AmbientCreak);
@@ -452,8 +514,12 @@ struct AudioMixer::Impl {
         // on top of twelve existing sources. It belongs at the camera.
         if(captureOnly && !capture) return;
         if (capture) { voices={}; captureOnly=true; humLeft=humRight=currentTension=0; currentVolume=volume; }
-        const std::size_t variant=capture?std::min(std::size_t(randomUnit()*4),std::size_t(3)):variation++%4;
-        add(ambience[std::size_t(index)][variant],position,!capture,gain,kind==SoundKind::ThreatStep || kind==SoundKind::ThreatRoar);
+        const bool monsterStep=kind==SoundKind::ThreatStep||kind==SoundKind::ThreatRunStep;
+        const bool vocal=kind==SoundKind::ThreatRoar||kind==SoundKind::ThreatNotice;
+        const std::size_t variant=capture?std::min(std::size_t(randomUnit()*4),std::size_t(3)):
+            monsterStep?monsterVariation[kind==SoundKind::ThreatRunStep?1:0]++%4:variation++%4;
+        add(ambience[std::size_t(index)][variant],position,!capture,gain,
+            monsterStep||vocal,vocal?7.f:3.f,vocal?1u:0u);
     }
     void schedule() {
         if(captureOnly) return;
@@ -525,7 +591,7 @@ void AudioMixer::render(std::int16_t* output,std::size_t frames) {
         std::array<StereoGain,Impl::MAX_VOICES> gains{};
         for (std::size_t voice=0;voice<m.voices.size();++voice)
             if (m.voices[voice].clip) gains[voice]=m.voices[voice].positional
-                ?positionalGains(m.scene,m.voices[voice].position,3,64):StereoGain{.70710678f,.70710678f};
+                ?positionalGains(m.scene,m.voices[voice].position,m.voices[voice].nearDistance,64):StereoGain{.70710678f,.70710678f};
         const double time=double(m.sample-m.sample%128)/AUDIO_SAMPLE_RATE;
         const float electrical=float(.91+.09*std::sin(time*2*PI*.27));
         const float dying=float(1-m.scene.lightInstability*(.30+.26*std::sin(time*2*PI*7.3)));
@@ -641,6 +707,14 @@ bool Audio::available() const {
 }
 void Audio::setScene(const AudioScene& scene) { impl_->mixer.setScene(scene); }
 void Audio::setVolume(float volume) { impl_->mixer.setVolume(volume); }
+void Audio::setPaused(bool paused) {
+    impl_->mixer.setPaused(paused);
+    if(impl_->paused==paused)return;
+#ifdef _WIN32
+    impl_->flush();
+#endif
+    impl_->paused=paused;
+}
 void Audio::play(SoundKind kind,AudioPosition position,float gain) {
     if (!available()) return;
     if(kind==SoundKind::Jumpscare) {
@@ -696,13 +770,7 @@ void Audio::stop() {
 }
 void Audio::update(float dt,float actualDistance,bool crouched,bool sprinting,Surface surface,bool paused) {
     const auto events=cadence_.update(dt,actualDistance,crouched,sprinting,surface,paused);
-    impl_->mixer.setPaused(paused);
-    if (impl_->paused!=paused) {
-#ifdef _WIN32
-        impl_->flush();
-#endif
-        impl_->paused=paused;
-    }
+    setPaused(paused);
     if (!available()) return;
     if (!paused) for (const auto& event:events) impl_->mixer.enqueue(event);
     if (!impl_->service()) stop();

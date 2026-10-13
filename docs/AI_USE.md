@@ -27,3 +27,19 @@ Student contribution log: add dated entries naming code reviewed, experiments pe
 The user supplied `rec-room-backrooms-entity-62-aranea-membri.zip` and requested replacing the current creature with four-legged spider-like movement and head animation. Codex assisted with inspecting the unrigged GLB, authoring four inverse-kinematic leg chains and a separate head/jaw articulation, generating grounded walk and diagonal chase cycles, retaining the supplied mesh topology/UVs/textures, runtime animation/contact integration, and validation. The supplied source geometry and textures are not claimed as project-created assets. Runtime dependencies remain unchanged. See [model notes](../assets/models/aranea/README.md) and [implementation](aranea-motion.md).
 
 For the follow-up forward-facing and jumpscare update, Codex helped correct embedded body/skull rest axes, make navigation turn before moving, add configurable camera/lunge timing and decaying random shake, and author capture head/claw motion. Tests check actual eye landmarks, forward displacement, capture timing and restart. The supplied source GLB remains unchanged; authored animation and presentation code are project additions.
+
+On 13 October 2026 the user requested Aranea walking, running and sighting
+sounds, supplied a YouTube reference and specified that the creature runs on
+the ground. Codex assisted with excerpt selection, transient isolation, ground
+foley layering, pitch/EQ/envelope processing, separate cached sound banks,
+visibility-triggered vocal timing and automated audio/gameplay validation.
+Original source recordings are credited in THIRD_PARTY.md and the Aranea asset
+manifest. Edited reference audio is not claimed as an original performance.
+
+In the subsequent soil/call correction, Codex helped replace the hard contacts
+with Fantozzi's CC0 sand recordings, soften their attack and add low ground
+pressure and rustle. Detection/pursuit vocals blend the selected reference with
+the supplied ZeroKingFull recording. Revised vocal distance, voice priority,
+queued reacquisition and sustained-pursuit timing address quiet/missed calls.
+The audio suite, actual mixer exports and five automated game cases verify
+behavior; no physical listening test or exact perceptual match is asserted.

@@ -1,0 +1,219 @@
+{
+  "sample_rate": 22050,
+  "format": "mono PCM16",
+  "reference": {
+    "url": "https://www.youtube.com/watch?v=wzUCsTD23rg",
+    "title": "Aranea Membri Sounds (Backrooms Entity)",
+    "uploader": "Slappy The Dummy",
+    "description_credit": "@frag2",
+    "license": "Not stated in retrieved metadata",
+    "excerpts_seconds": {
+      "running": [
+        0.55,
+        3.95
+      ],
+      "roar": [
+        39.6,
+        42.45
+      ]
+    }
+  },
+  "soil_source": {
+    "author": "Fantozzi",
+    "license": "CC0-1.0",
+    "url": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone",
+    "original_pack": "https://www.freesound.org/people/Fantozzi/packs/10338/",
+    "selection": "SandL1, SandR1, SandL2, SandR2 only; stone clips are not used"
+  },
+  "processing": "Soft sand/soil pressure and grit, lowered pitch and softened onset; no hard clank or duplicated toe impact. Calls combine reference roar with supplied ZeroKingFull scream, vocal EQ and gentle compression.",
+  "inputs": [
+    {
+      "file": "assets/audio/aranea/source/roar-reference.wav",
+      "sha256": "5d0e2209c2ae2ed837ae7010c620c0a21c3842039c17c4a29fb3d9cdc5153f33"
+    },
+    {
+      "file": "assets/audio/jumpscare/scream.wav",
+      "sha256": "97378ea03c1174c8f1e6c5289f2992375ca3e0dcacc757521ebff5d7e5bb660b"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandL1.flac",
+      "sha256": "93a2630579a82507e3c6ceab9b012f71a50cf8922f4beadb14057dcc0636b099"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandL1.wav",
+      "sha256": "2a55676d6cf46c4af3303903d0397ae746679331916e8e7e214e2b162fcc817e"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandL2.flac",
+      "sha256": "9bb57478cc96e1410cae27d926aa8d77d5f2d368d9776822f63cf0b37c6d2faf"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandL2.wav",
+      "sha256": "9ee69650ef5cb51dd3bd4111274d756d2f4ab7bfeabe8b3c46cce3d627d16e59"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandR1.flac",
+      "sha256": "3514d12f3369297233e915814364ed02902003d4103b010371c2ac15c2aa48fe"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandR1.wav",
+      "sha256": "10a70db61d11fe733f7efbacb8c3038a7cbc40a459833175b7c2d7471ff87f7f"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandR2.flac",
+      "sha256": "0356f659313887f01a9f21fd5bedf57a77073d0d74d57b5621279ee453a80f3c"
+    },
+    {
+      "file": "assets/audio/aranea/source/soil/Fantozzi-SandR2.wav",
+      "sha256": "5ae09a7f4ff896ea438da9febb34babbcbff796d49f3f15fef8de65be133b816"
+    }
+  ],
+  "files": [
+    {
+      "file": "walk-01.wav",
+      "samples": 9040,
+      "seconds": 0.409977,
+      "peak": 14090,
+      "rms": 0.061365,
+      "sha256": "5b48339b4575bbd2d2adb2a32b702aad8dca3798f6eb3850c03d59150a6528ea"
+    },
+    {
+      "file": "walk-02.wav",
+      "samples": 9217,
+      "seconds": 0.418005,
+      "peak": 14090,
+      "rms": 0.077249,
+      "sha256": "519bdbb85e5e2dc0fb299a27838c483d35794b8f7e6c6b96eea7513139248123"
+    },
+    {
+      "file": "walk-03.wav",
+      "samples": 9393,
+      "seconds": 0.425986,
+      "peak": 14090,
+      "rms": 0.062019,
+      "sha256": "c669fd4ef5b003c60320f5a6b81734bac00b6b54aaf7ca0364c5fcbc1974320e"
+    },
+    {
+      "file": "walk-04.wav",
+      "samples": 9570,
+      "seconds": 0.434014,
+      "peak": 14090,
+      "rms": 0.07873,
+      "sha256": "e9e0faadf79638e0574b982279491c2a86c0500db695a6b69a0aa93915dea3fc"
+    },
+    {
+      "file": "run-01.wav",
+      "samples": 7497,
+      "seconds": 0.34,
+      "peak": 18677,
+      "rms": 0.091639,
+      "sha256": "61b9f412faad9a867a9864c18260f21025744a9d2a6891596c80b9289db62de3"
+    },
+    {
+      "file": "run-02.wav",
+      "samples": 7673,
+      "seconds": 0.347982,
+      "peak": 18677,
+      "rms": 0.102984,
+      "sha256": "d27100bf22d0697d1b3eab88956ee16b8cccae3fdec7c8dd35b324947de7f6df"
+    },
+    {
+      "file": "run-03.wav",
+      "samples": 7850,
+      "seconds": 0.356009,
+      "peak": 18677,
+      "rms": 0.082299,
+      "sha256": "4d75f3da9d207e774277d937ae28763af992d72d6da7814a5770210d30990490"
+    },
+    {
+      "file": "run-04.wav",
+      "samples": 8026,
+      "seconds": 0.363991,
+      "peak": 18677,
+      "rms": 0.112873,
+      "sha256": "365ab0c74d32b5f95a61e1fbfc719e4854703e0f3882b0525e60166d4585681e"
+    },
+    {
+      "file": "notice-01.wav",
+      "samples": 40572,
+      "seconds": 1.84,
+      "peak": 17255,
+      "rms": 0.269992,
+      "sha256": "98088f6dde3d681ed5aac943299d4399389aa9c7507f256492f2e0bd3fb0d014"
+    },
+    {
+      "file": "notice-02.wav",
+      "samples": 41123,
+      "seconds": 1.864989,
+      "peak": 17557,
+      "rms": 0.269992,
+      "sha256": "e42866b92684fe8b31977e815cfb23030d2ce35412f521542525785ec6482e99"
+    },
+    {
+      "file": "notice-03.wav",
+      "samples": 41674,
+      "seconds": 1.889977,
+      "peak": 17785,
+      "rms": 0.269992,
+      "sha256": "99f4be1a783c160a5205f1bdbccdc85035e4f59e4cf572efcb06863170f0ee74"
+    },
+    {
+      "file": "notice-04.wav",
+      "samples": 42226,
+      "seconds": 1.915011,
+      "peak": 18559,
+      "rms": 0.269992,
+      "sha256": "050788c0f003f995103edc0726a9661482a0ff992c982d39a4e8325d57db1177"
+    },
+    {
+      "file": "roar-01.wav",
+      "samples": 33957,
+      "seconds": 1.54,
+      "peak": 16488,
+      "rms": 0.229993,
+      "sha256": "4c65b54e5cd6458883fdf4ea504c65ca7b40062c0539d750a40b138f7d70a6bf"
+    },
+    {
+      "file": "roar-02.wav",
+      "samples": 34508,
+      "seconds": 1.564989,
+      "peak": 15585,
+      "rms": 0.229993,
+      "sha256": "5c5841c596a6d2ee298d031cf13cdf9707a715cb461c0c1732a6a1f5fae244b4"
+    },
+    {
+      "file": "roar-03.wav",
+      "samples": 35060,
+      "seconds": 1.590023,
+      "peak": 15646,
+      "rms": 0.229993,
+      "sha256": "7eb54d33e6ab208e3dffe57ba3070bf4217602259b28206c0251dcd665b5861e"
+    },
+    {
+      "file": "roar-04.wav",
+      "samples": 35611,
+      "seconds": 1.615011,
+      "peak": 15228,
+      "rms": 0.229993,
+      "sha256": "1b3a5ab8a7175fa2ef9fc3ef437bc179a95f6d00a735c602b5381c6475253f5c"
+    }
+  ],
+  "preview_timeline": {
+    "walk": [
+      0.35,
+      3.4
+    ],
+    "run": [
+      4,
+      5.67
+    ],
+    "notice": [
+      6.3,
+      8.14
+    ],
+    "roar": [
+      9.5,
+      11.065
+    ]
+  }
+}

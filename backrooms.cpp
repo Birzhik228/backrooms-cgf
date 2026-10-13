@@ -627,9 +627,9 @@ static int run(const Options& options) {
     const auto& scareConfig=encounter.config();
     log("Jumpscare: duration "+std::to_string(scareConfig.duration)+" s, turn "+std::to_string(scareConfig.cameraTurnDuration)+" s, face "+std::to_string(scareConfig.faceDistance)+" m.");
     bool hiding=false;
-    bool pendingKeyRoar=false;
+    ThreatVocalCadence threatVocals;
     HidingSpot hidingSpot{};
-    float roarCooldown=0,occlusionClock=0,threatTransmission=1;
+    float occlusionClock=0,threatTransmission=1;
     float scareYaw=0, scarePitch=0, scareTargetYaw=0, scareTargetPitch=0;
     Vec3 scareApproach{0,0,-1};
     if(options.forcedThreat && !options.noThreat) {
@@ -671,11 +671,13 @@ static int run(const Options& options) {
         log("Loaded Aranea model: "+std::to_string(initialModel.size()/3)+" triangles.");
     }
     float threatAnimation=0, lastThreatMeshTime=-1;
-    float threatStoop=0, lastThreatStoop=-1, threatNoticeCooldown=0;
+    float threatStoop=0, lastThreatStoop=-1;
     float threatGaitPhase=0, threatVisualSpeed=0, threatHeadYaw=0, threatHeadPitch=0;
     float threatBodyYaw=threat.yaw();
     ThreatFootContacts lastThreatContact{};
-    int threatFootfalls=0;
+    bool threatRunningSteps=false;
+    int threatFootfalls=0,threatWalkFootfalls=0,threatRunFootfalls=0;
+    int threatNotices=0,threatRoars=0;
     bool lastScareMesh=false, scriptedRestarted=false;
     int catches=0, restarts=0;
     bool doorVisualDirty=true;
@@ -732,9 +734,9 @@ static int run(const Options& options) {
         audio.reset(static_cast<uint32_t>(world.seed()));
         threat.reset(world.seed()); threat.setEnraged(world.keyCollected()); encounter.reset();
         mouse.reset(world.seed());mouseSqueaks=0;
-        hiding=false; pendingKeyRoar=false; roarCooldown=0; occlusionClock=0; threatTransmission=1;
+        hiding=false; threatVocals.reset(); occlusionClock=0; threatTransmission=1;
         threatAnimation=0; lastThreatMeshTime=-1;
-        threatStoop=0; lastThreatStoop=-1; threatNoticeCooldown=0;
+        threatStoop=0; lastThreatStoop=-1; threatRunningSteps=false;
         threatGaitPhase=threatVisualSpeed=threatHeadYaw=threatHeadPitch=0; lastThreatContact={};
         threatBodyYaw=threat.yaw();
         travel = walk = shiftClock = 0;
@@ -978,6 +980,10 @@ static int run(const Options& options) {
             guidePending=false;showHelp=true;guidePage=0;input.pause(true);motion.reset();
             log("Controls popup opened.");
         }
+        // Resume the mixer before any door, mouse, vocal or foot-contact event
+        // consumes its one-shot state. Capture keeps its existing pause policy.
+        const bool scareSuspended=!options.hidden && !glfwGetWindowAttrib(window,GLFW_FOCUSED);
+        audio.setPaused(input.paused && (!encounter.presenting() || scareSuspended || !scareConfig.audio));
         input.smooth(dt);
         if (options.tour && encounter.alive() && !input.paused && !hiding) {
             input.setLook(options.yaw + std::sin(elapsed * .38) * 40, -3 + std::sin(elapsed * .2) * 4);
@@ -1075,8 +1081,7 @@ static int run(const Options& options) {
             const auto exit=world.exitLocation();px=exit.x;pz=exit.z;world.update(px,pz);
         }
         if(!input.paused && !hiding && world.collectKey(px,pz)) {
-            doorVisualDirty=true; threat.setEnraged(true); roarCooldown=7;
-            pendingKeyRoar=true;
+            doorVisualDirty=true; threat.setEnraged(true); threatVocals.keyCollected();
             notice="KEY FOUND / EXIT OPEN / IT HEARD YOU";noticeTime=5;
             log("Key collected. Exit unlocked. Creature enraged.");
         }
@@ -1137,7 +1142,6 @@ static int run(const Options& options) {
         // Actual movement and explicit interaction noise feed one physical actor.
         // Menu time never advances its senses, path following, or grace period.
         const auto previousThreatState=threat.state();
-        if(!input.paused) threatNoticeCooldown=std::max(0.f,threatNoticeCooldown-dt);
         if(options.autoCatch && frame==2 && encounter.alive()) {
             const Vec3 front=normalize(Vec3{forward.x,0,forward.z});
             double tx=px+front.x*1.35,tz=pz+front.z*1.35;
@@ -1165,29 +1169,23 @@ static int run(const Options& options) {
         threat.setEnraged(world.keyCollected());
         if(!options.noThreat && !options.threatPreview)
             threat.update(world,perceivedPlayer,dt,input.paused || !encounter.alive());
-        if(pendingKeyRoar && threat.active() && !input.paused) {
-            audio.play(SoundKind::ThreatRoar,{threat.x(),1.8,threat.z()},1);
-            pendingKeyRoar=false;roarCooldown=7;
-        }
         if(threat.state()!=previousThreatState) {
             if(previousThreatState==ThreatState::Dormant) threatBodyYaw=threat.yaw();
             std::ostringstream threatEvent;
             threatEvent << "Threat: " << threatStateName(threat.state()) << " / distance "
                         << std::fixed << std::setprecision(2) << std::hypot(threat.x()-px,threat.z()-pz) << " m";
             log(threatEvent.str());
-            if(threat.state()==ThreatState::Chase && threatNoticeCooldown<=0) {
-                audio.play(SoundKind::ThreatNotice,{threat.x(),1.8,threat.z()},.8f);
-                threatNoticeCooldown=5;
-            }
         }
-        if(!input.paused && encounter.alive() && world.keyCollected()) {
-            roarCooldown-=dt;
-            if(roarCooldown<=0 && threat.active()) {
-                audio.play(SoundKind::ThreatRoar,{threat.x(),1.8,threat.z()},1);
-                roarCooldown=7;
-            }
+        // Visual acquisition also fires when a sound already started the chase;
+        // a held sight line repeats it. Hearing alone never cues a notice.
+        const bool threatCanVocalize=threat.active()&&!threat.caught()&&!options.noThreat;
+        for(const auto cue:threatVocals.update(dt,threatCanVocalize,
+            threatCanVocalize&&threat.canSeePlayer()&&!hiding,world.keyCollected(),
+            input.paused||options.threatPreview,!options.noThreat&&encounter.alive())) {
+            audio.play(cue,{threat.x(),1.8,threat.z()},1.f);
+            if(cue==SoundKind::ThreatNotice)++threatNotices;else ++threatRoars;
+            log(cue==SoundKind::ThreatNotice?"Threat audio cue: visual notice.":"Threat audio cue: rage roar.");
         }
-        const bool scareSuspended=!options.hidden && !glfwGetWindowAttrib(window,GLFW_FOCUSED);
         encounter.update(dt,scareSuspended);
         const bool debugScare=input.hit(GLFW_KEY_J) && encounter.alive() && !settingsOpen;
         if(debugScare && !threat.active()) {
@@ -1227,13 +1225,19 @@ static int run(const Options& options) {
                 const float stride=threatStrideLength(threatVisualSpeed);
                 threatGaitPhase=std::fmod(threatGaitPhase+threat.speed()*dt/stride,1.f);
                 const auto contacts=threatFootContacts(threatVisualSpeed,threatGaitPhase);
+                // Match the actual blended ground gait, including fast Search;
+                // hysteresis prevents the sound bank chattering at the boundary.
+                if(threatVisualSpeed>2.2f)threatRunningSteps=true;
+                else if(threatVisualSpeed<1.9f)threatRunningSteps=false;
                 if(threat.active() && threat.speed()>.15f) {
                     int landings=0;
                     for(std::size_t foot=0;foot<contacts.feet.size();++foot)
                         landings+=contacts.feet[foot]>.5f && lastThreatContact.feet[foot]<=.5f;
                     for(int landing=0;landing<landings;++landing) {
-                        audio.play(SoundKind::ThreatStep,{threat.x(),.2,threat.z()},.8f);
+                        audio.play(threatRunningSteps?SoundKind::ThreatRunStep:SoundKind::ThreatStep,
+                                   {threat.x(),.2,threat.z()},.8f);
                         ++threatFootfalls;
+                        if(threatRunningSteps)++threatRunFootfalls;else ++threatWalkFootfalls;
                     }
                 }
                 lastThreatContact=contacts;
@@ -1871,7 +1875,10 @@ static int run(const Options& options) {
             << ". FOV: " << fieldOfView << ". Velocity: " << motion.speed()
             << ". Stamina: " << stamina.value << ". Minimum stamina: " << minimumStamina
             << ". Doors used: " << doorsUsed << ". Tension: " << tension
-            << ". Creature footfalls: " << threatFootfalls << ". Head yaw: " << threatHeadYaw*180/PI
+            << ". Creature footfalls: " << threatFootfalls
+            << ". Creature walk/run footfalls: " << threatWalkFootfalls << "/" << threatRunFootfalls
+            << ". Creature visual notices/roars: " << threatNotices << "/" << threatRoars
+            << ". Head yaw: " << threatHeadYaw*180/PI
             << ". Threat: " << threatStateName(threat.state()) << ". Catches: " << catches << ". Restarts: " << restarts
             << ". Mouse squeaks: " << mouseSqueaks << ". Guide: " << (showHelp?"open":"closed")
             << ". Guide page: " << guidePage+1
@@ -1928,6 +1935,8 @@ int main(int argc, char** argv) {
         const Options options = parseOptions(argc, argv);
         log(loadMonsterFootsteps()?"Loaded supplied heavy footsteps.":"Heavy footsteps missing; using fallback.");
         log(loadJumpscareSample()?"Loaded supplied jumpscare roar.":"Jumpscare roar unavailable; using synthesized fallback.");
+        log(loadAraneaSamples()?"Loaded Aranea audio: 16 walk, run, visual notice and roar samples.":
+            "Aranea audio bank missing or invalid; using legacy creature sounds.");
         log("Backrooms / Threshold v0.12 | seed " + std::to_string(options.seed));
         if (loadFootstepSamples()) {
             log("Loaded " + std::to_string(recordedFootstepCount()) + " recorded footstep samples.");

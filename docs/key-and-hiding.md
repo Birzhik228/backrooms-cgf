@@ -10,8 +10,9 @@ new run. Returning to the entrance with R retains the key, like door progress.
 
 Rage multiplies creature movement speed by 1.35. It also ends the initial spawn
 grace period. The creature roars once it is active after pickup, then every
-seven seconds while exploring. Pursuit roars use a 1.35-second lower-pitched, low-pass-filtered and throaty
-variant of the supplied recording, with soft edges. The sharp jumpscare recording
+seven seconds while exploring, with a shared vocal interval to avoid overlapping
+a sighting scream. Pursuit roars use four lower-pitched, filtered Aranea variants
+lasting approximately 1.54–1.62 seconds, with soft edges. The sharp jumpscare recording
 and impact remain unchanged. Pursuit roars remain positional; they do not take over the mixer like a jumpscare does.
 The exit can still be manually closed/reopened after it is unlocked.
 
@@ -42,8 +43,10 @@ The player uses six isolated contacts extracted from the supplied
 `freesound_community-indoor-footsteps-6385.mp3`. The sound is identical across
 carpet, damp carpet and tile. Crouch/sprint still affect volume and cadence.
 
-Four contacts from `universfield-heavy-walking-footsteps-352771.mp3` supply the
-creature footsteps. Their loudness and stereo position follow listener distance
+The current [Aranea bank](aranea-audio.md) supplies separate walk/run contacts
+and sighting/pursuit calls. Footfalls use Fantozzi's CC0 sand recordings;
+calls combine the selected reference with the supplied ZeroKingFull vocal.
+Their loudness and stereo position follow listener distance
 and facing. Every 0.1 seconds, a bounded ray through world collision counts solid
 spans, including live door panels: each wall/door multiplies transmission by
 0.38 (up to four barriers). That transmission is applied to active creature
