@@ -9,7 +9,7 @@ An effectively endless, connected yellow interior in **C++17 and OpenGL 3.3 core
 ## Aranea audio update — 13 October 2026
 
 - **Soil footsteps:** separate walking and running banks use Fantozzi's CC0 sand recordings, with a soft impact and ground rustle. The hard clank and extra toe click were removed. Four variations per gait follow the creature's animated foot contacts and actual movement speed.
-- **Sighting screams:** the creature screams when it sees the player, including when sound has already started a chase. Sustained visual pursuit repeats a call about every seven seconds; collecting the key enables the periodic rage roar. A cooldown limits repeated detection calls.
+- **Sighting screams:** the creature screams when it sees the player, including when sound has already started a chase. Sustained visual pursuit repeats a call about every seven seconds; key pickup calls the creature to that location once and retains the 35% movement speed boost. A cooldown limits repeated detection calls.
 - **Audible distant calls:** screams carry farther than footsteps and take priority when the mixer is busy. Stereo direction, distance, walls, closed doors, master volume and mute still affect them.
 - **Reliable playback:** resuming from pause preserves cues triggered on the first frame. The complete 16-clip bank loads before gameplay; player footsteps and the capture sound retain their existing recordings.
 
@@ -28,7 +28,7 @@ The GitHub repository contains source code and assets; the build produces `Backr
 | Control | Action |
 | --- | --- |
 | Up/Down + Enter, or mouse click | Select and activate main/pause menu items |
-| Enter, with the play/resume option selected | Begin / resume; continue exploring after reaching the exit |
+| Enter, with the play/resume option selected | Begin / resume |
 | Enter or click Restart Run, after being caught | Restart the same seeded building with fresh stamina, doors and creature state |
 | WASD + mouse | Move and look |
 | Left Shift | Sprint while stamina is available |
@@ -63,16 +63,19 @@ free. Nearby interaction prompts remain on the HUD.
 
 Wall hiding pockets have metal ventilation covers: **E** enters behind the cover
 or leaves it, and real gaps between the slats let you watch the corridor. Closed
-covers block ordinary walking. Doors now have procedural brown wood grain. A
-bright neutral-white ceiling panel illuminates the exit vestibule.
+covers block ordinary walking. Doors now have procedural brown wood grain. The
+exit vestibule has near-black interior surfaces and no interior ceiling lamp;
+the sign and approach remain readable.
 
-A small brown mouse wanders the floor and scurries away when touched. Its
-positional squeak alerts the creature to that location, including during the
-initial spawn grace period. Walls and distance limit an active creature's
-hearing. Continuous contact cannot repeatedly trigger the squeak; stepping away
-rearms it after a short cooldown. See [room details](docs/room-details.md).
+A small brown mouse actively runs toward the player. Its first contact squeak
+alerts the creature, then the mouse flees and cannot summon it again until the
+mouse is reset. Quiet discovery sounds remain before the alarm. The tail is
+joined into the body and has a closed tip. See [room details](docs/room-details.md).
 
-Stamina starts at **100**, drains at **18 points per second** during actual sprint travel, and recovers at **14 points per second** after **1.5 seconds** without sprinting. Exhaustion prevents sprinting until stamina recovers to **22**. Pausing freezes stamina. Doors swing smoothly through **90° in about 0.8 seconds**. Their collision follows the moving panel; an obstructed closing door reverses instead of trapping the player. Pausing also freezes door movement. Reserved connecting routes remain traversable.
+
+Settings includes a live FPS readout and an **FPS COUNTER** toggle for gameplay. The toggle is saved with your other settings.
+
+Stamina starts at **100**, drains at **18 points per second** during actual sprint travel, and recovers at **14 points per second** after **1.5 seconds** without sprinting. Exhaustion prevents sprinting until stamina recovers to **22**. Pausing freezes stamina. Doors swing smoothly through **90° in about 0.8 seconds**. They choose a hinge direction away from the player when opened from a fully closed position. Their collision follows the moving panel; an obstructed closing door reverses instead of trapping the player. Pausing also freezes door movement. Reserved connecting routes remain traversable.
 
 Mouse look is smoothly eased, and restrained head bob follows actual movement. The default camera has light soft focus and a field-of-view change from **78° to 82°** during sprint travel. Version 0.10 reduces the blur radius from 1.7 to **0.8 reference pixels** at the image centre, roughly halving the previous softness while keeping existing settings. The interface remains sharp. Rooms have dim fluorescent lighting and deep shadows; use **F** to toggle the flashlight. V hides the ordinary navigation HUD for a cleaner camera view; it does not record video.
 
@@ -84,7 +87,7 @@ The Aranea animation update replaces the humanoid with the supplied four-legged 
 
 The **Aranea Membri** uses the actual 3D mesh from the user-supplied `rec-room-backrooms-entity-62-aranea-membri.zip`, including `source/Scene.glb` and its two carpet textures. All 135 mesh parts and 15,220 triangles are retained. The source has no rig or animation; the project adds four articulated leg chains, head/jaw movement, walk/run cycles and a capture pose. Offline conversion produces `assets/models/aranea/aranea.brm` and two texture caches, so Blender and Python are not needed to build or play. Source provenance and rebuild instructions are in the [model notes](assets/models/aranea/README.md). This replaces the previous Smiler; its earlier source and animation remain in local backups. After an initial **8-second grace period**, one creature can enter unseen, reachable space **16–22 metres** from the player. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
 
-Before the key is collected, the creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, folds its legs through doorways and cannot catch through a closed door. Its corrected skull and body both face forward: it turns before moving along a new route segment, and its head stays centered while walking or running. Positional footfalls help you hear its direction during a chase.
+The creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, folds its legs through doorways and cannot catch through a closed door. Its corrected skull and body both face forward: it turns before moving along a new route segment, and its head stays centered while walking or running. Positional footfalls help you hear its direction during a chase.
 
 Contact or unobstructed proximity within **1.5 m** triggers a **2-second 3D jumpscare**, then **0.3 seconds of black** before Game Over. The camera turns toward the animated head over **0.20 seconds** with ease-out. The creature faces the camera and lunges to an eye-anchor distance of **0.90 m**, with a large close-up, reaching claws and head jitter. Random camera shake and roll fade over time, while FOV punches from **70° to 95°**. Edit `jumpscare.cfg` and restart to change duration, distance, timing and effects; `--jumpscare-config` selects an alternative file. **J** triggers a debug scare. See [jumpscare settings and implementation](docs/jumpscare.md).
 
@@ -96,7 +99,7 @@ Sound uses the existing Windows **WinMM** output API, with no additional library
 
 The soundtrack plays from `assets/audio/music/numbers-temporex.mp3`, converted locally from the supplied file for compatibility with this computer's Windows decoder. The original `numbers-temporex.m4a` is preserved in the same directory. Windows WinMM/MCI plays the music separately from positional environmental sounds, without another runtime library. Pause, **M**, or switching music off pauses the track; resuming keeps its playback position. Music volume can be lowered independently of footsteps and ambience. The generated audio-preview WAV contains the environmental mix, not the song.
 
-The green **EXIT SIGNAL** shows distance and direction relative to your view. The exit is fitted into a wall opening at `(6.225, -267)`, with its approach near `(6.225, -265.8)`, about 270 metres north of the entrance. The exit starts **locked**. Follow the gold **KEY SIGNAL** and minimap marker to the seeded brass key. Walk close to collect it: the exit opens, the creature becomes **35% faster**, and it roars. Then follow the clear north route and **walk through the open doorway** to escape. The collected key persists while rooms stream; a new run resets it. See [key, hiding and audio details](docs/key-and-hiding.md). Pressing E alone does not end the game. The **YOU ESCAPED** screen pauses play; **Enter** continues exploration. The local map shows the exit when it is in range.
+The green **EXIT SIGNAL** shows distance and direction relative to your view. The exit is placed at a seeded random location. The key lies 3�5 connected rooms toward the entrance from that exit, keeping the remaining route to roughly 25�40 metres. Ordinary launches choose a fresh seed; `--seed` reproduces a layout and restarting preserves it. The exit starts **locked**. Follow the gold **KEY SIGNAL** and minimap marker to the seeded brass key. Walk close to collect it: the exit unlocks but stays closed, and the creature investigates the pickup location once. Follow the exit marker, **press E to open the door**, then walk through it to escape. Owning the key keeps the creature 35% faster but does not reveal your position or refresh its alert. The collected key persists while rooms stream; a new run resets it. See [key, hiding and audio details](docs/key-and-hiding.md). Pressing E alone does not end the game. Crossing the threshold now takes you directly to **Level Fun**, resets the player and clears the creature. Level Fun contains four yellow Partygoers with red balloons: they approach when unseen and freeze under your gaze. Contact is currently non-lethal and triggers no jumpscare. See [Level Fun details](docs/level-fun.md). The local map shows the exit when it is in range.
 
 To see the first clue, stand in the starting room, face its first north doorway, and aim the flashlight at the doorway's left side. Toggle F to compare.
 
@@ -104,7 +107,7 @@ To see the first clue, stand in the starting room, face its first north doorway,
 
 - Seeded, connected yellow rooms, corridors, halls, pillars, dead ends and occasional tiled rooms.
 - Smooth mouse look, gradual acceleration/braking, adjustable head bob, crouching, stamina and collision sliding.
-- Animated hinged doors, a farther wall-integrated exit about 270 m from the entrance, and flashlight-revealed clues.
+- Animated hinged doors, a seeded wall-integrated exit and nearby key, and flashlight-revealed clues.
 - The supplied textured 3D Aranea Membri with four-legged walk/run animation, independent head/jaw movement, 16–22 m spawns, sight/hearing detection, collision-aware pursuit, last-position searching and a timed loss of interest.
 - A 3D capture jumpscare, Aranea ground footsteps and sighting/pursuit calls, game-over screen and same-seed restart.
 - Procedural worn materials with UV mapping, mipmaps and normal maps.
@@ -123,7 +126,12 @@ Initial loading, teleports and cache misses can still generate geometry synchron
 
 The working setup on this computer is **MSYS2 MinGW64 GCC + GLFW**. The build script locates it at `C:\msys64\mingw64`, or uses `BACKROOMS_CXX` / a suitable compiler on PATH.
 
-Close the game before rebuilding. From the project folder, run:
+After `git pull`, use `Run.cmd`: it rebuilds a missing or outdated executable
+before launching. `Backrooms.exe` is ignored by Git, so pulling new source does
+not replace an existing local EXE. A message about the removed Smiler model means
+an older executable is being launched; rebuild and run the EXE in this folder.
+
+For a manual rebuild, close the game and run from the project folder:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test

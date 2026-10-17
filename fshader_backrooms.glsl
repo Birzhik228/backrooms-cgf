@@ -22,6 +22,7 @@ uniform float uScareGlow;
 uniform bool uFlashlight;
 uniform bool uClues;
 uniform bool uFog;
+uniform float uRenderDistance;
 uniform vec3 uLights[24];
 uniform float uLightPower[24];
 uniform vec3 uLightColor[24];
@@ -143,6 +144,13 @@ void main() {
     // Integer material IDs remain unchanged; fluorescent tubes additionally
     // encode their stable phase in the fractional part of IDs 32, 33 and 34.
     int material = int(floor(vMaterial));
+    if(material==57) {
+        // This intentionally light-absorbing exit lining has no useful specular
+        // response. Avoid all 24 lamps and flashlight PCF on its large surface.
+        float shade=(.008+.003*grain(vUV*3.0))*uExposure;
+        float fade=uFog?1.0-smoothstep(max(uRenderDistance,10.0)*.62,max(uRenderDistance,10.0)-2.0,length(uCamera-vPosition)):1.0;
+        fragColor=vec4(vec3(shade*fade),1);return;
+    }
     vec3 geometricNormal = normalize(vNormal);
     vec3 normal = geometricNormal;
     vec3 toEye = uCamera - vPosition;
@@ -159,7 +167,55 @@ void main() {
     vec3 emission = vec3(0.0);
     float specularStrength = 0.035;
     float shininess = 20.0;
-    if (material == 0) {
+    if (material == 40) {
+        float wear=wearNoise(vUV*2.0);
+        albedo=linearColor(mix(vec3(.66,.225,.055),vec3(.86,.36,.10),wear*.65));
+        specularStrength=.018;
+    } else if (material == 41) {
+        float fibers=texture(uCarpet,vUV).r;
+        albedo=linearColor(vec3(.075,.29,.065)*(.70+.65*fibers));
+        normal=mappedNormal(geometricNormal,vUV,texture(uCarpetNormal,vUV).rgb,.65);
+        specularStrength=.008;
+    } else if (material == 42) {
+        vec2 cell=floor(vUV*8.0),at=fract(vUV*8.0)-.5;
+        float roll=wearHash(cell);
+        vec3 confetti=roll<.33?vec3(.76,.12,.12):roll<.66?vec3(.12,.38,.65):vec3(.24,.56,.13);
+        float dotMask=(1.0-smoothstep(.07,.105,length(at)))*step(.60,roll);
+        albedo=linearColor(mix(vec3(.87,.85,.73),confetti,dotMask))*(.97+.03*grain(vUV));
+        specularStrength=.015;
+    } else if (material == 43) {
+        albedo=linearColor(vec3(.07,.23,.53))*(.94+.06*grain(vUV));
+        specularStrength=.16;shininess=42;
+    } else if (material == 44) {
+        albedo=linearColor(vec3(.67,.39,.16))*(.87+.13*grain(vUV));
+        specularStrength=.01;
+    } else if (material == 45 || material == 46) {
+        albedo=linearColor(material==45?vec3(.94,.93,.84):vec3(.92,.78,.65));
+        specularStrength=material==45?.24:.04;shininess=60;
+    } else if (material >= 48 && material <= 53) {
+        const vec3 colors[6]=vec3[6](vec3(.82,.045,.065),vec3(.95,.67,.08),vec3(.045,.44,.23),
+            vec3(.07,.34,.73),vec3(.48,.12,.58),vec3(.96,.32,.06));
+        albedo=linearColor(colors[material-48]);specularStrength=.42;shininess=85;
+    } else if (material == 57) {
+        albedo=linearColor(vec3(.018,.020,.019))*(.8+.2*grain(vUV*3.0));
+        specularStrength=0.0;
+    } else if (material == 55 || material == 56) {
+        float grime=wearNoise(vUV*9.0+vec2(5,17));
+        vec3 yellow=vec3(.82,.67,.13)*(.91+.09*grime);
+        yellow*=.94+.06*grain(vUV*5.0);
+        if(material==56) {
+            vec2 p=vUV;
+            float eyes=max(1.0-smoothstep(.85,1.0,length((p-vec2(.30,.68))/vec2(.065,.15))),
+                           1.0-smoothstep(.85,1.0,length((p-vec2(.70,.68))/vec2(.065,.15))));
+            float curve=.22+.65*(p.x-.5)*(p.x-.5);
+            float smile=(1.0-smoothstep(.045,.065,abs(p.y-curve)))*smoothstep(.12,.17,p.x)*(1.0-smoothstep(.83,.88,p.x));
+            yellow=mix(yellow,vec3(.40,.045,.025),max(eyes,smile));
+        } else {
+            float stain=smoothstep(.66,.82,wearNoise(vUV*1.6+vec2(31,4)));
+            yellow=mix(yellow,vec3(.34,.16,.035),stain*.16);
+        }
+        albedo=linearColor(yellow);specularStrength=.025;shininess=14;
+    } else if (material == 0) {
         // A 12 m-wide sheet contains the original floral paper and baked wear.
         // The CPU supplies the render origin modulo 180 m, a common multiple
         // of the 12 m sheet and the 45 m chunk. Adding that bounded phase keeps
@@ -318,6 +374,9 @@ void main() {
         // Exponential fog hides the finite streamed draw radius naturally.
         float fog = 1.0 - exp(-pow(distanceToEye * 0.042, 1.65));
         color = mix(color, vec3(0.003, 0.0032, 0.0018), clamp(fog, 0.0, 0.97));
+        // Fade completely before geometry reaches the camera draw limit.
+        float drawLimit=max(uRenderDistance, 10.0);
+        color *= 1.0-smoothstep(drawLimit*.62,drawLimit-2.0,distanceToEye);
     }
     color *= 1.24 * uExposure;
     color = color / (vec3(1.0) + color);

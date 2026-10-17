@@ -26,8 +26,8 @@ $taskCases=@(
  @{name='restart-click';frames=130;args=@('--demo','--auto-catch','--auto-restart-click','--width','960','--height','640');expect='Catches: 1. Restarts: 1. Encounter: exploring'},
  @{name='escape-cannot-resume';frames=90;args=@('--demo','--auto-catch','--auto-scare-escape');expect='Catches: 1. Restarts: 0. Encounter: game-over'},
  @{name='settings';frames=20;args=@('--settings','--width','960','--height','640');expect='Music enabled: yes'},
- @{name='exit-traverse';frames=140;args=@('--demo','--x','6.225','--z','-265.8','--yaw','-90','--auto-exit','--auto-walk');expect='Exit used: yes. Escaped: yes'},
- @{name='exit-continue';frames=200;args=@('--demo','--x','6.225','--z','-265.8','--yaw','-90','--auto-exit','--auto-walk','--auto-continue');expect='Exit used: yes. Escaped: no'},
+ @{name='exit-traverse';frames=140;args=@('--demo','--auto-key','--exit-preview','--yaw','-90','--auto-exit','--auto-walk');expect='Level: Fun'},
+ @{name='exit-continue';frames=200;args=@('--demo','--auto-key','--exit-preview','--yaw','-90','--auto-exit','--auto-walk','--auto-continue');expect='Exit used: yes. Escaped: no'},
  @{name='natural-spawn';frames=740;args=@('--demo','--auto-crouch','--metrics');expect='Threat: WANDER'},
  @{name='chase-profile';frames=600;args=@('--demo','--yaw','0','--auto-walk','--auto-sprint','--threat-x','-12','--threat-z','3.75','--threat-yaw','90','--profile','tests/artifacts/v12/chase.csv');expect='GL errors: 0'},
  @{name='streaming';frames=3000;args=@('--demo','--yaw','0','--auto-walk','--auto-sprint','--no-threat','--profile','tests/artifacts/v12/streaming.csv');expect='GL errors: 0'}

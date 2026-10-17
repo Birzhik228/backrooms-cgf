@@ -4,10 +4,10 @@ $taskRoot=Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $taskRoot
 New-Item -ItemType Directory -Force tests/artifacts/progression | Out-Null
 $taskCases=@(
-    @{name='key';args='--x 3.75 --z -128.25 --pitch -22 --frames 30 --map --no-threat';expected='Key: missing'},
+    @{name='key';args='--key-preview --pitch -22 --frames 30 --map --no-threat';expected='Key: missing'},
     @{name='key-collected';args='--auto-key --frames 60 --map';expected='Key: collected'},
-    @{name='locked-exit';args='--x 6.225 --z -265.8 --yaw -90 --auto-exit --frames 60 --no-threat';expected='Exit used: no. Escaped: no'},
-    @{name='escape';args='--auto-key --auto-exit --auto-walk --frames 120 --no-threat';expected='Exit used: yes. Escaped: yes'},
+    @{name='locked-exit';args='--exit-preview --yaw -90 --auto-exit --frames 60 --no-threat';expected='Exit used: no. Escaped: no'},
+    @{name='escape';args='--auto-key --auto-exit --auto-walk --frames 120 --no-threat';expected='Level: Fun'},
     @{name='recess';args='--hide-fixture --frames 30 --map --no-threat';expected='Hiding: no'},
     @{name='hidden';args='--hide-fixture --auto-hide --frames 60 --no-threat';expected='Hiding: yes'},
     @{name='leave-cover';args='--hide-fixture --auto-hide --frames 110 --no-threat';expected='Hiding: no'},

@@ -12,11 +12,6 @@ inline constexpr double CELL = 7.5;
 inline constexpr double ROOM_HEIGHT = 3.2;
 inline constexpr int CHUNK_CELLS = 6;
 inline constexpr double CHUNK_SIZE = CELL * CHUNK_CELLS;
-// A distant landmark on the permanent north route, outside the starting
-// resident window. Generation, collision and interaction share this cell.
-inline constexpr std::int64_t EXIT_CELL_X = 0;
-inline constexpr std::int64_t EXIT_CELL_Z = -36;
-
 struct Vertex { float x,y,z,nx,ny,nz,u,v,material; };
 struct ChunkCoord {
     std::int64_t x, z;
@@ -25,10 +20,12 @@ struct ChunkCoord {
     }
     bool operator==(const ChunkCoord& other) const { return x == other.x && z == other.z; }
 };
+ChunkCoord exitCell(std::uint64_t seed);
 struct Aabb { double minX,minZ,maxX,maxZ; };
 // Local chunk-space footprint of elevated solid geometry. Full-height walls
 // stay in obstacles; these records measure room available above a tall actor.
 struct Overhead { Aabb footprint; float undersideY; };
+struct SightBlocker { Aabb footprint; float bottom,top; };
 enum class LampState { Working=0, Dying=1, Off=2 };
 struct Lamp {
     float x,y,z,power;
@@ -43,12 +40,14 @@ struct HidingSpot {
 };
 enum class RoomKind { Classic, Corridor, OpenHall, PillarHall, DeadEnd, OddRoom };
 enum class FloorSurface { Carpet, DampCarpet, Tile };
+enum class Level { Zero, Fun };
 struct DoorInfo {
     std::uint64_t id;
     double x,z; // Global midpoint, also used for interaction and spatial audio.
     bool east,open; // East means the panel lies on a plane of constant X.
     float openness=0; // Hinge animation progress; open is the requested target.
     bool isExit=false;
+    float swing=1; // Signed hinge direction, chosen away from the opener.
 };
 struct RoomInfo {
     std::int64_t x,z; // Global cell coordinates of this room's northwest corner.
@@ -61,8 +60,11 @@ struct Chunk {
     std::uint64_t revision = 0;
     float maxHeight = 0;
     std::vector<Vertex> vertices;
+    // Optional render-only distant mesh. Collision always uses the full world.
+    std::vector<Vertex> distantVertices;
     std::vector<Aabb> obstacles;
     std::vector<Overhead> overheads;
+    std::vector<SightBlocker> sightBlockers;
     std::vector<Lamp> lamps;
     std::vector<DoorInfo> doors;
     std::vector<HidingSpot> hidingSpots;
@@ -87,7 +89,9 @@ bool edgeOpen(std::int64_t x, std::int64_t z,
 
 class World {
 public:
-    explicit World(std::uint64_t seed);
+    explicit World(std::uint64_t seed,Level level=Level::Zero);
+    Level level() const { return level_; }
+    bool isFun() const { return level_==Level::Fun; }
     void update(double x, double z, int radius = 2);
     const std::map<ChunkCoord,Chunk>& chunks() const { return chunks_; }
     // Optional game-loop prefetch. Synchronous update() remains complete for
@@ -106,7 +110,8 @@ public:
     // A live actor and its neighbouring chunks must keep their collision mesh
     // stable, even when they are distant and behind the player's camera.
     bool shiftBehind(double x, double z, float forwardX, float forwardZ,
-                     std::optional<WorldPoint> protectedActor=std::nullopt);
+                     std::optional<WorldPoint> protectedActor=std::nullopt,
+                     const std::vector<WorldPoint>& protectedActors={});
     bool nearestDoor(double x,double z,double range,DoorInfo& result) const;
     bool toggleDoor(std::uint64_t id,double playerX,double playerZ,double playerRadius=.25);
     bool advanceDoors(float dt,double playerX,double playerZ,double playerRadius=.25,bool paused=false,
@@ -124,17 +129,18 @@ public:
     std::size_t rememberedDoors() const { return openDoors_.size(); }
     std::uint64_t seed() const { return seed_; }
     std::size_t shifts() const { return shifts_; }
-    WorldPoint exitLocation() const { return {(EXIT_CELL_X+1)*CELL-1.275,EXIT_CELL_Z*CELL+3.0+1.2}; }
+    WorldPoint exitLocation() const { const auto c=exitCell(seed_); return {(c.x+1)*CELL-1.275,c.z*CELL+4.2}; }
 private:
     Chunk generate(ChunkCoord coord, std::uint64_t variant) const;
     std::uint64_t seed_;
+    Level level_=Level::Zero;
     bool keyCollected_=false;
     std::size_t shifts_ = 0;
     std::uint64_t nextRevision_ = 1;
     std::map<ChunkCoord,Chunk> chunks_;
     std::map<ChunkCoord,std::uint64_t> variants_;
     std::map<ChunkCoord,Chunk> prepared_;
-    struct OpenDoor { ChunkCoord owner; std::uint64_t order; float openness; bool target; };
+    struct OpenDoor { ChunkCoord owner; std::uint64_t order; float openness; bool target; float swing=1; };
     std::map<std::uint64_t,OpenDoor> openDoors_;
     std::uint64_t doorOrder_=0;
     ChunkCoord center_{0,0};

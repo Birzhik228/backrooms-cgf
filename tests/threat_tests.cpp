@@ -79,7 +79,7 @@ void forwardLocomotion() {
         const double x=patrol.x(),z=patrol.z(); const float yaw=patrol.yaw();
         patrol.update(world,hidden,.1f);
         checkForwardStep(patrol,x,z,yaw,.1f);
-        check(patrol.state()==br::ThreatState::Wander && patrol.speed()<1.101f,
+        check(patrol.state()==br::ThreatState::Wander && patrol.speed()<1.201f,
               "quiet patrol retains its walking speed and state");
         const float turn=std::abs(std::remainder(patrol.yaw()-yaw,2*PI));
         check(turn<=.60001f,"walking spends at most six radians per second on turning");

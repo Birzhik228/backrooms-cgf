@@ -1,4 +1,5 @@
 #include "world.h"
+#include "landmark_route.h"
 #include "common/gameplay.h"
 #include <stdexcept>
 #include <cmath>
@@ -111,29 +112,29 @@ int main() {
     // the new landmark only, without a generation hitch or blocked corridor.
     World journey(12071998);
     const auto exitApproach=journey.exitLocation();
-    double journeyZ=CELL/2;
-    journey.update(CELL/2,journeyZ);
-    CHECK(std::abs(exitApproach.z-journeyZ)>260);
+    auto route=landmarkRoute(journey.seed());
+    double journeyX=CELL/2,journeyZ=CELL/2;
+    journey.update(journeyX,journeyZ);
     bool sawExit=false;
-    while (journeyZ>exitApproach.z) {
-        journeyZ=std::max(exitApproach.z,journeyZ-SPRINT_SPEED/60);
-        journey.update(CELL/2,journeyZ);
-        journey.prepareAhead(CELL/2,journeyZ);
-        journey.collectKey(CELL/2,journeyZ);
-        checkResident(journey,CELL/2,journeyZ);
-        CHECK(!journey.blocked(CELL/2,journeyZ,.25));
-        for (const auto& [coord,chunk]:journey.chunks()) {
-            (void)coord;
-            for (const auto& candidate:chunk.doors) if(candidate.isExit) {
-                sawExit=true;
-                CHECK(candidate.x==exitApproach.x && candidate.z==exitApproach.z-1.2);
+    for(size_t waypoint=1;waypoint<route.size();++waypoint) {
+        const auto target=route[waypoint];
+        while(std::hypot(target.x-journeyX,target.z-journeyZ)>.00001) {
+            double distance=std::hypot(target.x-journeyX,target.z-journeyZ);
+            double fraction=std::min(1.0,(SPRINT_SPEED/60)/distance);
+            journeyX+=(target.x-journeyX)*fraction;journeyZ+=(target.z-journeyZ)*fraction;
+            journey.update(journeyX,journeyZ);journey.prepareAhead(journeyX,journeyZ);
+            journey.collectKey(journeyX,journeyZ);checkResident(journey,journeyX,journeyZ);
+            CHECK(!journey.blocked(journeyX,journeyZ,.25));
+            for(const auto& [coord,chunk]:journey.chunks())for(const auto& candidate:chunk.doors)if(candidate.isExit) {
+                sawExit=true;CHECK(candidate.x==exitApproach.x && candidate.z==exitApproach.z-1.2);
             }
         }
     }
     CHECK(sawExit && journey.streamPromotions()>0 && journey.streamFallbacks()==0);
     DoorInfo distantExit{};
     CHECK(journey.nearestDoor(exitApproach.x,exitApproach.z,2,distantExit) && distantExit.isExit);
-    CHECK(journey.keyCollected() && distantExit.open);
+    CHECK(journey.keyCollected() && !distantExit.open && distantExit.openness==0);
+    CHECK(journey.toggleDoor(distantExit.id,exitApproach.x,exitApproach.z));
     for(int i=0;i<100;++i) journey.advanceDoors(.016f,exitApproach.x,exitApproach.z);
     CHECK(journey.exitCrossed(distantExit.x,distantExit.z-.8));
     journey.update(CELL/2,CELL/2);

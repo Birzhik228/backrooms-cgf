@@ -136,3 +136,28 @@ Game captures near the reported wall at 1920x1000 and 1919x1027, plus a close
 of the repeated dark wall bands while retaining the existing wallpaper design.
 Only external GLSL shaders and regression/documentation files changed; the
 game executable does not require rebuilding.
+
+
+## Exit performance and FPS display — 17 October 2026
+
+A 240-frame 1280x800 exit-door fixture rebuilt lamp shadows 456 times as the
+leaf animated. Door angles are now quantized into eight shadow-cache steps,
+with at most two already-initialized lamp maps refreshed per frame. New lamp
+maps initialize immediately; stationary door endpoints converge over subsequent
+frames. This can briefly delay a lamp shadow during motion; physical collision
+and the visible door still animate every frame. The signed opening direction
+is part of the cache revision. The near-black exit lining now uses a cheap
+light-absorbing shader path instead of evaluating 24 lamps and flashlight PCF.
+
+Excluding the first 40 frames, the same fixture improved from 27.3 to 31.1 FPS,
+with 95th-percentile frame time falling from 49 to 35 ms and cache rebuilds from
+456 to 136. A stationary closed-door comparison measured 33.1 to 36.2 FPS;
+these short local Intel UHD measurements do not establish a cure for every
+exit/transition stall. Initial generation and new shadow-map initialization
+still have a cost. Profiles are in `tests/artifacts/exit-performance/`.
+
+Settings now shows live FPS and has a persistent FPS COUNTER toggle for the
+in-game overlay. It defaults off for existing configurations. The 13 settings
+rows fit at 960x640 and keyboard/mouse selection share the same 27-pixel spacing.
+Settings persistence, both door opening directions, streaming of signed hinge
+poses, and creature pursuit are covered by native tests and rendered checks.

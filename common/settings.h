@@ -11,7 +11,7 @@ struct Settings {
     float fov = 78.f, headBob = 1.f, blur = 1.f;
     float musicVolume = .35f;
     float ambientOcclusion = .65f;
-    bool vsync = true, musicEnabled = true;
+    bool vsync = true, musicEnabled = true, showFPS = false;
     static float valid(float n, float fallback, float lo, float hi) {
         return std::isfinite(n) ? std::clamp(n, lo, hi) : fallback;
     }
@@ -42,6 +42,7 @@ struct Settings {
             else if (key == "musicVolume") musicVolume = value;
             else if (key == "musicEnabled") musicEnabled = value != 0;
             else if (key == "ambientOcclusion") ambientOcclusion=value;
+            else if (key == "showFPS") showFPS = value != 0;
             else if (key == "vsync") vsync = value != 0;
         }
         sanitize();
@@ -54,6 +55,7 @@ struct Settings {
              << "\nheadBob " << headBob << "\nblur " << blur
              << "\nmusicVolume " << musicVolume << "\nmusicEnabled " << int(musicEnabled)
              << "\nambientOcclusion " << ambientOcclusion
+             << "\nshowFPS " << int(showFPS)
              << "\nvsync " << int(vsync) << '\n';
         file.flush();
         return bool(file);

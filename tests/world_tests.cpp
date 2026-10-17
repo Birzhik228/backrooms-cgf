@@ -1,4 +1,5 @@
 #include "../world.h"
+#include "landmark_route.h"
 
 #include <algorithm>
 #include <cmath>
@@ -95,7 +96,7 @@ void variedRoomsAndExit() {
     for (int step=0; step<=720; ++step)
         check(!world.blocked(br::CELL/2+step*.1,br::CELL/2,.25),"guaranteed east route remains traversable");
 
-    const std::set<int> allowedMaterials{0,1,2,3,5,7,16,18,19,27,32,33,34};
+    const std::set<int> allowedMaterials{0,1,2,3,5,7,16,18,19,57,32,33,34};
     std::set<int> materials;
     std::size_t vertexCount=0;
     bool hasUnlitFixture=false;
@@ -124,7 +125,7 @@ void variedRoomsAndExit() {
         // central walking cross and nearby cell corners unobstructed.
         for (int z=0; z<br::CHUNK_CELLS; ++z) for (int x=0; x<br::CHUNK_CELLS; ++x) {
             const auto gx=coord.x*br::CHUNK_CELLS+x,gz=coord.z*br::CHUNK_CELLS+z;
-            if (gx==br::EXIT_CELL_X && gz==br::EXIT_CELL_Z) continue;
+            if (gx==br::exitCell(world.seed()).x && gz==br::exitCell(world.seed()).z) continue;
             bool hasHide=false;
             for(const auto& spot:chunk.hidingSpots) hasHide|=std::floor(spot.inside.x/br::CELL)==gx && std::floor(spot.inside.z/br::CELL)==gz;
             for (double dx : {.6,br::CELL-.6}) for (double dz : {.6,br::CELL-.6}) {
@@ -134,21 +135,21 @@ void variedRoomsAndExit() {
             }
         }
     }
-    auto startingMaterials=allowedMaterials; startingMaterials.erase(16); startingMaterials.erase(27);
+    auto startingMaterials=allowedMaterials; startingMaterials.erase(16); startingMaterials.erase(57);
     check(materials==startingMaterials,"classic surfaces, lamps and clues are generated without the distant exit sign at spawn");
     check(hasUnlitFixture,"some fluorescent fixtures remain unlit for atmosphere");
     check(vertexCount<500000,"varied world retains a bounded mesh budget");
 
     const auto exit=world.exitLocation();
-    check(std::hypot(exit.x-br::CELL/2,exit.z-br::CELL/2)>260,
-          "exit is a distant destination over 260 m from the player spawn");
+    check(std::hypot(exit.x-br::CELL/2,exit.z-br::CELL/2)>180,
+          "exit is a distant destination over 180 m from the player spawn");
     for (const auto& [coord,chunk]:world.chunks()) {
         (void)coord;
         for (const auto& door:chunk.doors)
             check(!door.isExit,"no exit remains in the initial resident window or its former location");
     }
-    check(br::World(991).exitLocation().x==exit.x && br::World(991).exitLocation().z==exit.z,
-          "exit landmark is stable across seeds");
+    check(br::World(991).exitLocation().x!=exit.x || br::World(991).exitLocation().z!=exit.z,
+          "exit landmark varies across seeds");
     world.update(exit.x,exit.z);
     bool foundExitSign=false;
     for (const auto& [coord,chunk]:world.chunks()) {
@@ -158,15 +159,12 @@ void variedRoomsAndExit() {
     check(foundExitSign,"the exit sign streams in at the distant landmark");
     check(!world.blocked(exit.x,exit.z,.25),"exit interaction threshold is clear");
     check(world.blocked(exit.x,exit.z-1.2,.25),"closed exit door has collision");
-    for (double z=br::CELL/2;z>=exit.z;z-=.1) {
-        world.update(br::CELL/2,z);
-        check(!world.blocked(br::CELL/2,z,.25),"streamed north route from entrance to distant exit stays open");
+    auto route=landmarkRoute(world.seed());
+    for(size_t i=1;i<route.size();++i)for(int step=0;step<=60;++step) {
+        double t=step/60.0,x=route[i-1].x+(route[i].x-route[i-1].x)*t,z=route[i-1].z+(route[i].z-route[i-1].z)*t;
+        world.update(x,z);check(!world.blocked(x,z,.25),"seeded route and exit approach stay clear");
     }
-    world.update(exit.x,exit.z);
-    for (int step=0; step<=50; ++step) {
-        const double t=step/50.0;
-        check(!world.blocked(br::CELL/2+(exit.x-br::CELL/2)*t,exit.z,.25),"exit approach is reachable");
-    }
+
 }
 
 void doorsAndLampStates() {
@@ -300,7 +298,7 @@ void exitAndHingeSafety() {
         check(!world.blocked(exit.x,exit.z-1,.25),"there is usable floor beyond the exit wall");
         check(world.blocked(exit.x-1.1,exit.z,.25) && world.blocked(exit.x+1.1,exit.z,.25),
               "full-height wall jambs flank the opening");
-        check(world.blocked(br::CELL-2.55,exit.z-1,.25) && world.blocked(br::CELL,exit.z-1,.25)
+        check(world.blocked(exit.x-1.275,exit.z-1,.25) && world.blocked(exit.x+1.275,exit.z-1,.25)
               && world.blocked(exit.x,exit.z-3,.25),"side and back walls enclose an actual vestibule");
         for (double z=br::CELL/2;z>=exit.z-1;z-=.1) {
             world.update(br::CELL/2,z);
@@ -316,8 +314,6 @@ void exitAndHingeSafety() {
         check(!world.toggleDoor(exit.id,approach.x,approach.z),"locked exit rejects interaction");
         const auto key=world.keyLocation();world.update(key.x,key.z);
         check(world.collectKey(key.x,key.z),"key unlocks exit");world.update(approach.x,approach.z);
-        check(world.toggleDoor(exit.id,approach.x,approach.z),"unlocked exit can close");
-        for(int i=0;i<60;++i) world.advanceDoors(.016f,approach.x,approach.z);
         check(world.toggleDoor(exit.id,approach.x,approach.z),"exit starts opening with E interaction");
         world.advanceDoors(.3f,approach.x,approach.z);
         bool ownLeafOccludes=false;
@@ -368,6 +364,32 @@ void exitAndHingeSafety() {
         for (int i=0;i<60;++i) world.advanceDoors(.016f,approach.x,approach.z);
         check(world.blocked(exit.x,exit.z,.25) && !world.exitCrossed(exit.x,exit.z-.8),
               "closed exit restores panel collision and disables escape");
+    }
+}
+
+void doorOpeningSides() {
+    br::World base(12071998);base.update(3.75,3.75);
+    for(bool east:{false,true}) {
+        br::DoorInfo fixture{};bool found=false;
+        for(const auto& [coord,c]:base.chunks())for(const auto& door:c.doors) {
+            if(found || door.isExit || door.east!=east)continue;
+            if(base.blocked(door.x+(east?1:0),door.z+(east?0:1),.25) ||
+               base.blocked(door.x-(east?1:0),door.z-(east?0:1),.25))continue;
+            fixture=door;found=true;
+        }
+        check(found,"door has reachable positions on both sides");
+        for(float side:{-1.f,1.f}) {
+            br::World world(12071998);double px=fixture.x+(east?side:0),pz=fixture.z+(east?0:side);
+            world.update(px,pz);
+            check(world.toggleDoor(fixture.id,px,pz),"open from either side");
+            for(int i=0;i<70;++i)world.advanceDoors(.016f,px,pz);
+            br::DoorInfo current{};
+            check(world.nearestDoor(fixture.x,fixture.z,.1,current) && current.openness==1,"away-opening completes");
+            check(current.swing==(east?-side:side),"hinge direction points away from opener");
+            check(!world.blocked(px,pz,.25),"opening does not sweep into the player");
+            world.update(6000,6000);world.update(px,pz);
+            br::DoorInfo restored{};check(world.nearestDoor(fixture.x,fixture.z,.1,restored) && restored.swing==current.swing && restored.openness==1,"signed hinge pose survives streaming");
+        }
     }
 }
 
@@ -552,6 +574,7 @@ void actorProtectionAndDoorBroadphase() {
     br::DoorInfo exit{}; check(world.nearestDoor(approach.x,approach.z,2,exit),"secondary actor door fixture is present");
     const auto key=world.keyLocation();world.update(key.x,key.z);check(world.collectKey(key.x,key.z),"actor fixture collects key");
     world.update(approach.x,approach.z);
+    check(world.toggleDoor(exit.id,approach.x,approach.z),"actor fixture opens unlocked door");
     for(int i=0;i<60;++i) world.advanceDoors(.016f,approach.x,approach.z);
     const double hinge=exit.x-(.825-.035),width=2*(.825-.035);
     const br::WorldPoint blocker{hinge+width*.65*.70710678118,exit.z-width*.65*.70710678118};
@@ -645,7 +668,7 @@ void actualOverheadClearance() {
 
 int main() {
     try {
-        coordinates(); topology(); geometryAndCollision(); variedRoomsAndExit(); streamingAndShifts(); doorsAndLampStates(); exitAndHingeSafety(); actorProtectionAndDoorBroadphase(); actualOverheadClearance();
+        doorOpeningSides(); coordinates(); topology(); geometryAndCollision(); variedRoomsAndExit(); streamingAndShifts(); doorsAndLampStates(); exitAndHingeSafety(); actorProtectionAndDoorBroadphase(); actualOverheadClearance();
         std::cout << "PASS: coordinates, seeded topology, connectivity, mesh winding, six room variants, seeded surfaces, merged surface coverage, room dimensions, uniform ceilings, lights, exit approach, streaming, and safe shifts\n";
         return 0;
     } catch (const std::exception& error) {

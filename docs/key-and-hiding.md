@@ -1,20 +1,17 @@
 # Key, hiding places, and supplied footsteps
 
-The exit begins locked. A seeded brass key appears directly on the carpet along the
-connected north route, 90â€“135 metres north of the entrance. Its gold KEY marker
-stays at the minimap edge when outside the local view, and KEY SIGNAL reports
-distance and direction. Walk within 1.25 metres to collect it; pickup requires
-a clear path and a resident key location. The key disappears, the exit opens,
-and the creature becomes enraged. Key state survives chunk eviction but not a
-new run. Returning to the entrance with R retains the key, like door progress.
+The exit begins locked. A seeded brass key rests on the carpet 3-5 connected
+rooms before the exit. Follow the gold KEY marker and distance signal; walk
+within 1.25 metres with a clear path to collect it. The exit unlocks but remains
+closed until the player faces it and presses E. Its pose persists through room
+streaming. A new run resets the key; returning with R retains it.
 
-Rage multiplies creature movement speed by 1.35. It also ends the initial spawn
-grace period. The creature roars once it is active after pickup, then every
-seven seconds while exploring, with a shared vocal interval to avoid overlapping
-a sighting scream. Pursuit roars use four lower-pitched, filtered Aranea variants
-lasting approximately 1.54â€“1.62 seconds, with soft edges. The sharp jumpscare recording
-and impact remain unchanged. Pursuit roars remain positional; they do not take over the mixer like a jumpscare does.
-The exit can still be manually closed/reopened after it is unlocked.
+Pickup calls Aranea to that location once, regardless of sound attenuation.
+A dormant creature can spawn using the usual hidden, reachable spawn rules.
+It runs toward the recorded location at 35% increased pursuit speed and forgets the
+call after about five seconds unless ordinary sight or hearing detects the
+player. Owning the key keeps the 35% movement speed boost, including after the call
+expires. It never refreshes the call or adds periodic rage roars. Normal sighting calls and the jumpscare are unchanged.
 
 H marks a hiding place on the minimap. Wardrobes have been removed. Recesses
 are carved into seeded solid wall segments, with a flush entrance, a low
@@ -87,3 +84,20 @@ playtest; physical speaker listening is not part of those checks.
 Verified on 11 October 2026: all nine native test suites and all ten rendered
 progression cases passed, with zero OpenGL errors. The floor key and flush wall
 recess captures were visually inspected.
+
+
+## 17 October 2026 update
+
+Exit cells now vary in both axes and quadrants with the world seed. The key is
+placed 3–5 parent edges toward the entrance, so the reserved route is always
+connected and the remaining walk to the door is about 25–40 metres. A normal
+launch uses a new seed; explicit `--seed` and hidden verification runs remain
+reproducible. Restart/R retain the layout. Native tests traverse the actual
+reserved route, collect the key and verify the unlocked exit survives streaming.
+The exit interior has near-black wall/floor/ceiling lining and no internal
+ceiling lamp. Its external sign and approach light remain visible.
+
+The mouse seeks the player at 1.65 m/s, summons Aranea on its first contact only,
+then flees at 2.1 m/s. It uses collision-aware directional steering; a closed
+door can still block its approach. Reset clears its one-alarm state. Its tapered
+tail now overlaps the body at the root and has a rounded closed tip.

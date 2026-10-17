@@ -16,7 +16,7 @@ struct GuideLayout {
     }
 };
 
-inline void drawControlsGuide(UI& ui,int width,int height,int page) {
+inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=false) {
     const GuideLayout g(width,height);
     const Color gold{.78f,.66f,.36f,1},paper{.91f,.89f,.76f,1},muted{.53f,.55f,.43f,1};
     const Color ink{.045f,.055f,.036f,1},edge{.23f,.25f,.17f,1};
@@ -36,9 +36,9 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page) {
     };
     ui.rect(0,0,float(width),float(height),{.009f,.013f,.008f,.83f});
     rect(8,10,900,550,{0,0,0,.35f});rect(0,0,900,550,ink);rect(0,0,900,2,gold);
-    text(32,24,"FIELD GUIDE",1.3f,gold);text(165,24,"LEVEL 0",1.3f,muted);
+    text(32,24,"FIELD GUIDE",1.3f,gold);text(165,24,fun?"LEVEL FUN":"LEVEL 0",1.3f,muted);
     rect(838,14,38,32,{.11f,.13f,.08f,1});line(851,24,863,36,1.5f,paper);line(863,24,851,36,1.5f,paper);
-    const char* stages[]={"MOVE","EXPLORE","SURVIVE"};
+    const char* stages[]={"MOVE","EXPLORE",fun?"WATCH":"SURVIVE"};
     for(int i=0;i<3;++i) {
         const float x=32+i*279;
         rect(x,61,260,3,i<=page?gold:edge);
@@ -47,7 +47,8 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page) {
     }
     const char* titles[]={"FIND YOUR FOOTING","FOLLOW THE SIGNAL","STAY OUT OF SIGHT"};
     const char* subtitles[]={"Take a moment. Learn how to move.","Light the way. Find the key. Reach the exit.","Listen carefully. You are not alone."};
-    text(32,116,titles[page],2.65f,paper);text(32,150,subtitles[page],1.35f,muted);
+    text(32,116,fun&&page>0?"THE PARTY GOES ON":titles[page],2.65f,paper);
+    text(32,150,fun&&page>0?"Partygoers move when you look away. Keep them in sight.":subtitles[page],1.35f,muted);
     rect(32,187,380,260,{.071f,.085f,.052f,1});
     // Blueprint-style illustrations are native UI geometry, crisp at every size.
     for(int i=0;i<9;++i) line(48+i*43,199,48+i*43,431,1,{.095f,.112f,.072f,1});
@@ -62,6 +63,23 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page) {
         row(260,"MOUSE","LOOK AROUND","Turn and watch your corners.");
         row(320,"SHIFT","SPRINT","Rest to recover stamina.");
         row(380,"CTRL","CROUCH","Lower yourself. Move quietly.");
+    } else if(fun) {
+        rect(75,315,210,12,paper);rect(86,327,8,65,edge);rect(265,327,8,65,edge);
+        rect(140,265,78,50,gold);rect(140,282,78,7,paper);rect(136,261,86,8,paper);
+        for(int i=0;i<3;++i)rect(157+i*20,241,4,20,paper);
+        oval(329,245,24,32,gold);line(329,277,306,386,1,muted);
+        text(93,406,"WELCOME TO LEVEL FUN",1.4f,gold);
+        if(page==1) {
+            row(200,"F","FLASHLIGHT","Light the darker corners.");
+            row(260,"TAB","LOCAL MAP","Find your way between rooms.");
+            row(320,"R","RETURN TO START","Stay on this level.");
+            row(380,"F12","TAKE A PICTURE","Save a screenshot.");
+        } else {
+            row(200,"ESC","TAKE A BREAK","Pause and release the cursor.");
+            row(260,"M","MUTE SOUND","Toggle the game audio.");
+            row(320,"V","MINIMAL HUD","Enjoy the view.");
+            row(380,"H","OPEN THIS GUIDE","Revisit the controls.");
+        }
     } else if(page==1) {
         rect(64,266,64,28,edge);rect(118,258,18,44,gold);rect(70,270,30,4,paper);
         line(138,260,207,220,2,gold);line(138,300,207,340,2,gold);

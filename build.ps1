@@ -1,7 +1,17 @@
-param([switch]$Test, [switch]$DebugBuild, [switch]$GraphicsTest)
+param([switch]$Test, [switch]$DebugBuild, [switch]$GraphicsTest, [switch]$IfNeeded)
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $taskOutputPath = Join-Path $PSScriptRoot 'Backrooms.exe'
+if ($IfNeeded -and !$Test -and !$GraphicsTest -and !$DebugBuild -and (Test-Path -LiteralPath $taskOutputPath)) {
+    $taskBuildTime = (Get-Item -LiteralPath $taskOutputPath).LastWriteTimeUtc
+    $taskInputs = @(Get-Item -LiteralPath (Join-Path $PSScriptRoot 'backrooms.cpp'), (Join-Path $PSScriptRoot 'world.cpp'), (Join-Path $PSScriptRoot 'world.h'), $PSCommandPath)
+    $taskInputs += Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'common') -File -Recurse | Where-Object { $_.Extension -in '.cpp','.c','.h' }
+    if (!($taskInputs | Where-Object { $_.LastWriteTimeUtc -gt $taskBuildTime })) {
+        Write-Host 'Backrooms.exe is up to date.'
+        exit 0
+    }
+    Write-Host 'Source files changed. Rebuilding Backrooms.exe before launch.'
+}
 $taskRunningGame = Get-Process -Name Backrooms -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $taskOutputPath }
 if ($taskRunningGame) { throw 'Close the Backrooms window before rebuilding this executable.' }
 $taskCompiler = $null
@@ -26,6 +36,15 @@ Write-Host "Building Backrooms with $taskCompiler"
 if ($LASTEXITCODE -ne 0) { throw "Build failed ($LASTEXITCODE)." }
 Write-Host 'Built Backrooms.exe. Start with Run.cmd.'
 if ($Test) {
+    & $taskCompiler @taskFlags 'world.cpp' 'tests\partygoer_tests.cpp' '-o' 'tests\partygoer_tests.exe' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Partygoer test compilation failed.' }
+    & '.\tests\partygoer_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Partygoer tests failed.' }
+
+    & $taskCompiler @taskFlags 'world.cpp' 'tests\fun_tests.cpp' '-o' 'tests\fun_tests.exe' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Level Fun test compilation failed.' }
+    & '.\tests\fun_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Level Fun tests failed.' }
     & $taskCompiler @taskFlags 'world.cpp' 'common\threat.cpp' 'tests\progression_tests.cpp' '-o' 'tests\progression_tests.exe' '-static'
     if ($LASTEXITCODE -ne 0) { throw 'Progression test compilation failed.' }
     & '.\tests\progression_tests.exe'

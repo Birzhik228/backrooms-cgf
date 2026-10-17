@@ -32,7 +32,7 @@ public:
     // Deterministic fixture/capture entry point; ordinary games use reset().
     void resetAt(double x,double z,float yaw=0);
     void update(const World& world,const ThreatPlayer& player,float dt,bool paused=false);
-    void hearAlarm(const World& world,const ThreatPlayer& player,double x,double z);
+    void hearAlarm(const World& world,const ThreatPlayer& player,double x,double z,bool globalCall=false);
     void setEnraged(bool value) { enraged_=value; }
     bool enraged() const { return enraged_; }
 

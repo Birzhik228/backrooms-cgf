@@ -9,7 +9,7 @@ class Mouse {
 public:
     double x=0,z=0;
     float yaw=0,animation=0;
-    bool active=false;
+    bool active=false,alerted=false;
     // One-frame, quiet discovery cue; only update's return value is an alarm.
     bool ambientCue=false;
     void reset(std::uint64_t seed) { *this=Mouse{}; random_=seed; }
@@ -32,21 +32,27 @@ public:
         cooldown_=std::max(0.f,cooldown_-dt);flee_=std::max(0.f,flee_-dt);
         const double distance=std::hypot(px-x,pz-z);
         if(distance>.85) armed_=true;
-        bool contact=!hidden && armed_ && cooldown_<=0 && distance<.48;
+        bool contact=!alerted && !hidden && armed_ && cooldown_<=0 && distance<.48;
         for(int i=1;contact && i<8;++i)
             if(world.blocked(x+(px-x)*i/8,z+(pz-z)*i/8,.035)) contact=false;
         if(contact) {
-            cooldown_=3;armed_=false;flee_=1.4f;
+            cooldown_=3;armed_=false;alerted=true;flee_=1000000.f;
             ambientClock_=3.5f;
             yaw=float(std::atan2(x-px,-(z-pz)));turn_=1.4f;
         }
-        turn_-=dt;
-        if(turn_<=0) {
-            random_=hashCell(std::int64_t(random_&0x7fffffff),17,world.seed());
-            yaw+=float(int(random_%2001)-1000)*.0015f;
-            turn_=1.4f+float((random_>>16)%2000)*.001f;
+        // Seek the player until the one alarm, then keep escaping.
+        const float wanted=float(std::atan2(alerted?x-px:px-x,alerted?pz-z:z-pz));
+        const double speed=alerted?2.1:1.65;
+        float best=wanted;double bestScore=-1e9;
+        for(float offset:{0.f,.45f,-.45f,.9f,-.9f,1.5f,-1.5f,2.2f,-2.2f,3.14159f}) {
+            float direction=wanted+offset;double sx=std::sin(direction),sz=-std::cos(direction);
+            bool clear=true;
+            for(int step=1;step<=6;++step)if(world.blocked(x+sx*step*.10,z+sz*step*.10,.12)){clear=false;break;}
+            if(!clear)continue;
+            double score=std::cos(offset)*2+.3*std::cos(direction-yaw);
+            if(score>bestScore){bestScore=score;best=direction;}
         }
-        const double speed=flee_>0?1.5:.38;
+        yaw=best;
         const double dx=std::sin(yaw)*dt*speed,dz=-std::cos(yaw)*dt*speed;
         const double oldX=x,oldZ=z;
         if(!world.blocked(x+dx,z,.12)) x+=dx;
@@ -101,7 +107,7 @@ public:
             const float slope=(std::sin(phase)+3*t*std::cos(phase))*.15f/.40f;
             const float nx=std::cos(angle)/std::sqrt(1+slope*slope),ny=std::sin(angle),nz=-slope*nx;
             const float radius=.020f*(1-t)+.002f;
-            return Vertex{std::sin(phase)*t*.15f+nx*radius,.035f+ny*radius,.20f+t*.40f+nz*radius,
+            return Vertex{std::sin(phase)*t*.15f+nx*radius,.065f+bob+ny*radius,.12f+t*.40f+nz*radius,
                 nx,ny,nz,t,angle,26};
         };
         for(int i=0;i<16;++i) for(int side=0;side<8;++side) {
@@ -109,6 +115,8 @@ public:
             const Vertex v[]={tailPoint(t,a),tailPoint(t,b),tailPoint(next,b),tailPoint(next,a)};
             for(int index:{0,1,2,0,2,3}) mesh.push_back(v[index]);
         }
+        const auto tip=tailPoint(1,0);
+        ellipsoid(tip.x,tip.y,tip.z,.004f,.004f,.004f,26);
         const float cs=std::cos(yaw),sn=std::sin(yaw);
         for(auto& v:mesh) {
             const float vx=v.x,vz=v.z,nx=v.nx,nz=v.nz;

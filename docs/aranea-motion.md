@@ -48,3 +48,10 @@ The existing [Smiler motion results](smiler-motion.md) are explicitly historical
 ## Original replacement installation
 
 Installed into the Desktop project after checking all 167 baseline hashes. Thirty files were updated and nine obsolete Smiler asset/tool files were removed after backup. Player settings were preserved. The installed executable was launched from an unrelated working directory and passed a 180-frame capture/restart smoke check: Aranea loaded, music loaded, restart returned to exploration, zero GL errors. Backup: `backups/before-aranea-20261012-213017.zip`. Changes remain local and uncommitted.
+
+
+17 October tuning: ordinary patrol speed is now 1.2 m/s (was 1.1), and ordinary
+chase speed is 3.6 m/s (was 3.3). The existing 1.35 key-rage multiplier remains.
+Partygoer speed is unchanged. Door leaves now open away from the interacting
+player when fully closed, preserving their signed hinge pose through streaming;
+reversing an unfinished animation retains its current direction to avoid a jump.

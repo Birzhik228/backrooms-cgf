@@ -14,8 +14,8 @@ constexpr double PI=3.14159265358979323846;
 constexpr double GRID=.75;
 constexpr float MEMORY_SECONDS=5.0f;
 constexpr float SIGHT_RANGE=22.0f;
-constexpr float WANDER_SPEED=1.1f;
-constexpr float CHASE_SPEED=3.3f;
+constexpr float WANDER_SPEED=1.2f;
+constexpr float CHASE_SPEED=3.6f;
 constexpr float SPAWN_GRACE=8.0f;
 constexpr double CATCH_DISTANCE=.62;
 
@@ -237,10 +237,10 @@ void Threat::walk(const World& world,float dt,float desiredSpeed) {
     speed_=dt>0?static_cast<float>(std::hypot(x_-initialX,z_-initialZ))/dt:0;
 }
 
-void Threat::hearAlarm(const World& world,const ThreatPlayer& player,double x,double z) {
+void Threat::hearAlarm(const World& world,const ThreatPlayer& player,double x,double z,bool globalCall) {
     if(caught() || !std::isfinite(x) || !std::isfinite(z)) return;
     const double range=48*std::sqrt(world.soundTransmission(x,z,x_,z_));
-    if(active() && std::hypot(x-x_,z-z_)>range) return;
+    if(!globalCall && active() && std::hypot(x-x_,z-z_)>range) return;
     alarm_={x,z};alarmRemaining_=5;age_=std::max(age_,SPAWN_GRACE);spawnRetry_=0;
     if(!active()) spawn(world,player);
 }

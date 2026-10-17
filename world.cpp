@@ -69,6 +69,7 @@ void wallSegment(Chunk& c, bool east, float edge, float lo, float hi,
                  float bottom, float top, bool collision) {
     if (hi <= lo || top<=bottom) return;
     const float half = static_cast<float>(WALL_HALF);
+    c.sightBlockers.push_back({east?Aabb{edge-half,lo,edge+half,hi}:Aabb{lo,edge-half,hi,edge+half},bottom,top});
     if (east) box(c,edge-half,bottom,lo,edge+half,top,hi,0,collision);
     else box(c,lo,bottom,edge-half,hi,top,edge+half,0,collision);
     if (bottom == 0) {
@@ -139,11 +140,15 @@ void exitDoor(Chunk& c, float x, float z) {
     quad(c,{cx-.60f,2.75f,front+.092f},{cx+.60f,2.75f,front+.092f},
            {cx+.60f,3.05f,front+.092f},{cx-.60f,3.05f,front+.092f},{0,0,1},1,1,16);
     c.lamps.push_back({cx,2.67f,front+.45f,1.7f,1.0f,1.0f,1.0f});
-    // A bright neutral ceiling panel makes the exit vestibule a lit destination.
-    const float lightZ=(front+back)*.5f;
-    box(c,cx-.83f,top-.15f,lightZ-.46f,cx+.83f,top-.02f,lightZ+.46f,7);
-    box(c,cx-.75f,top-.16f,lightZ-.38f,cx+.75f,top-.15f,lightZ+.38f,27);
-    c.lamps.push_back({cx,top-.24f,lightZ,2.6f,1.0f,1.0f,1.0f});
+    // Near-black interior lining catches the flashlight but has no ceiling lamp.
+    // Slight offsets avoid coincident faces with the structural vestibule.
+    constexpr float dark=57;
+    quad(c,{left+.012f,.008f,front-.012f},{right-.012f,.008f,front-.012f},{right-.012f,.008f,back+.012f},{left+.012f,.008f,back+.012f},{0,1,0},2.5f,3, dark);
+    quad(c,{left+.012f,top-.012f,back+.012f},{right-.012f,top-.012f,back+.012f},{right-.012f,top-.012f,front-.012f},{left+.012f,top-.012f,front-.012f},{0,-1,0},2.5f,3,dark);
+    quad(c,{left+.105f,0,front-.105f},{left+.105f,0,back+.105f},{left+.105f,top,back+.105f},{left+.105f,top,front-.105f},{1,0,0},3,top,dark);
+    quad(c,{right-.105f,0,back+.105f},{right-.105f,0,front-.105f},{right-.105f,top,front-.105f},{right-.105f,top,back+.105f},{-1,0,0},3,top,dark);
+    quad(c,{left+.105f,0,back+.105f},{right-.105f,0,back+.105f},{right-.105f,top,back+.105f},{left+.105f,top,back+.105f},{0,0,1},2.5f,top,dark);
+
 }
 
 void clue(Chunk& c, float centerX, float centerZ, bool east, float normalSign) {
@@ -163,6 +168,8 @@ void clue(Chunk& c, float centerX, float centerZ, bool east, float normalSign) {
                {centerX-halfWidth,top,centerZ},{centerX+halfWidth,top,centerZ},{0,0,-1},1,1,5);
 }
 
+#include "common/fun_geometry.h"
+
 bool circleHits(const Aabb& b, double x, double z, double radius) {
     const double dx=x-std::clamp(x,b.minX,b.maxX);
     const double dz=z-std::clamp(z,b.minZ,b.maxZ);
@@ -174,9 +181,9 @@ struct DoorPose { double hingeX,hingeZ,alongX,alongZ,width; };
 DoorPose doorPose(const DoorInfo& door,float openness) {
     const double half=(door.isExit?EXIT_HALF:DOOR_HALF)-.035;
     // Ease into and out of a 90-degree swing, keeping collision and the rendered
-    // leaf on exactly the same transform. South-facing exits swing inward.
+    // leaf on exactly the same transform. The sign opens away from the player.
     const double t=std::clamp(static_cast<double>(openness),0.0,1.0);
-    const double angle=t*t*(3-2*t)*1.57079632679489661923;
+    const double angle=t*t*(3-2*t)*1.57079632679489661923*door.swing;
     const double alongX=door.east?std::sin(angle):std::cos(angle);
     const double alongZ=door.east?std::cos(angle):-std::sin(angle);
     return {door.x-(door.east?0:half),door.z-(door.east?half:0),alongX,alongZ,2*half};
@@ -215,6 +222,13 @@ std::uint64_t hashCell(std::int64_t x, std::int64_t z, std::uint64_t seed) {
 
 RoomKind roomKind(std::int64_t x, std::int64_t z, std::uint64_t seed) {
     return roomInfo(x,z,seed).kind;
+}
+
+ChunkCoord exitCell(std::uint64_t seed) {
+    const auto h=hashCell(0,0,seed^0x45584954ULL);
+    // Both axes vary, well outside the starting resident window.
+    return {(h&1?1:-1)*(18+std::int64_t((h>>2)%10)),
+            (h&2?1:-1)*(18+std::int64_t((h>>12)%10))};
 }
 
 RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed) {
@@ -260,8 +274,8 @@ RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed) {
     }
     if (flavor%13==0 && kind!=RoomKind::DeadEnd) kind=RoomKind::OddRoom;
     // The entrance and exit approach remain uncluttered familiar yellow rooms.
-    if ((roomX==0 && roomZ==0) || (roomX<=EXIT_CELL_X && roomX+width>EXIT_CELL_X
-                               && roomZ<=EXIT_CELL_Z && roomZ+depth>EXIT_CELL_Z))
+    if ((roomX==0 && roomZ==0) || (roomX<=exitCell(seed).x && roomX+width>exitCell(seed).x
+                               && roomZ<=exitCell(seed).z && roomZ+depth>exitCell(seed).z))
         kind=RoomKind::Classic;
     return {roomX,roomZ,width,depth,static_cast<float>(ROOM_HEIGHT),kind};
 }
@@ -305,7 +319,7 @@ namespace {
 bool hasDoor(std::int64_t x,std::int64_t z,std::int64_t bx,std::int64_t bz,std::uint64_t seed) {
     if (edgeReserved(x,z,bx,bz,seed) || sharedHall(x,z,bx,bz,seed)) return false;
     if (roomKind(x,z,seed)==RoomKind::DeadEnd || roomKind(bx,bz,seed)==RoomKind::DeadEnd) return false;
-    if ((x==EXIT_CELL_X && z==EXIT_CELL_Z) || (bx==EXIT_CELL_X && bz==EXIT_CELL_Z)) return false;
+    if ((x==exitCell(seed).x && z==exitCell(seed).z) || (bx==exitCell(seed).x && bz==exitCell(seed).z)) return false;
     const double midX=(x+bx+1)*CELL*.5,midZ=(z+bz+1)*CELL*.5;
     // Nearby optional branch doors make the E interaction discoverable. None
     // can close a guaranteed route, and distant doors remain seed-driven.
@@ -327,9 +341,10 @@ bool edgeOpen(std::int64_t x, std::int64_t z,
     return edgeHash(x,z,otherX,otherZ,seed ^ salt)%100 < 27;
 }
 
-World::World(std::uint64_t seed) : seed_(seed) {}
+World::World(std::uint64_t seed,Level level) : seed_(seed),level_(level) {}
 
 Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
+    if(isFun()) return funChunk(coord,seed_,variant);
     Chunk chunk;
     chunk.coord=coord;
     chunk.maxHeight=static_cast<float>(ROOM_HEIGHT);
@@ -376,7 +391,7 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
                 const float edge=east?x1:z1,begin=east?z0:x0;
                 const auto pocketHash=edgeHash(gx,gz,gx+(east?1:0),gz+(east?0:1),seed_^0x48494445);
                 const bool eligible=!open && edge<CHUNK_SIZE-1.5 &&
-                    !(std::abs(gx-EXIT_CELL_X)<=1 && std::abs(gz-EXIT_CELL_Z)<=1);
+                    !(std::abs(gx-exitCell(seed_).x)<=1 && std::abs(gz-exitCell(seed_).z)<=1);
                 if(!eligible || pocketHash%5!=0) { wall(chunk,east,edge,begin,open,wide); return; }
                 const float center=begin+1.65f+float((pocketHash>>8)%1000)/1000.f*.40f;
                 const float half=.61f+float((pocketHash>>20)%1000)/1000.f*.12f;
@@ -427,7 +442,7 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
                 const float dx=east?x1:x0+static_cast<float>(CELL/2);
                 const float dz=east?z0+static_cast<float>(CELL/2):z1;
                 doorFrame(chunk,east?dx:dz,east?dz:dx,east,static_cast<float>(DOOR_HALF));
-                chunk.doors.push_back({id,coord.x*CHUNK_SIZE+dx,coord.z*CHUNK_SIZE+dz,east,open,openness,false});
+                chunk.doors.push_back({id,coord.x*CHUNK_SIZE+dx,coord.z*CHUNK_SIZE+dz,east,open,openness,false,state==openDoors_.end()?1.f:state->second.swing});
             };
             if (eastDoor) addDoor(true);
             if (southDoor) addDoor(false);
@@ -443,13 +458,13 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
             if (gx==0 && gz==0) state=LampState::Working;
             const float phase=(static_cast<float>((h>>40)&255)+.5f)/256;
             ceilingLight(chunk,x0+static_cast<float>(CELL/2),z0+static_cast<float>(CELL/2),power,state,phase);
-            if (gx==EXIT_CELL_X && gz==EXIT_CELL_Z) {
+            if (gx==exitCell(seed_).x && gz==exitCell(seed_).z) {
                 exitDoor(chunk,x0,z0);
-                const auto id=hashCell(EXIT_CELL_X,EXIT_CELL_Z,seed_^0xe817d006ULL);
+                const auto id=hashCell(exitCell(seed_).x,exitCell(seed_).z,seed_^0xe817d006ULL);
                 const auto doorState=openDoors_.find(id);
-                const bool open=doorState!=openDoors_.end() ? doorState->second.target : keyCollected_;
-                const float openness=doorState==openDoors_.end()?(keyCollected_?1.f:0.f):doorState->second.openness;
-                chunk.doors.push_back({id,(EXIT_CELL_X+1)*CELL-1.275,EXIT_CELL_Z*CELL+3.0,false,open,openness,true});
+                const bool open=doorState!=openDoors_.end() ? doorState->second.target : false;
+                const float openness=doorState==openDoors_.end()?0.f:doorState->second.openness;
+                chunk.doors.push_back({id,(exitCell(seed_).x+1)*CELL-1.275,exitCell(seed_).z*CELL+3.0,false,open,openness,true,doorState==openDoors_.end()?1.f:doorState->second.swing});
             }
 
             if (!eastHall && (!eastOpen || !eastWide) && (h>>24)%11==0)
@@ -619,7 +634,10 @@ bool World::toggleDoor(std::uint64_t id,double playerX,double playerZ,double pla
     }
     if (!found || (selected.isExit && !keyCollected_) || std::hypot(playerX-selected.x,playerZ-selected.z)>3.0) return false;
     if (selected.open && doorHits(selected,0,playerX,playerZ,playerRadius)) return false;
-    openDoors_[id]={owner,++doorOrder_,selected.openness,!selected.open};
+    float swing=selected.swing;
+    if(!selected.open && selected.openness<.001f)
+        swing=selected.east?(playerX<=selected.x?1.f:-1.f):(playerZ>=selected.z?1.f:-1.f);
+    openDoors_[id]={owner,++doorOrder_,selected.openness,!selected.open,swing};
     syncDoor(id);
     if (openDoors_.size()>128) {
         auto oldest=openDoors_.end();
@@ -649,8 +667,9 @@ void World::syncDoor(std::uint64_t id) {
         for (auto& [coord,chunk]:chunks) {
             (void)coord;
             for (auto& door:chunk.doors) if (door.id==id) {
-                door.open=state!=openDoors_.end() ? state->second.target : door.isExit && keyCollected_;
-                door.openness=state==openDoors_.end()?(door.isExit && keyCollected_?1.f:0.f):state->second.openness;
+                door.swing=state==openDoors_.end()?1.f:state->second.swing;
+                door.open=state!=openDoors_.end() ? state->second.target : false;
+                door.openness=state==openDoors_.end()?0.f:state->second.openness;
             }
         }
     };
@@ -723,17 +742,19 @@ std::vector<Vertex> World::doorVertices(double originX,double originZ) const {
 
 WorldPoint World::keyLocation() const {
     // Seeded landmark on the guaranteed connected north route, before the exit.
-    return {CELL*.5,(-12-static_cast<int>(hashCell(0,0,seed_)%7))*CELL+CELL*.5};
+    auto c=exitCell(seed_);
+    const int steps=3+int(hashCell(1,0,seed_)%3);
+    for(int i=0;i<steps;++i)c=parent(c.x,c.z,seed_);
+    return {(c.x+.5)*CELL,(c.z+.5)*CELL};
 }
 
 bool World::collectKey(double x,double z) {
+    if(isFun()) return false;
     const auto key=keyLocation();
     if(keyCollected_ || !std::isfinite(x) || !std::isfinite(z) || std::hypot(x-key.x,z-key.z)>1.25) return false;
     for(int i=0;i<=16;++i) if(blocked(x+(key.x-x)*i/16,z+(key.z-z)*i/16,.05)) return false;
     keyCollected_=true;
-    const auto id=hashCell(EXIT_CELL_X,EXIT_CELL_Z,seed_^0xe817d006ULL);
-    openDoors_.erase(id);
-    syncDoor(id); // Unlock/open even if the exit is in the prepared cache.
+    // Unlocking does not change the leaf pose; E opens it through toggleDoor().
     return true;
 }
 
@@ -750,7 +771,7 @@ bool World::nearestHidingSpot(double x,double z,double range,HidingSpot& result)
 }
 
 std::vector<Vertex> World::keyVertices(double originX,double originZ) const {
-    if(keyCollected_) return {};
+    if(isFun() || keyCollected_) return {};
     const auto key=keyLocation();
     if(chunks_.find(chunkAt(key.x,key.z))==chunks_.end()) return {};
     Chunk mesh;
@@ -781,7 +802,7 @@ float World::soundTransmission(double ax,double az,double bx,double bz) const {
 }
 
 bool World::exitCrossed(double playerX,double playerZ) const {
-    if(!keyCollected_) return false;
+    if(isFun() || !keyCollected_) return false;
     const auto approach=exitLocation();
     const double front=approach.z-1.2;
     if (!std::isfinite(playerX) || !std::isfinite(playerZ) || std::abs(playerX-approach.x)>EXIT_HALF-.3
@@ -790,7 +811,7 @@ bool World::exitCrossed(double playerX,double playerZ) const {
     return nearestDoor(approach.x,front,.1,exit) && exit.isExit && exit.openness>=.98f;
 }
 
-bool World::shiftBehind(double x, double z, float forwardX, float forwardZ,std::optional<WorldPoint> protectedActor) {
+bool World::shiftBehind(double x, double z, float forwardX, float forwardZ,std::optional<WorldPoint> protectedActor,const std::vector<WorldPoint>& protectedActors) {
     const double length=std::hypot(forwardX,forwardZ);
     if (length<0.01) return false;
     const double fx=forwardX/length,fz=forwardZ/length;
@@ -804,6 +825,12 @@ bool World::shiftBehind(double x, double z, float forwardX, float forwardZ,std::
     for (auto it=chunks_.begin(); it!=chunks_.end(); ++it) {
         if (protectedChunk && std::abs(it->first.x-protectedChunk->x)<=1
             && std::abs(it->first.z-protectedChunk->z)<=1) continue;
+        bool occupied=false;
+        for(const auto& actor:protectedActors) {
+            const auto coord=chunkAt(actor.x,actor.z);
+            if(std::abs(it->first.x-coord.x)<=1 && std::abs(it->first.z-coord.z)<=1){occupied=true;break;}
+        }
+        if(occupied)continue;
         const double dx=(it->first.x+0.5)*CHUNK_SIZE-x;
         const double dz=(it->first.z+0.5)*CHUNK_SIZE-z;
         const double distance=std::hypot(dx,dz), forwardDistance=dx*fx+dz*fz;

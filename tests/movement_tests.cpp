@@ -69,12 +69,13 @@ int main() {
     check(low.yaw==42 && low.pitch==3,"Mouse reset prevents stale delta after pause");
     Settings settings;
     const auto path=std::filesystem::temp_directory_path()/"backrooms-v10-settings-test.cfg";
-    settings.volume=.3f;settings.blur=0;settings.vsync=false;
+    settings.showFPS=true;settings.volume=.3f;settings.blur=0;settings.vsync=false;
     settings.musicEnabled=false;settings.musicVolume=.65f;settings.ambientOcclusion=.4f;
     check(settings.save(path.string()),"Settings save succeeds");
     Settings loaded;
     check(loaded.load(path.string()) && loaded.volume==.3f && loaded.blur==0 && !loaded.vsync,"Settings reload preserves user preferences");
     check(!loaded.musicEnabled && loaded.musicVolume==.65f,"Music toggle and independent volume persist");
+    check(loaded.showFPS,"FPS toggle persists");
     check(loaded.ambientOcclusion==.4f,"Contact shading strength persists");
     {std::ofstream malformed(path);malformed<<"volume 200\nfov -500\nbrightness nan\nunknown 10\nsensitivity garbage\nblur -1\n";}
     Settings bounded;bounded.load(path.string());
