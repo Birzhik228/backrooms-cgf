@@ -644,6 +644,11 @@ void writeAraneaMixerPreview(const std::filesystem::path& directory) {
     std::cout<<"Actual mixer previews saved to "<<directory.string()<<" (master .75, no normalization).\n";
 }
 int main(int argc,char** argv) {
+    const auto opening=br::synthesizeSound({br::SoundKind::PresentOpen});
+    check(opening.size()==std::size_t(.58*br::AUDIO_SAMPLE_RATE) && energy(opening)>500,"present opening is a short audible paper sound");
+    check(opening.front()==0 && opening.back()==0,"present opening has click-free edges");
+    check(opening!=br::synthesizeSound({br::SoundKind::Door}),"present opening is distinct from door sound");
+
     try { recordedBank(); wavReader(); samples(); movement(); positionalAudio(); stereoMixer(); threatAudio(); offlinePreview(); std::cout<<"Audio tests passed: recorded carpet/damp/tile footsteps, bounded WAV parsing, cadence, 3D distance and stereo panning, seeded ambience, creature tracking cues, capture sting priority/spectrum/headroom, master volume, pause/reset, 12-second stereo preview.\n"; }
     catch (const std::exception& error) { std::cerr<<"Audio tests failed: "<<error.what()<<'\n'; return 1; }
     try { suppliedScare(); suppliedMonsterSteps(); std::cout<<"Supplied scream and heavy steps: attack, exclusive mix, attenuation, headroom and reset passed.\n"; }

@@ -292,6 +292,16 @@ void main() {
         albedo = linearColor(mix(vec3(0.035, 0.42, 0.20), vec3(0.91, 1.0, 0.88), white));
         emission = mix(vec3(0.012, 0.40, 0.095), vec3(1.65, 2.0, 1.60), white);
         specularStrength = 0.02;
+    } else if (material == 59 || material == 60) {
+        albedo=linearColor(material==59?vec3(.98,.78,.045):vec3(.025,.018,.008));
+        emission=material==59?albedo*.10:vec3(0);
+        specularStrength=.08;shininess=32.0;
+    } else if (material == 58) {
+        // Worn red enamel on the emergency exit, distinct from ordinary oak doors.
+        float wear=grain(vUV*7.0);
+        albedo=linearColor(vec3(.52,.055,.035))*(.90+.10*wear);
+        specularStrength=.16;
+        shininess=58.0;
     } else if (material == 17) {
         // UVs rotate with the hinged leaf, keeping the oak grain on the door.
         float warp=sin(vUV.y*3.1+sin(vUV.x*9.0))*0.065;

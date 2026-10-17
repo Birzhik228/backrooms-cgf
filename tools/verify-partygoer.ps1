@@ -5,7 +5,7 @@ Set-Location -LiteralPath $taskRoot
 New-Item -ItemType Directory -Force tests/artifacts/partygoer | Out-Null
 $taskCases=@(
  @{name='portrait';args='--partygoer-preview --frames 30 --yaw -90 --pitch 5';expected='Partygoers: 4'},
- @{name='gaze';args='--partygoer-check --frames 180';expected='Partygoers: 4'},
+ @{name='gaze';args='--partygoer-check --frames 80';expected='Partygoers: 4'},
  @{name='paused';args='--partygoer-preview --auto-pause --frames 60';expected='Paused: yes'},
  @{name='disabled';args='--level-fun --no-threat --frames 30';expected='Partygoers: 0'},
  @{name='level-zero';args='--frames 30';expected='Partygoers: 0'}

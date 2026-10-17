@@ -70,14 +70,14 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
         oval(329,245,24,32,gold);line(329,277,306,386,1,muted);
         text(93,406,"WELCOME TO LEVEL FUN",1.4f,gold);
         if(page==1) {
-            row(200,"F","FLASHLIGHT","Light the darker corners.");
+            row(200,"E","OPEN PRESENTS","Search for the exit key.");
             row(260,"TAB","LOCAL MAP","Find your way between rooms.");
             row(320,"R","RETURN TO START","Stay on this level.");
-            row(380,"F12","TAKE A PICTURE","Save a screenshot.");
+            row(380,"E","UNLOCK THE EXIT","Find the key, then open the door.");
         } else {
             row(200,"ESC","TAKE A BREAK","Pause and release the cursor.");
             row(260,"M","MUTE SOUND","Toggle the game audio.");
-            row(320,"V","MINIMAL HUD","Enjoy the view.");
+            row(320,"LOOK","KEEP THEM IN SIGHT","Contact is deadly. Watch your back.");
             row(380,"H","OPEN THIS GUIDE","Revisit the controls.");
         }
     } else if(page==1) {

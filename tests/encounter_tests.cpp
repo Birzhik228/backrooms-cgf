@@ -6,6 +6,11 @@
 #include <stdexcept>
 static void check(bool condition,const char* message) { if(!condition) throw std::runtime_error(message); }
 int main() {
+    br::JumpscareConfig noContactScare;noContactScare.enabled=false;
+    br::Encounter contact(noContactScare);
+    check(contact.defeatImmediately() && contact.gameOver() && contact.black() && !contact.presenting(),"contact death bypasses jumpscare even when scare disabled");
+    check(!contact.defeatImmediately() && contact.flashForDraw()==0,"contact death cannot retrigger or flash");
+    contact.reset();check(contact.alive(),"checkpoint resets contact death");
     br::Encounter encounter;
     check(encounter.alive(),"Run begins alive");
     check(encounter.catchPlayer() && encounter.scaring(),"Capture begins one jumpscare");

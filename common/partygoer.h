@@ -11,7 +11,8 @@ namespace br {
 class Partygoers {
 public:
     static constexpr int COUNT=4;
-    static constexpr float SPEED=1.95f;
+    static constexpr float SPEED=4.875f;
+    static constexpr float ALARM_SPEED=7.5f;
     static constexpr double RADIUS=.34;
     struct Actor {
         double x=0,z=0;
@@ -23,7 +24,14 @@ public:
     std::array<Actor,COUNT> actors{};
     double travelled=0;
     int frozenFrames=0;
+    float alarmRemaining=0;
+    WorldPoint alarmTarget{};
     void reset() { *this=Partygoers{}; }
+    void hearAlarm(double x,double z) {
+        if(!std::isfinite(x) || !std::isfinite(z))return;
+        alarmTarget={x,z};alarmRemaining=6;
+        for(auto& actor:actors){actor.repath=0;actor.path.clear();actor.next=0;}
+    }
     // Height-aware wall rays: low furniture cannot hide a visible head.
     static bool clearSight(const World& world,double ax,double ay,double az,double bx,double by,double bz) {
         for(const auto& [coord,c]:world.chunks()) {
@@ -78,6 +86,11 @@ public:
         if(!world.isFun()) {reset();return;}
         if(paused || !std::isfinite(dt) || dt<=0)return;
         dt=std::min(dt,.05f);
+        if(alarmRemaining>0) {
+            alarmRemaining=std::max(0.f,alarmRemaining-dt);
+            if(alarmRemaining==0)for(auto& actor:actors)actor.repath=0;
+        }
+        const auto goal=alarmRemaining>0?alarmTarget:WorldPoint{px,pz};
         for(int index=0;index<COUNT;++index) {
             auto& a=actors[index];
             if(!a.active || (std::hypot(a.x-px,a.z-pz)>65 && !seen(world,a,px,pz,eyeY,forward,fov,aspect))) {
@@ -97,24 +110,28 @@ public:
             if(!a.active)continue;
             a.observed=seen(world,a,px,pz,eyeY,forward,fov,aspect);
             if(a.observed){++frozenFrames;continue;}
-            // Contact is deliberately non-lethal in this version: no capture,
-            // camera takeover, audio stinger, or jumpscare state is triggered.
-            if(std::hypot(a.x-px,a.z-pz)<.95)continue;
+            if(std::hypot(a.x-px,a.z-pz)<.55)continue;
             a.repath-=dt;
-            if(a.repath<=0){route(world,a,px,pz);a.repath=.9f+index*.07f;}
+            if(a.repath<=0){route(world,a,goal.x,goal.z);a.repath=.9f+index*.07f;}
             if(a.next>=a.path.size())continue;
             auto target=a.path[a.next];double dx=target.x-a.x,dz=target.z-a.z,d=std::hypot(dx,dz);
             if(d<.08){++a.next;continue;}
             float wanted=float(std::atan2(dx,-dz));
             a.yaw+=std::clamp(std::remainder(wanted-a.yaw,2*PI),-dt*2.8f,dt*2.8f);
             if(std::abs(std::remainder(wanted-a.yaw,2*PI))>.15f)continue;
-            double step=std::min(double(SPEED*dt),d),nx=a.x+dx/d*step,nz=a.z+dz/d*step;
+            double step=std::min(double((alarmRemaining>0?ALARM_SPEED:SPEED)*dt),d),nx=a.x+dx/d*step,nz=a.z+dz/d*step;
             bool crowded=false;for(const auto& other:actors)if(&other!=&a && other.active && std::hypot(other.x-nx,other.z-nz)<.72)crowded=true;
             if(crowded || !walkable(world,a.x,a.z,nx,nz))continue;
             a.x=nx;a.z=nz;a.phase+=float(step)*5;travelled+=step;
         }
     }
     int activeCount()const {int n=0;for(const auto& a:actors)n+=a.active;return n;}
+    bool touchingPlayer(const World& world,double x,double z) const {
+        if(!world.isFun())return false;
+        for(const auto& a:actors)
+            if(a.active && std::hypot(a.x-x,a.z-z)<=.65 && walkable(world,a.x,a.z,x,z))return true;
+        return false;
+    }
 private:
     using Cell=std::pair<std::int64_t,std::int64_t>;
     static WorldPoint center(Cell c){return {(c.first+.5)*CELL,(c.second+.5)*CELL};}

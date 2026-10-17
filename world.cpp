@@ -344,7 +344,19 @@ bool edgeOpen(std::int64_t x, std::int64_t z,
 World::World(std::uint64_t seed,Level level) : seed_(seed),level_(level) {}
 
 Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
-    if(isFun()) return funChunk(coord,seed_,variant);
+    if(isFun()) {
+        auto chunk=funChunk(coord,seed_,variant,openedPresents_);
+        const auto cell=exitCell(seed_);
+        if(chunkAt(cell.x*CELL,cell.z*CELL)==coord) {
+            const auto id=hashCell(cell.x,cell.z,seed_^0xe817d006ULL);
+            const auto state=openDoors_.find(id);
+            chunk.doors.push_back({id,(cell.x+1)*CELL-1.275,cell.z*CELL+3,false,
+                state!=openDoors_.end() && state->second.target,
+                state==openDoors_.end()?0.f:state->second.openness,true,
+                state==openDoors_.end()?1.f:state->second.swing});
+        }
+        return chunk;
+    }
     Chunk chunk;
     chunk.coord=coord;
     chunk.maxHeight=static_cast<float>(ROOM_HEIGHT);
@@ -724,8 +736,17 @@ std::vector<Vertex> World::doorVertices(double originX,double originZ) const {
             const auto pose=doorPose(door,door.openness);
             const auto first=panels.vertices.size();
             box(panels,0,.015f,-static_cast<float>(DOOR_THICKNESS),static_cast<float>(pose.width),2.40f,
-                static_cast<float>(DOOR_THICKNESS),17);
-            box(panels,static_cast<float>(pose.width)-.26f,.99f,-.082f,
+                static_cast<float>(DOOR_THICKNESS),door.isExit?58:17);
+            if(door.isExit) {
+                const float width=static_cast<float>(pose.width);
+                for(float side:{-1.f,1.f}) {
+                    const float front=side*.11f;
+                    for(float x:{.18f,width-.25f})box(panels,x,.94f,front-.045f,x+.08f,1.16f,front+.045f,7);
+                    box(panels,.19f,1.025f,front-.03f,width-.18f,1.09f,front+.03f,7);
+                    box(panels,.12f,.06f,side*.048f-.005f,width-.12f,.29f,side*.048f+.005f,7);
+                    box(panels,.16f,2.21f,side*.07f-.025f,.46f,2.30f,side*.07f+.025f,7);
+                }
+            } else box(panels,static_cast<float>(pose.width)-.26f,.99f,-.082f,
                 static_cast<float>(pose.width)-.20f,1.22f,.082f,7);
             for (std::size_t i=first;i<panels.vertices.size();++i) {
                 auto& v=panels.vertices[i];
@@ -756,6 +777,83 @@ bool World::collectKey(double x,double z) {
     keyCollected_=true;
     // Unlocking does not change the leaf pose; E opens it through toggleDoor().
     return true;
+}
+
+bool World::nearestPresent(double x,double z,double range,Present& result) const {
+    if(!isFun() || !std::isfinite(x) || !std::isfinite(z))return false;
+    bool found=false;
+    for(const auto& entry:chunks_)for(const auto& present:entry.second.presents) {
+        const double distance=std::hypot(x-present.x,z-present.z);
+        if(!present.opened && distance<=range){result=present;range=distance;found=true;}
+    }
+    return found;
+}
+
+PresentResult World::openPresent(std::uint64_t id,double x,double z) {
+    if(!isFun() || !std::isfinite(x) || !std::isfinite(z))return PresentResult::Invalid;
+    for(auto& entry:chunks_)for(const auto present:entry.second.presents) {
+        if(present.id!=id || present.opened)continue;
+        const double distance=std::hypot(x-present.x,z-present.z);
+        if(distance>1.8 || distance<.35)return PresentResult::Invalid;
+        // Stop before the box itself; walls and furniture still block interaction.
+        for(double d=.05;d<distance-.46;d+=.05)
+            if(blocked(x+(present.x-x)*d/distance,z+(present.z-z)*d/distance,.05))return PresentResult::Invalid;
+        const int chance=presentKeyChance(presentsOpened());
+        const auto roll=hashCell(presentsOpened(),0,seed_^0x50495459ULL)%100;
+        const bool foundKey=!keyCollected_ && roll<static_cast<unsigned>(chance);
+        openedPresents_.insert(id);keyCollected_=keyCollected_ || foundKey;
+        // Independent bonus roll: never replaces a key or mouse outcome.
+        if(!verityCollected_ && hashCell(static_cast<std::int64_t>(id),37,seed_^0x564552495459ULL)%100<5)
+            verityDrops_.push_back({present.x,present.z});
+        auto replacement=generate(entry.first,variants_.at(entry.first));
+        replacement.revision=nextRevision_++;entry.second=std::move(replacement);
+        // Mouse rolls never replace a key or reset its pity counter.
+        const bool mouse=hashCell(static_cast<std::int64_t>(id),19,seed_^0x4d4f555345ULL)%100<20;
+        return foundKey?PresentResult::Key:mouse?PresentResult::Mouse:PresentResult::Empty;
+    }
+    return PresentResult::Invalid;
+}
+
+bool World::collectVerity(double x,double z) {
+    if(!isFun() || verityCollected_ || !std::isfinite(x) || !std::isfinite(z))return false;
+    for(const auto& drop:verityDrops_) {
+        if(std::hypot(x-drop.x,z-drop.z)>.75)continue;
+        bool clear=true;
+        for(int i=0;i<=12;++i)if(blocked(x+(drop.x-x)*i/12,z+(drop.z-z)*i/12,.05))clear=false;
+        if(clear){verityCollected_=true;verityDrops_.clear();return true;}
+    }
+    return false;
+}
+
+std::vector<Vertex> World::verityVertices(double originX,double originZ,double playerX,double playerZ,float time) const {
+    Chunk mesh;
+    if(!isFun())return {};
+    for(const auto& drop:verityDrops_) {
+        if(std::hypot(drop.x-playerX,drop.z-playerZ)>40 || !chunks_.count(chunkAt(drop.x,drop.z)))continue;
+        const auto begin=mesh.vertices.size();
+        const float y=.72f+.05f*std::sin(time*2.5f);
+        funOrb(mesh,0,y,0,.34f,.34f,.34f,59,10,16);
+        for(float x:{-.115f,.115f})funOrb(mesh,x,y+.10f,-.310f,.040f,.065f,.025f,60,5,8);
+        auto smilePoint=[&](float a,float edge) {
+            const float x=-.19f*std::cos(a),dy=-.06f-.12f*std::sin(a)+edge;
+            return P{x,y+dy,-std::sqrt(.34f*.34f-x*x-dy*dy)-.004f};
+        };
+        for(int i=0;i<24;++i) {
+            const float a=i*3.14159265f/24,b=(i+1)*3.14159265f/24;
+            quad(mesh,smilePoint(a,-.012f),smilePoint(a,.012f),smilePoint(b,.012f),smilePoint(b,-.012f),{0,0,-1},.02f,.024f,60);
+        }
+        const float yaw=float(std::atan2(playerX-drop.x,drop.z-playerZ)),c=std::cos(yaw),s=std::sin(yaw);
+        const float pitch=float(std::atan2(1.65f-y,std::hypot(playerX-drop.x,playerZ-drop.z)));
+        const float cp=std::cos(pitch),sp=std::sin(pitch);
+        for(auto i=begin;i<mesh.vertices.size();++i) {
+            auto& v=mesh.vertices[i];
+            const float x=v.x,z=(v.y-y)*sp+v.z*cp,nx=v.nx,nz=v.ny*sp+v.nz*cp;
+            v.y=y+(v.y-y)*cp-v.z*sp;v.ny=v.ny*cp-v.nz*sp;
+            v.x=float(drop.x-originX)+x*c-z*s;v.z=float(drop.z-originZ)+x*s+z*c;
+            v.nx=nx*c-nz*s;v.nz=nx*s+nz*c;
+        }
+    }
+    return std::move(mesh.vertices);
 }
 
 bool World::nearestHidingSpot(double x,double z,double range,HidingSpot& result) const {
@@ -802,7 +900,7 @@ float World::soundTransmission(double ax,double az,double bx,double bz) const {
 }
 
 bool World::exitCrossed(double playerX,double playerZ) const {
-    if(isFun() || !keyCollected_) return false;
+    if(!keyCollected_) return false;
     const auto approach=exitLocation();
     const double front=approach.z-1.2;
     if (!std::isfinite(playerX) || !std::isfinite(playerZ) || std::abs(playerX-approach.x)>EXIT_HALF-.3

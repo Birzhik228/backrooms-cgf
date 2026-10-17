@@ -105,6 +105,12 @@ public:
         state_=JumpscareState::Lunge; elapsed_=0; flashFrames_=config_.flash?2:0; return true;
     }
     bool catchPlayer() { return trigger(); }
+    // Contact death without a jumpscare, independent of scare configuration.
+    bool defeatImmediately() {
+        if(!alive())return false;
+        state_=JumpscareState::End;elapsed_=config_.duration+config_.blackDelay;flashFrames_=0;
+        return true;
+    }
     void update(float dt,bool suspended=false) {
         if(alive() || suspended || !std::isfinite(dt) || dt<=0) return;
         elapsed_=std::min(config_.duration+config_.blackDelay,elapsed_+dt);

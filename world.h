@@ -1,9 +1,11 @@
 #pragma once
 
 #include <cstddef>
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <vector>
 
 namespace br {
@@ -34,6 +36,8 @@ struct Lamp {
     float phase=0;
 };
 struct WorldPoint { double x,z; };
+struct Present { std::uint64_t id; double x,z; bool opened=false; };
+enum class PresentResult { Invalid, Empty, Key, Mouse };
 struct HidingSpot {
     std::uint64_t id;
     WorldPoint inside, approach;
@@ -68,6 +72,7 @@ struct Chunk {
     std::vector<Lamp> lamps;
     std::vector<DoorInfo> doors;
     std::vector<HidingSpot> hidingSpots;
+    std::vector<Present> presents;
 };
 
 std::int64_t floorDiv(std::int64_t value, std::int64_t divisor);
@@ -121,6 +126,14 @@ public:
     WorldPoint keyLocation() const;
     bool keyCollected() const { return keyCollected_; }
     bool collectKey(double x,double z);
+    bool nearestPresent(double x,double z,double range,Present& result) const;
+    PresentResult openPresent(std::uint64_t id,double x,double z);
+    int presentsOpened() const { return int(openedPresents_.size()); }
+    const std::vector<WorldPoint>& verityDrops() const { return verityDrops_; }
+    bool collectVerity(double x,double z);
+    bool infiniteStamina() const { return isFun() && verityCollected_; }
+    std::vector<Vertex> verityVertices(double originX,double originZ,double playerX,double playerZ,float time) const;
+    static int presentKeyChance(int misses) { return misses>=14?100:5+3*std::max(0,misses); }
     bool nearestHidingSpot(double x,double z,double range,HidingSpot& result) const;
     std::vector<Vertex> keyVertices(double originX,double originZ) const;
     float soundTransmission(double ax,double az,double bx,double bz) const;
@@ -135,6 +148,9 @@ private:
     std::uint64_t seed_;
     Level level_=Level::Zero;
     bool keyCollected_=false;
+    std::set<std::uint64_t> openedPresents_;
+    std::vector<WorldPoint> verityDrops_;
+    bool verityCollected_=false;
     std::size_t shifts_ = 0;
     std::uint64_t nextRevision_ = 1;
     std::map<ChunkCoord,Chunk> chunks_;

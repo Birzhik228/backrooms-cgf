@@ -8,8 +8,9 @@ struct Stamina {
     bool exhausted = false;
     void reset() { *this = {}; }
     bool canSprint() const { return !exhausted && value > 0; }
-    void update(float dt, bool sprintTravel, bool paused) {
+    void update(float dt, bool sprintTravel, bool paused,bool infinite=false) {
         if (paused || !std::isfinite(dt) || dt <= 0) return;
+        if(infinite){reset();return;}
         if (sprintTravel) {
             value = std::max(0.f, value - 18.f * dt);
             recoveryDelay = 1.5f;

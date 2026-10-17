@@ -19,6 +19,11 @@ static float journey(int hz) {
     return distance;
 }
 int main() {
+    Stamina bonus;bonus.value=0;bonus.exhausted=true;
+    for(int i=0;i<600;++i)bonus.update(1.f/60,true,false,true);
+    check(bonus.value==100 && bonus.canSprint(),"Verity keeps sprint full and recovers exhaustion");
+    bonus.update(1,true,false,false);check(bonus.value<100,"drain resumes without level bonus");
+
     check(WALK_SPEED == 2.5f && SPRINT_SPEED == 4.f && CROUCH_SPEED == 1.1f, "Slow exploration speeds");
     check(std::abs(journey(30)-journey(144)) < .002f, "Acceleration and braking independent of frame rate");
     PlayerMotion motion;

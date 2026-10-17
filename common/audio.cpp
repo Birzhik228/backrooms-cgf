@@ -19,7 +19,7 @@ namespace {
 constexpr double PI=3.14159265358979323846;
 constexpr std::size_t FOOTSTEP_COUNT=6;
 constexpr std::size_t POSITIONED_CLIP_COUNT=
-    std::size_t(SoundKind::MouseAmbient)-std::size_t(SoundKind::AmbientCreak)+1;
+    std::size_t(SoundKind::PresentOpen)-std::size_t(SoundKind::AmbientCreak)+1;
 std::array<std::vector<std::int16_t>,FOOTSTEP_COUNT> recordedSteps;
 std::size_t loadedSteps=0;
 std::array<std::vector<std::int16_t>,4> monsterSteps;
@@ -267,6 +267,22 @@ std::size_t recordedFootstepCount() { return loadedSteps; }
 
 std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
     SoundEvent event=input;
+    if(event.kind==SoundKind::PresentOpen) {
+        // Paper crackle, a short tear, and a soft cardboard release.
+        std::vector<std::int16_t> clip(std::size_t(.58*AUDIO_SAMPLE_RATE));
+        std::uint32_t state=event.variation*747796405u+2891336453u;
+        double low=0;
+        for(std::size_t i=0;i<clip.size();++i) {
+            const double t=double(i)/AUDIO_SAMPLE_RATE,n=noise(state);
+            low+=.15*(n-low);
+            const double tear=std::exp(-std::pow((t-.13)/.09,2));
+            const double crinkle=std::exp(-std::pow((t-.32)/.14,2))*(.3+.7*std::pow(std::sin(t*105),6));
+            const double thump=.10*std::sin(2*PI*110*t)*std::exp(-std::pow((t-.36)/.05,2));
+            const double edge=std::min({1.,t/.008,(.58-t)/.025});
+            clip[i]=pcm((.32*(n-low)*(tear+crinkle)+thump)*edge);
+        }
+        clip.front()=clip.back()=0;return clip;
+    }
     if(event.kind==SoundKind::MouseAmbient) {
         std::vector<std::int16_t> clip(std::size_t(.65*AUDIO_SAMPLE_RATE));
         std::uint32_t state=event.variation*747796405u+2891336453u;

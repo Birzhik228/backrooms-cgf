@@ -107,7 +107,7 @@ void funBunting(Chunk& c,float x0,float z0,std::uint64_t h) {
         }
     }
 }
-Chunk funChunk(ChunkCoord coord,std::uint64_t seed,std::uint64_t variant,bool distant=false) {
+Chunk funChunk(ChunkCoord coord,std::uint64_t seed,std::uint64_t variant,const std::set<std::uint64_t>& opened,bool distant=false) {
     Chunk c;c.coord=coord;c.maxHeight=float(ROOM_HEIGHT);
     for(int z=0;z<CHUNK_CELLS;++z) for(int x=0;x<CHUNK_CELLS;++x) {
         const auto gx=coord.x*CHUNK_CELLS+x,gz=coord.z*CHUNK_CELLS+z;
@@ -124,6 +124,13 @@ Chunk funChunk(ChunkCoord coord,std::uint64_t seed,std::uint64_t variant,bool di
             for(std::size_t i=start;i<c.vertices.size();++i) if(c.vertices[i].material==0)c.vertices[i].material=40;
         }
         // Preserve a clear cross between every cell centre and its doorways.
+        if(gx==exitCell(seed).x && gz==exitCell(seed).z) {
+            const auto begin=c.vertices.size();
+            exitDoor(c,x0,z0);
+            for(auto i=begin;i<c.vertices.size();++i)if(c.vertices[i].material==0)c.vertices[i].material=40;
+            ceilingLight(c,x0+float(CELL/2),z0+float(CELL/2),1.65f,LampState::Working,0);
+            continue;
+        }
         const float jitter=float((h>>8)%201)*.001f-.1f;
         if(h%2==0 || (gx==0&&gz==0)) funTable(c,x0+1.65f+jitter,z0+1.65f,h,distant);
         if((h>>12)%5==0) funTable(c,x0+5.85f-jitter,z0+5.85f,h>>4,distant);
@@ -131,12 +138,25 @@ Chunk funChunk(ChunkCoord coord,std::uint64_t seed,std::uint64_t variant,bool di
         if((h>>24)%3!=0) funBunting(c,x0,z0,h);
         ceilingLight(c,x0+float(CELL/2),z0+float(CELL/2),1.65f,LampState::Working,0);
         // A few gift boxes occupy unused corners, never the connecting routes.
-        if((h>>28)%4==0) {
-            box(c,x0+.5f,0,z0+5.6f,x0+1.1f,.65f,z0+6.2f,48+float(h%6),true);
-            box(c,x0+.75f,.65f,z0+5.58f,x0+.82f,.665f,z0+6.22f,45);
-            box(c,x0+.48f,.65f,z0+5.85f,x0+1.12f,.665f,z0+5.92f,45);
+        if((h>>28)%4==0 || (gx==0 && gz==0)) {
+            const auto id=hashCell(gx,gz,seed^0x50524553454e54ULL);
+            const bool isOpen=opened.count(id)>0;
+            c.presents.push_back({id,gx*CELL+.8,gz*CELL+5.9,isOpen});
+            if(isOpen)continue; // Remember the roll, but remove mesh and collision.
+            const float mat=48+float(h%6);
+            // Hollow box; the lid rests beside it once searched.
+            box(c,x0+.5f,0,z0+5.6f,x0+1.1f,.08f,z0+6.2f,mat);
+            box(c,x0+.5f,0,z0+5.6f,x0+.54f,.62f,z0+6.2f,mat);
+            box(c,x0+1.06f,0,z0+5.6f,x0+1.1f,.62f,z0+6.2f,mat);
+            box(c,x0+.54f,0,z0+5.6f,x0+1.06f,.62f,z0+5.64f,mat);
+            box(c,x0+.54f,0,z0+6.16f,x0+1.06f,.62f,z0+6.2f,mat);
+            c.obstacles.push_back({x0+.5,z0+5.6,x0+1.1,z0+6.2});
+            const float lidX=x0+(isOpen?.72f:0),lidY=isOpen?.02f:.62f;
+            box(c,lidX+.48f,lidY,z0+5.58f,lidX+1.12f,lidY+.05f,z0+6.22f,mat);
+            box(c,lidX+.75f,lidY+.05f,z0+5.58f,lidX+.82f,lidY+.065f,z0+6.22f,45);
+            box(c,lidX+.48f,lidY+.05f,z0+5.85f,lidX+1.12f,lidY+.065f,z0+5.92f,45);
         }
     }
-    if(!distant) c.distantVertices=funChunk(coord,seed,variant,true).vertices;
+    if(!distant) c.distantVertices=funChunk(coord,seed,variant,opened,true).vertices;
     return c;
 }

@@ -1,3 +1,35 @@
+# Level Fun progression update
+
+Entering Level Fun establishes a session checkpoint. Death restarts at its
+entrance with the same seed; presents, key, doors and Partygoers reset. It does
+not return to Level 0. Checkpoints are not saved across application launches.
+
+Partygoers still freeze while visible, but contact within 0.65 m is now lethal.
+Walls, closed doors and furniture block contact. Death cuts to black and Game
+Over without a jumpscare; choose Restart Checkpoint.
+
+Face a nearby present and press E. Searched boxes disappear completely,
+including collision, in both mesh detail levels. A dedicated paper tear and
+cardboard-opening sound plays. Each box can be searched once. The
+first key chance is 5%, with 3 percentage points added after every miss; the
+15th box guarantees a key. Rolls are seeded and cannot be rerolled by leaving
+and revisiting rooms. After finding the key, follow EXIT SIGNAL and press E
+at the locked exit, then walk through it. A completion screen marks the end
+until a future level is implemented; Continue Exploring returns to Level Fun.
+
+Each non-key present has a separate seeded 20% mouse chance. A mouse squeaks
+once on release, flees for up to eight seconds, and alerts all four Partygoers
+to the release position for six seconds. Gaze freeze still applies. Mice count
+as misses for key pity; they never consume a winning key roll. No ambient mice
+spawn on Level Fun, and released mice cannot respawn or repeat their alarm.
+
+Both levels now use a red painted-metal exit leaf with a silver panic bar and
+kick plate; ordinary doors retain their oak material.
+
+The key in Level 0 and its 35% Aranea speed boost are unchanged.
+
+## Previous rendering notes (historical)
+
 # Level Fun
 
 Walking through the unlocked Level 0 exit now immediately starts Level Fun.
@@ -26,9 +58,8 @@ Streaming back to an unmodified chunk recreates the same props.
 Aranea and the mouse cannot spawn, update or trigger capture in Level Fun,
 including via debug J or automated capture fixtures. Four Partygoers now inhabit
 the level (see below). Ambient room audio and player footsteps remain; old creature voices
-are cleared at transition. Decorations are static, not interactive pickups.
-There is no key, escape objective or second exit on this level yet. The minimap
-shows the current rooms and furniture without Level 0 key/exit markers.
+are cleared at transition. Presents are now interactive; see the progression update above. The minimap
+shows the Fun exit, and the HUD provides its distance and bearing.
 
 R returns to the current level's entrance. New Seed creates another building
 on the current level. Pause, settings, flashlight, crouch, sprint and map remain
@@ -144,3 +175,32 @@ geometry work but does not remove the remaining lighting/pixel rendering cost.
 Profiles and the inspected screenshot are in `tests/artifacts/draw-distance/`.
 The rebuilt executable passed native Partygoer tests and rendered gaze,
 streaming and Level 0 Aranea checks.
+
+
+Progression verification: all 11 native suites passed. Rendered checks passed
+for contact death, checkpoint restart, present searching, unlocked exit
+completion, locked exit rejection and the Level 0 transition, with zero OpenGL
+errors. Opened-present, Game Over and completion captures were inspected.
+
+
+## Verity and mouse rush
+
+Mouse alarms raise every Partygoer's movement speed from 4.875 to 7.5 m/s for
+six simulation seconds. Looking at an actor still stops its movement; pause
+freezes the timer, and speed returns to normal when the alarm expires.
+
+Each searched present also rolls an independent 5% Verity bonus. It can appear
+alongside the key or mouse and never consumes either outcome or key pity.
+Walk within 0.75 m with a clear path to collect the floating yellow smiley.
+It restores stamina immediately and prevents sprint drain on the current Level
+Fun run. The HUD reads VERITY / INFINITE. Death/checkpoint restart, a new seed,
+or changing levels clears the bonus; returning within the same level retains it.
+
+The lightweight procedural sphere, oval eyes and smile follow this visual
+reference: https://ko-fi.com/s/e543c81319 . No third-party model is bundled.
+Drops survive room streaming; collected drops cannot grant the reward twice.
+
+Presents remain searchable after acquiring the key. Further searches keep the
+key, never award duplicate keys, and retain the 20% mouse and independent 5%
+Verity chances. Both Partygoer speeds were multiplied by 2.5; gaze freeze and
+the six-second alarm duration are unchanged.

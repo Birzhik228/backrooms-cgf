@@ -13,12 +13,16 @@ public:
     // One-frame, quiet discovery cue; only update's return value is an alarm.
     bool ambientCue=false;
     void reset(std::uint64_t seed) { *this=Mouse{}; random_=seed; }
-    bool update(const World& world,double px,double pz,float dt,bool suspended,bool hidden) {
+    void releaseFromPresent(double px,double pz) {
+        x=px;z=pz;active=true;alerted=true;flee_=1000000.f;ambientClock_=4;
+    }
+    bool update(const World& world,double px,double pz,float dt,bool suspended,bool hidden,bool allowSpawn=true) {
         ambientCue=false;
         if(suspended || !std::isfinite(dt) || dt<=0) return false;
         dt=std::min(dt,.05f);
         if(!active || std::hypot(px-x,pz-z)>55 || world.blocked(x,z,.12)) {
             active=false;
+            if(!allowSpawn)return false;
             const auto cx=std::int64_t(std::floor(px/CELL)),cz=std::int64_t(std::floor(pz/CELL));
             for(const auto offset:{WorldPoint{0,-1},{1,0},{-1,0},{0,1},{0,0}}) {
                 const double tx=(cx+offset.x+.5)*CELL,tz=(cz+offset.z+.5)*CELL;

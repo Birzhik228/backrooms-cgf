@@ -9,7 +9,7 @@ enum class Surface { Carpet, HardFloor, DampCarpet };
 enum class Gait { Walk, Crouch, Sprint };
 enum class SoundKind {
     Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door,
-    ThreatNotice, ThreatStep, ThreatRunStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient
+    ThreatNotice, ThreatStep, ThreatRunStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient, PresentOpen
 };
 struct SoundEvent {
     SoundKind kind=SoundKind::Footstep;
