@@ -43,3 +43,13 @@ the supplied ZeroKingFull recording. Revised vocal distance, voice priority,
 queued reacquisition and sustained-pursuit timing address quiet/missed calls.
 The audio suite, actual mixer exports and five automated game cases verify
 behavior; no physical listening test or exact perceptual match is asserted.
+
+## Parking and darkness - 18 October 2026
+
+At the user's request, Codex researched Backrooms parking references and
+implemented an original third stage after Level Fun. Assistance includes
+procedural garage geometry/materials, electrical circuit progression, the
+user-specified floating-eye darkness and flashlight defense, level transitions,
+HUD/guide/restart integration and native/rendered verification. New geometry
+and eye visuals are authored in code; no third-party game assets were copied.
+Research sources and implementation boundaries are listed in `parking.md`.

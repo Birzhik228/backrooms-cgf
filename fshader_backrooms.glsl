@@ -144,6 +144,21 @@ void main() {
     // Integer material IDs remain unchanged; fluorescent tubes additionally
     // encode their stable phase in the fractional part of IDs 32, 33 and 34.
     int material = int(floor(vMaterial));
+    if(material==92) {
+        // A close-up manifestation of the eyes: hollow face and jagged teeth.
+        vec2 p=(vUV-.5)*2.0;
+        p.x+=sin(p.y*31.0+uTime*38.0)*.009;
+        float eyes=0.0;
+        for(int i=0;i<2;++i) {
+            vec2 e=(p-vec2(i==0?-.34:.34,.24))/vec2(.20,.12);
+            eyes=max(eyes,(1.0-smoothstep(.65,1.0,dot(e,e)))*(0.12+0.88*smoothstep(.10,.24,length(e))));
+        }
+        float mouthY=-.24-.25*(1.0-p.x*p.x*2.4);
+        float mouth=(1.0-smoothstep(.10,.15,abs(p.y-mouthY)))*(1.0-smoothstep(.56,.66,abs(p.x)));
+        float tooth=step(.22,fract(p.x*13.0))*(.55+.45*sin(p.x*40.0)*sin(p.x*40.0));
+        vec3 face=vec3(.001,.0015,.002)+vec3(.92,.97,1.0)*eyes+vec3(.67,.72,.70)*mouth*tooth;
+        fragColor=vec4(face,1);return;
+    }
     if(material==57) {
         // This intentionally light-absorbing exit lining has no useful specular
         // response. Avoid all 24 lamps and flashlight PCF on its large surface.
@@ -167,7 +182,50 @@ void main() {
     vec3 emission = vec3(0.0);
     float specularStrength = 0.035;
     float shininess = 20.0;
-    if (material == 40) {
+    if(material==91) {
+        vec2 p=(vUV-.5)*2.0;
+        float rim=dot(p,p);
+        if(rim>1.0)discard;
+        float pupil=1.0-smoothstep(.12,.21,length(p-vec2(.08,0)));
+        albedo=vec3(0);
+        emission=vec3(1.25,1.45,1.55)*(1.0-pupil*.97)*(1.0-smoothstep(.65,1.0,rim));
+    } else if (material == 70 || material == 71) {
+        vec2 at=geometricNormal.y>.5 || geometricNormal.y<-.5 ? vPosition.xz+uWorldPhase.xz : vUV;
+        float wear=wearNoise(at*.8),pores=grain(vUV*13.0);
+        albedo=linearColor(mix(vec3(.32,.35,.36),vec3(.57,.59,.58),wear))*(.90+.10*pores);
+        if(material==71) {
+            float seam=max(1.0-smoothstep(.014,.035,abs(mod(at.x,7.5)-3.75)),1.0-smoothstep(.014,.035,abs(mod(at.y,7.5)-3.75)));
+            float wet=smoothstep(.60,.79,wearNoise(at*.45+vec2(8,21)));
+            albedo*=mix(1.0,.36,wet)*(1.0-seam*.38);
+            specularStrength=mix(.035,.60,wet);shininess=mix(22.0,100.0,wet);
+        } else specularStrength=.012;
+    } else if(material==72) {
+        float stripe=step(.5,fract((vUV.x+vUV.y)*2.6));
+        albedo=linearColor(mix(vec3(.055,.06,.058),vec3(.86,.62,.15),stripe));
+        albedo*=.83+.17*grain(vUV*7.0);
+    } else if(material==73 || material==90) {
+        albedo=linearColor(vec3(.77,.80,.75))*(.75+.25*grain(vUV*4.0));
+        specularStrength=.035;
+    } else if(material==74) {
+        albedo=linearColor(vec3(.035,.09,.11));specularStrength=.65;shininess=110;
+    } else if(material==75) {
+        albedo=linearColor(vec3(.045,.05,.048))*(.8+.2*grain(vUV*12.0));specularStrength=.015;
+    } else if(material==76 || material==77) {
+        albedo=linearColor(material==76?vec3(.31,.15,.075):vec3(.38,.045,.028))*(.75+.25*grain(vUV*4.0));
+        specularStrength=.12;
+    } else if(material==78 || material==79) {
+        albedo=linearColor(material==78?vec3(.8,.08,.025):vec3(.06,.85,.36));emission=albedo*1.3;
+    } else if(material>=80 && material<=85) {
+        bool amber=material>=83;
+        float level=lampEnvelope(material-(amber?83:80),fract(vMaterial));
+        albedo=linearColor(amber?vec3(.95,.71,.33):vec3(.78,.88,.95));
+        emission=(amber?vec3(1.2,.65,.20):vec3(.75,.95,1.2))*level;
+    } else if(material>=86 && material<=88) {
+        albedo=linearColor(material==86?vec3(.12,.23,.28):material==87?vec3(.39,.13,.10):vec3(.46,.48,.43));
+        albedo*=.90+.10*wearNoise(vUV*4.0);specularStrength=.3;shininess=70;
+    } else if(material==89) {
+        albedo=linearColor(vec3(.035,.20,.28));specularStrength=.07;
+    } else if (material == 40) {
         float wear=wearNoise(vUV*2.0);
         albedo=linearColor(mix(vec3(.66,.225,.055),vec3(.86,.36,.10),wear*.65));
         specularStrength=.018;
@@ -349,7 +407,7 @@ void main() {
     // Low ambient fill leaves deep shadows between dim fluorescent pools.
     // Direct lighting uses geometric shadow maps; ambient remains restrained.
     float facingFill = mix(0.83, 1.0, geometricNormal.y * 0.5 + 0.5);
-    vec3 ambient = vec3(0.035, 0.034, 0.026) * facingFill;
+    vec3 ambient = (material>=70?vec3(.004,.005,.007):vec3(0.035, 0.034, 0.026)) * facingFill;
     vec3 color = albedo * ambient;
     // Match the fixed light capacity; zeroed unused slots contribute no light.
     for (int i = 0; i < 24; ++i) {

@@ -19,7 +19,10 @@ namespace {
 constexpr double PI=3.14159265358979323846;
 constexpr std::size_t FOOTSTEP_COUNT=6;
 constexpr std::size_t POSITIONED_CLIP_COUNT=
-    std::size_t(SoundKind::PresentOpen)-std::size_t(SoundKind::AmbientCreak)+1;
+    std::size_t(SoundKind::DarknessJumpscare)-std::size_t(SoundKind::AmbientCreak)+1;
+bool captureSound(SoundKind kind) {
+    return kind==SoundKind::Jumpscare || kind==SoundKind::DarknessJumpscare;
+}
 std::array<std::vector<std::int16_t>,FOOTSTEP_COUNT> recordedSteps;
 std::size_t loadedSteps=0;
 std::array<std::vector<std::int16_t>,4> monsterSteps;
@@ -267,6 +270,28 @@ std::size_t recordedFootstepCount() { return loadedSteps; }
 
 std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
     SoundEvent event=input;
+    if(event.kind==SoundKind::DarknessJumpscare) {
+        // Original electrical shriek for the garage: bass impact, dissonant
+        // falling tones and a torn, band-limited hiss. No borrowed scream.
+        constexpr double duration=1.7;
+        std::vector<std::int16_t> clip(std::size_t(duration*AUDIO_SAMPLE_RATE));
+        std::uint32_t state=event.variation*747796405u+2891336453u;
+        double low=0,body=0,phase=0;
+        const double pitch=.97+.02*(event.variation%4);
+        for(std::size_t i=0;i<clip.size();++i) {
+            const double t=double(i)/AUDIO_SAMPLE_RATE,n=noise(state);
+            low+=.24*(n-low);body+=.025*(n-body);
+            phase+=2*PI*pitch*(170+930*std::exp(-t*3.8))/AUDIO_SAMPLE_RATE;
+            const double attack=std::min(1.,t/.004);
+            const double release=std::clamp((duration-t)/.18,0.,1.);
+            const double impact=.43*std::sin(2*PI*(82*t-16*t*t))*std::exp(-t*13);
+            const double torn=(.62+.38*std::pow(std::sin(t*81),2))*std::exp(-t*2.6);
+            const double shriek=(.23*std::sin(phase)+.14*std::sin(phase*1.413))*std::exp(-t*3.1);
+            const double hiss=.50*(low-body)*torn+.07*(n-low)*std::exp(-t*9);
+            clip[i]=pcm(.72*std::tanh(2.1*(impact+shriek+hiss))*attack*release);
+        }
+        clip.front()=clip.back()=0;return clip;
+    }
     if(event.kind==SoundKind::PresentOpen) {
         // Paper crackle, a short tear, and a soft cardboard release.
         std::vector<std::int16_t> clip(std::size_t(.58*AUDIO_SAMPLE_RATE));
@@ -525,7 +550,7 @@ struct AudioMixer::Impl {
     void environmental(SoundKind kind,AudioPosition position,float gain) {
         const auto index=int(kind)-int(SoundKind::AmbientCreak);
         if (index<0 || std::size_t(index)>=ambience.size() || paused || !std::isfinite(gain) || gain<=0) return;
-        const bool capture=kind==SoundKind::Jumpscare;
+        const bool capture=captureSound(kind);
         // Catch feedback must not be dropped by a full ambience queue, nor pile
         // on top of twelve existing sources. It belongs at the camera.
         if(captureOnly && !capture) return;
@@ -733,14 +758,14 @@ void Audio::setPaused(bool paused) {
 }
 void Audio::play(SoundKind kind,AudioPosition position,float gain) {
     if (!available()) return;
-    if(kind==SoundKind::Jumpscare) {
+    if(captureSound(kind)) {
         impl_->mixer.setPaused(false); impl_->paused=false;
 #ifdef _WIN32
         impl_->flush(); // Remove queued ambience before the very first scream sample.
 #endif
     }
     impl_->mixer.play(kind,position,gain);
-    if(kind==SoundKind::Jumpscare && !impl_->service()) stop();
+    if(captureSound(kind) && !impl_->service()) stop();
 }
 void Audio::reset(std::uint32_t seed) {
     cadence_.reset(); impl_->mixer.reset(seed);

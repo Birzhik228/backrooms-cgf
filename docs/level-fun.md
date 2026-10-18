@@ -14,8 +14,8 @@ cardboard-opening sound plays. Each box can be searched once. The
 first key chance is 5%, with 3 percentage points added after every miss; the
 15th box guarantees a key. Rolls are seeded and cannot be rerolled by leaving
 and revisiting rooms. After finding the key, follow EXIT SIGNAL and press E
-at the locked exit, then walk through it. A completion screen marks the end
-until a future level is implemented; Continue Exploring returns to Level Fun.
+at the locked exit, then walk through it. This now leads to the third stage,
+[Underground Parking](parking.md), with a fresh checkpoint and circuit objective.
 
 Each non-key present has a separate seeded 20% mouse chance. A mouse squeaks
 once on release, flees for up to eight seconds, and alerts all four Partygoers

@@ -42,6 +42,7 @@
 #include "common/threat.h"
 #include "common/mouse.h"
 #include "common/partygoer_model.h"
+#include "common/darkness.h"
 #include "common/threat_model.h"
 #include "common/encounter.h"
 
@@ -77,7 +78,7 @@ struct Options {
     bool autoDoor = false, autoCloseDoor = false, menuCheck = false, autoPause = false;
     bool partyPreview=false, partyCheck=false;
     bool noThreat=false, threatPreview=false, forcedThreat=false;
-    bool funPreview=false;
+    bool funPreview=false, parkingPreview=false, autoBreakers=false, darknessPreview=false;
     bool autoVerity=false, autoKey=false, autoHide=false, hideFixture=false;
     bool mouseFixture=false, mousePreview=false, guideCheck=false, guideClose=false, guideClick=false;
     bool guideBack=false, guideSkip=false;
@@ -188,6 +189,9 @@ static Options parseOptions(int argc, char** argv) {
         } else if (argument == "--exit-preview") { options.exitPreview=true;
         } else if (argument == "--key-preview") { options.keyPreview=true;
         } else if (argument == "--level-fun") { options.funPreview=true;
+        } else if (argument == "--parking") { options.parkingPreview=true;
+        } else if (argument == "--auto-breakers") { options.autoBreakers=true;
+        } else if (argument == "--darkness-preview") { options.parkingPreview=true;options.darknessPreview=true;
         } else if (argument == "--threat-preview") { options.threatPreview=true; options.forcedThreat=true;
         } else if (argument == "--threat-x") { options.threatX=std::stod(next()); options.forcedThreat=true;
         } else if (argument == "--threat-z") { options.threatZ=std::stod(next()); options.forcedThreat=true;
@@ -217,6 +221,8 @@ static Options parseOptions(int argc, char** argv) {
         } else if (argument == "--help") {
             std::cout << "Backrooms: --seed N --frames N --capture image.bmp --hidden "
                          "--demo --tour --x X --z Z --yaw DEGREES --width N --height N\n"
+                         "--level-fun starts the party checkpoint; --parking starts the third stage.\n"
+                         "--darkness-preview / --auto-breakers verify garage threats and power.\n"
                          "Verification: --exit-preview --key-preview --no-flashlight --map --metrics --wireframe --auto-walk\n"
                          "--auto-exit simulates E once; --auto-continue simulates Enter afterward.\n"
                          "--auto-crouch --auto-stand --auto-sprint test movement modes.\n"
@@ -608,7 +614,13 @@ static void minimap(UI& ui, const World& world, double px, double pz,
         ui.rect(exitX - 4, exitY - 4, 8, 8, {.3f, 1.f, .65f, 1});
         ui.text(std::min(exitX + 7, left + size - 36), exitY - 3, "EXIT", 1, {.5f, 1, .75f, 1});
     }
-    if(!world.isFun() && !world.keyCollected()) {
+    if(world.isParking())for(int i=0;i<3;++i) {
+        const auto p=world.breakerLocation(i);
+        const float bx=std::clamp(cx+float(p.x-px)*scale,left+10,left+size-20);
+        const float bz=std::clamp(cy+float(p.z-pz)*scale,top+10,top+size-12);
+        ui.text(bx,bz,std::string(1,char('A'+i)),1.4f,world.breakerPowered(i)?Color{.3f,1,.65f,1}:Color{1,.6f,.25f,1});
+    }
+    if(world.level()==Level::Zero && !world.keyCollected()) {
         const auto key=world.keyLocation();
         const float kx=std::clamp(cx+float(key.x-px)*scale,left+10,left+size-30);
         const float ky=std::clamp(cy+float(key.z-pz)*scale,top+10,top+size-12);
@@ -691,7 +703,7 @@ static int run(const Options& options) {
     scene.use();scene.set("uFlashShadow",8);scene.set("uLampShadows",9);
     ao.use();ao.set("uDepth",0);
 
-    World world(options.seed,options.funPreview?Level::Fun:Level::Zero);
+    World world(options.seed,options.parkingPreview?Level::Parking:options.funPreview?Level::Fun:Level::Zero);
     double px = options.spawnX, pz = options.spawnZ;
     if(options.exitPreview){auto p=world.exitLocation();px=p.x;pz=p.z+.8;}
     if(options.keyPreview){auto p=world.keyLocation();px=p.x;pz=p.z+2.5;}
@@ -711,7 +723,7 @@ static int run(const Options& options) {
     float occlusionClock=0,threatTransmission=1;
     float scareYaw=0, scarePitch=0, scareTargetYaw=0, scareTargetPitch=0;
     Vec3 scareApproach{0,0,-1};
-    if(options.forcedThreat && !options.noThreat && !world.isFun()) {
+    if(options.forcedThreat && !options.noThreat && world.level()==Level::Zero) {
         if(world.blocked(options.threatX,options.threatZ,Threat::RADIUS))
             throw std::runtime_error("Threat fixture intersects a wall or unloaded chunk.");
         threat.resetAt(options.threatX,options.threatZ,options.threatYaw*PI/180);
@@ -730,7 +742,8 @@ static int run(const Options& options) {
     input.pause(options.settingsMenu || !(options.demo || options.tour));
 
     std::map<ChunkCoord, GpuChunk> gpu;
-    GpuChunk doorGpu, threatGpu, keyGpu, mouseGpu, partyGpu, verityGpu;
+    GpuChunk doorGpu, threatGpu, keyGpu, mouseGpu, partyGpu, verityGpu, darknessGpu;
+    Darkness darkness;
     Partygoers partygoers;
     std::array<double,Partygoers::COUNT*5> lastPartyPose{};
     // Aim the capture at the visible skull, which projects ahead of the root.
@@ -816,6 +829,7 @@ static int run(const Options& options) {
         threat.reset(world.seed()); threat.setEnraged(world.keyCollected()); encounter.reset();
         mouse.reset(world.seed());mouseSqueaks=0;presentMouseTime=0;
         partygoers.reset();release(partyGpu);lastPartyPose={};
+        darkness.reset();release(darknessGpu);
         hiding=false; threatVocals.reset(); occlusionClock=0; threatTransmission=1;
         threatAnimation=0; lastThreatMeshTime=-1;
         threatStoop=0; lastThreatStoop=-1; threatRunningSteps=false;
@@ -834,13 +848,14 @@ static int run(const Options& options) {
         for(auto& [coord,mesh]:gpu) release(mesh);
         gpu.clear();
         returnToStart();
+        for(auto& cached:shadows.cache) cached.valid=false;
         exitUsed=false; doorsUsed=0; minimumStamina=100;
         notice.clear(); noticeTime=0; settingsOpen=false; menuSelection=0;
         input.pause(false); entered=true;
     };
 
-    auto enterFun = [&]() {
-        world=World(world.seed(),Level::Fun);
+    auto enterLevel = [&](Level next) {
+        world=World(world.seed(),next);
         for(auto& entry:gpu) release(entry.second);
         gpu.clear();
         release(doorGpu);release(keyGpu);release(mouseGpu);
@@ -849,9 +864,14 @@ static int run(const Options& options) {
         exitUsed=true;exitArmed=false;escaped=false;
         showHelp=false;guidePending=false;settingsOpen=false;
         input.pause(false);
-        notice="LEVEL FUN / CHECKPOINT REACHED / SEARCH THE PRESENTS";noticeTime=6;
-        log("Checkpoint reached: Level Fun entrance.");
-        log("Transition: Level 0 -> Level Fun. Partygoers enabled; Aranea and mouse disabled.");
+        notice=world.isParking()?"PARKING / SHINE YOUR LIGHT AT THE EYES / RESTORE POWER":"LEVEL FUN / CHECKPOINT REACHED / SEARCH THE PRESENTS";noticeTime=8;
+        if(world.isParking()) {
+            log("Checkpoint reached: Parking entrance.");
+            log("Transition: Level Fun -> Parking. Restore circuits A, B and C.");
+        } else {
+            log("Checkpoint reached: Level Fun entrance.");
+            log("Transition: Level 0 -> Level Fun. Partygoers enabled; Aranea and mouse disabled.");
+        }
     };
 
     FrameQueue frameQueue;
@@ -871,7 +891,7 @@ static int run(const Options& options) {
         // Cap ordinary simulation stalls to avoid teleporting through a wall.
         // The automated walk has deterministic motion per frame, independent of
         // render speed; performance counters always use real wall-clock time.
-        const float dt = (options.partyPreview || options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.autoJumpscare || options.autoKey || options.autoHide || options.mouseFixture || options.guideCheck || options.forcedThreat) ? 1.f / 60.f :
+        const float dt = (options.darknessPreview || options.autoBreakers || options.partyPreview || options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.autoJumpscare || options.autoKey || options.autoHide || options.mouseFixture || options.guideCheck || options.forcedThreat) ? 1.f / 60.f :
                          static_cast<float>(std::min(rawDelta, .05));
         elapsed += dt;
         const double inputStart = glfwGetTime();
@@ -1015,7 +1035,7 @@ static int run(const Options& options) {
             }
         }
         if ((resumeAction || (options.autoContinue && escaped)) && input.paused && !settingsOpen) {
-            if(encounter.gameOver()) { freshRun(world.seed()); ++restarts; log(world.isFun()?"Restarted at Level Fun checkpoint.":"Restarted after capture with the same seed."); }
+            if(encounter.gameOver()) { freshRun(world.seed()); ++restarts; log(world.isParking()?"Restarted at Parking checkpoint.":world.isFun()?"Restarted at Level Fun checkpoint.":"Restarted after capture with the same seed."); }
             else if(!encounter.scaring()) input.pause(false);
             entered = true;
             escaped = false;
@@ -1162,10 +1182,11 @@ static int run(const Options& options) {
         if(pz>world.exitLocation().z-.95) exitArmed=true;
         if(!input.paused && exitArmed && world.exitCrossed(px,pz)) {
             log("Exit reached by walking through the open doorway.");
-            if(!world.isFun()) enterFun();
+            if(world.level()==Level::Zero) enterLevel(Level::Fun);
+            else if(world.isFun()) enterLevel(Level::Parking);
             else {
                 escaped=true;exitUsed=true;exitArmed=false;motion.reset();input.pause(true);menuSelection=0;
-                notice.clear();log("Level Fun completed. Next level is not built yet.");
+                notice.clear();log("Parking completed. All three circuits restored; service exit reached.");
             }
         }
         float doorNoise=0;
@@ -1180,6 +1201,15 @@ static int run(const Options& options) {
             }
         }
         // Scripted fixtures use the same E interaction and present rolls as play.
+        if(options.autoBreakers && world.isParking() && frame>=1 && frame<=9 && frame%4==1) {
+            const auto panel=world.breakerLocation((frame-1)/4);
+            px=panel.x;pz=panel.z+1;world.update(px,pz);motion.reset();input.setLook(-90,0);forward=input.forward();
+            simulateKey(GLFW_KEY_E);
+        }
+        if(options.autoBreakers && options.autoExit && world.isParking() && frame==20) {
+            const auto exit=world.exitLocation();px=exit.x;pz=exit.z;world.update(px,pz);motion.reset();input.setLook(-90,0);forward=input.forward();
+        }
+        if(options.autoBreakers && options.autoExit && world.isParking() && frame==21)simulateKey(GLFW_KEY_E);
         if(options.funPreview && options.autoKey && world.isFun() && !world.keyCollected() && frame>0 && frame<65 && frame%4==1) {
             double nearest=1e30;Present selected{};
             for(const auto& entry:world.chunks())for(const auto& gift:entry.second.presents)if(!gift.opened) {
@@ -1194,10 +1224,10 @@ static int run(const Options& options) {
             const auto exit=world.exitLocation();px=exit.x;pz=exit.z;world.update(px,pz);motion.reset();input.setLook(-90,0);
             forward=input.forward();
         }
-        if(options.autoKey && frame==1 && !world.isFun()) {
+        if(options.autoKey && frame==1 && world.level()==Level::Zero) {
             const auto key=world.keyLocation(); px=key.x;pz=key.z+1;world.update(px,pz);
         }
-        if(options.autoKey && options.autoExit && frame==20 && !world.isFun()) {
+        if(options.autoKey && options.autoExit && frame==20 && world.level()==Level::Zero) {
             const auto exit=world.exitLocation();px=exit.x;pz=exit.z;world.update(px,pz);
         }
         const bool pickedUpKey=!input.paused && encounter.alive() && !hiding && world.collectKey(px,pz);
@@ -1206,6 +1236,20 @@ static int run(const Options& options) {
             log("Key collected. Exit unlocked; press E to open. Creature called once.");
         }
         Present nearbyPresent{};
+        int nearbyBreaker=-1;
+        bool nearBreaker=world.nearestBreaker(px,pz,1.8,nearbyBreaker);
+        if(nearBreaker) {
+            const auto p=world.breakerLocation(nearbyBreaker);
+            nearBreaker=(p.x-px)*forward.x+(p.z-pz)*forward.z>.35*std::hypot(p.x-px,p.z-pz);
+        }
+        const bool breakerInteraction=nearBreaker && !input.paused && encounter.alive() && input.hit(GLFW_KEY_E);
+        if(breakerInteraction && world.activateBreaker(nearbyBreaker,px,pz)) {
+            const auto p=world.breakerLocation(nearbyBreaker);
+            audio.play(SoundKind::Door,{p.x,1.2,p.z},.75f);
+            notice="CIRCUIT "+std::string(1,char('A'+nearbyBreaker))+" ONLINE / "+std::to_string(world.breakersPowered())+" OF 3";
+            if(world.exitUnlocked())notice+=" / SERVICE EXIT UNLOCKED";
+            noticeTime=5;log(notice);nearBreaker=false;
+        }
         bool nearPresent=world.nearestPresent(px,pz,1.8,nearbyPresent);
         if(nearPresent) {
             const double dx=nearbyPresent.x-px,dz=nearbyPresent.z-pz,d=std::hypot(dx,dz);
@@ -1285,7 +1329,7 @@ static int run(const Options& options) {
                 if(world.blocked(px+dx*along/distance,pz+dz*along/distance,.23,nearbyDoor.id)) nearDoor=false;
             }
         }
-        if (!input.paused && !hiding && !hideInteraction && !presentInteraction && (input.hit(GLFW_KEY_E) || (options.autoExit && frame == (options.autoKey ? (options.funPreview?81:21) : options.menuCheck ? 8 : 2)) ||
+        if (!input.paused && !hiding && !hideInteraction && !presentInteraction && !breakerInteraction && (input.hit(GLFW_KEY_E) || (options.autoExit && frame == (options.autoKey ? (options.funPreview?81:21) : options.menuCheck ? 8 : 2)) ||
             (options.autoDoor && frame==2) || (options.autoCloseDoor && frame==options.doorCloseFrame))) {
             if (nearDoor) {
                 if (world.toggleDoor(nearbyDoor.id, px, pz)) {
@@ -1295,7 +1339,7 @@ static int run(const Options& options) {
                     audio.play(SoundKind::Door, {nearbyDoor.x, 1.2, nearbyDoor.z});
                     notice = nearbyDoor.open ? "OPENING DOOR" : "CLOSING DOOR";
                     log(notice + " / " + std::to_string(nearbyDoor.id));
-                } else notice = nearbyDoor.isExit && !world.keyCollected()?"EXIT LOCKED / FIND THE BRASS KEY":"STEP CLEAR OF THE DOORWAY";
+                } else notice = nearbyDoor.isExit && !world.exitUnlocked()?(world.isParking()?"EXIT LOCKED / RESTORE ALL THREE CIRCUITS":"EXIT LOCKED / FIND THE BRASS KEY"):"STEP CLEAR OF THE DOORWAY";
                 noticeTime=2;
             } else {
                 notice = "FACE A NEARBY DOOR TO INTERACT";
@@ -1305,7 +1349,7 @@ static int run(const Options& options) {
         // Actual movement and explicit interaction noise feed one physical actor.
         // Menu time never advances its senses, path following, or grace period.
         const auto previousThreatState=threat.state();
-        if(options.autoCatch && frame==2 && encounter.alive() && !world.isFun()) {
+        if(options.autoCatch && frame==2 && encounter.alive() && world.level()==Level::Zero) {
             const Vec3 front=normalize(Vec3{forward.x,0,forward.z});
             double tx=px+front.x*1.35,tz=pz+front.z*1.35;
             if(world.blocked(tx,tz,Threat::RADIUS)) { tx=px; tz=pz; }
@@ -1321,7 +1365,7 @@ static int run(const Options& options) {
             presentMouseTime=std::max(0.f,presentMouseTime-dt);
             if(presentMouseTime==0)mouse.active=false;
         }
-        if(mouse.update(world,px,pz,dt,input.paused || !encounter.alive() || (world.isFun() && !mouse.active),hiding,!world.isFun())) {
+        if(mouse.update(world,px,pz,dt,input.paused || !encounter.alive() || (world.isFun() && !mouse.active),hiding,world.level()==Level::Zero)) {
             audio.play(SoundKind::MouseSqueak,{mouse.x,.12,mouse.z},1.f);
             if(!options.noThreat) threat.hearAlarm(world,perceivedPlayer,mouse.x,mouse.z);
             ++mouseSqueaks;log("Mouse squeaked / creature alerted.");
@@ -1350,10 +1394,38 @@ static int run(const Options& options) {
             audio.reset(static_cast<std::uint32_t>(world.seed()));music.update(true,true,0,0);
             log("Partygoer contact: game over. Restart at Level Fun checkpoint.");
         }
+        if(options.darknessPreview && frame==0 && world.isParking() && !options.noThreat) {
+            auto& eyes=darkness.eyes[0];eyes.active=true;eyes.x=px;eyes.z=pz-8;
+        }
+        if(options.autoCatch && frame==2 && world.isParking() && !options.noThreat) {
+            px=3.75;pz=-3.75;world.update(px,pz);
+            auto& eyes=darkness.eyes[0];eyes.active=true;eyes.x=px;eyes.z=pz+.4;
+        }
+        const int beforeDispel=darkness.dispelled,beforeSpawn=darkness.spawned;
+        const bool darknessContact=darkness.update(world,px,pz,eyeHeight+bobOffset,forward,flashlight && !hiding,dt,
+            input.paused || !encounter.alive() || options.noThreat);
+        if(darkness.dispelled>beforeDispel) {
+            audio.play(SoundKind::ElectricalStinger,{px,eyeHeight,pz},.16f);
+            log("Darkness eyes dispersed by flashlight.");
+        }
+        if(darkness.spawned>beforeSpawn)for(const auto& eyes:darkness.eyes)if(eyes.active) {
+            audio.play(SoundKind::AmbientCreak,{eyes.x,eyes.y,eyes.z},.35f);break;
+        }
+        if(darknessContact && (encounter.catchPlayer() || encounter.defeatImmediately())) {
+            scareYaw=scareTargetYaw=input.yaw;scarePitch=scareTargetPitch=input.pitch;scareApproach=forward;
+            ++catches;motion.reset();moving=false;frameDistance=0;
+            input.pause(true);settingsOpen=false;menuSelection=0;notice.clear();noticeTime=0;
+            audio.reset(static_cast<std::uint32_t>(world.seed()));music.update(true,true,0,0);
+            if(scareConfig.audio && encounter.presenting()) {
+                audio.play(SoundKind::DarknessJumpscare,{px,eyeHeight,pz},1.f);
+                log("Darkness sound: electrical shriek.");
+            }
+            log(encounter.presenting()?"Darkness contact: jumpscare started.":"Darkness contact: game over (jumpscare disabled).");
+        }
         const double oldThreatX=threat.x(),oldThreatZ=threat.z();
         // Key ownership keeps the speed bonus; only pickup triggers an alarm.
         threat.setEnraged(world.keyCollected());
-        if(!options.noThreat && !options.threatPreview && !world.isFun())
+        if(!options.noThreat && !options.threatPreview && world.level()==Level::Zero)
             threat.update(world,perceivedPlayer,dt,input.paused || !encounter.alive());
         if(threat.state()!=previousThreatState) {
             if(previousThreatState==ThreatState::Dormant) threatBodyYaw=threat.yaw();
@@ -1364,16 +1436,16 @@ static int run(const Options& options) {
         }
         // Visual acquisition also fires when a sound already started the chase;
         // a held sight line repeats it. Hearing alone never cues a notice.
-        const bool threatCanVocalize=!world.isFun() && threat.active()&&!threat.caught()&&!options.noThreat;
+        const bool threatCanVocalize=world.level()==Level::Zero && threat.active()&&!threat.caught()&&!options.noThreat;
         for(const auto cue:threatVocals.update(dt,threatCanVocalize,
             threatCanVocalize&&threat.canSeePlayer()&&!hiding,false,
-            input.paused||options.threatPreview,!options.noThreat&&encounter.alive()&&!world.isFun())) {
+            input.paused||options.threatPreview,!options.noThreat&&encounter.alive()&&world.level()==Level::Zero)) {
             audio.play(cue,{threat.x(),1.8,threat.z()},1.f);
             if(cue==SoundKind::ThreatNotice)++threatNotices;else ++threatRoars;
             log(cue==SoundKind::ThreatNotice?"Threat audio cue: visual notice.":"Threat audio cue: rage roar.");
         }
         encounter.update(dt,scareSuspended);
-        const bool debugScare=!world.isFun() && input.hit(GLFW_KEY_J) && encounter.alive() && !settingsOpen;
+        const bool debugScare=world.level()==Level::Zero && input.hit(GLFW_KEY_J) && encounter.alive() && !settingsOpen;
         if(debugScare && !threat.active()) {
             threat.resetAt(px+forward.x*2,pz+forward.z*2);
         }
@@ -1447,7 +1519,7 @@ static int run(const Options& options) {
 
         const double audioStart = glfwGetTime();
         const auto currentRoom = roomInfo(int64_t(std::floor(px / CELL)), int64_t(std::floor(pz / CELL)), world.seed());
-        const auto floorSurface = world.isFun()?FloorSurface::Carpet:floorSurfaceAt(px, pz, world.seed());
+        const auto floorSurface = world.isParking()?FloorSurface::Tile:world.isFun()?FloorSurface::Carpet:floorSurfaceAt(px, pz, world.seed());
         const Surface surface = floorSurface==FloorSurface::Tile ? Surface::HardFloor :
             floorSurface==FloorSurface::DampCarpet ? Surface::DampCarpet : Surface::Carpet;
         AudioScene soundScene;
@@ -1594,6 +1666,8 @@ static int run(const Options& options) {
             lastPartyPose=partyPose;
         }
         residentTriangles+=partyGpu.count/3;
+        if(world.isParking() || darknessGpu.count)uploadVertices(darknessGpu,darkness.vertices(originX,originZ,px,pz),GL_DYNAMIC_DRAW);
+        residentTriangles+=darknessGpu.count/3;
         if(doorVisualDirty || !(origin==doorOrigin) || doorShift!=world.shifts()) {
             uploadVertices(doorGpu,world.doorVertices(originX,originZ),GL_DYNAMIC_DRAW);
             doorOrigin=origin;doorShift=world.shifts();doorVisualDirty=false;
@@ -1823,6 +1897,15 @@ static int run(const Options& options) {
             scene.set("uModel",Mat4::identity());glBindVertexArray(partyGpu.vao);
             glDrawArrays(GL_TRIANGLES,0,partyGpu.count);drawnTriangles+=partyGpu.count/3;
         }
+        if(darknessGpu.count && world.isParking()) {
+            if(encounter.presenting()) {
+                uploadVertices(darknessGpu,Darkness::scareVertices(eye,cameraForward,encounter.lunge()),GL_DYNAMIC_DRAW);
+                glDisable(GL_DEPTH_TEST);
+            }
+            scene.set("uModel",Mat4::identity());glBindVertexArray(darknessGpu.vao);
+            glDrawArrays(GL_TRIANGLES,0,darknessGpu.count);drawnTriangles+=darknessGpu.count/3;
+            glEnable(GL_DEPTH_TEST);
+        }
         if(threat.active() && threatGpu.count) {
             float tx=float(threat.x()-originX),tz=float(threat.z()-originZ),ty=0,yaw=threatBodyYaw;
             Vec3 captureDirection=cameraForward;
@@ -1926,7 +2009,7 @@ static int run(const Options& options) {
         ui.rect(18, 18, 330 * scale, 50, {.015f, .020f, .015f, .70f});
         ui.rect(22, 24, 3, 38, gold);
         ui.text(36, 25, "BACKROOMS", 2 * scale, paper);
-        ui.text(36, 47, world.isFun()?std::string("LEVEL FUN / PARTY ROOMS"):std::string("LEVEL 0 / ")+roomName(currentRoom.kind), 1.15f * scale, dim);
+        ui.text(36, 47, world.isParking()?std::string("STAGE 3 / PARKING / SECTOR ")+char('A'+parkingSector(int64_t(std::floor(px/CELL)),int64_t(std::floor(pz/CELL)))):world.isFun()?std::string("LEVEL FUN / PARTY ROOMS"):std::string("LEVEL 0 / ")+roomName(currentRoom.kind), 1.15f * scale, dim);
         const std::string seedText = "SEED " + std::to_string(world.seed());
         ui.text(float(width) - UI::textWidth(seedText, 1.25f * scale) - 26,
                 28, seedText, 1.25f * scale, paper);
@@ -1935,7 +2018,7 @@ static int run(const Options& options) {
             ui.rect(width * .5f - 1, height * .5f - 1, 2, 2, {.95f, .94f, .81f, .65f});
             ui.text(28, float(height) - 55,
                     "FLASHLIGHT " + std::string(flashlight && !hiding ? "ON" : "OFF") +
-                    (world.isFun()?std::string(""):std::string("   CLUES ") + (clues ? "ON" : "OFF")) +
+                    (world.level()!=Level::Zero?std::string(""):std::string("   CLUES ") + (clues ? "ON" : "OFF")) +
                     (crouched ? "   CROUCHING" : ""), 1.2f * scale, paper);
             {
             const auto door = world.exitLocation();
@@ -1947,14 +2030,27 @@ static int run(const Options& options) {
                 ahead < -distance * .75 ? "BEHIND" : side > 0 ? "RIGHT" : "LEFT";
             const std::string signal = distance < 10000 ? std::to_string(int(distance)) + " M / " + bearing : "DISTANT / " + bearing;
             ui.text(28, float(height) - 80, "EXIT SIGNAL " + signal, 1.25f * scale, {.47f, .88f, .68f, 1});
-            const auto key=world.keyLocation();
+            auto key=world.keyLocation();
+            int signalCircuit=-1;
+            if(world.isParking()) {
+                double best=1e30;
+                for(int i=0;i<3;++i)if(!world.breakerPowered(i)) {
+                    const auto p=world.breakerLocation(i);const double d=std::hypot(p.x-px,p.z-pz);
+                    if(d<best){best=d;key=p;signalCircuit=i;}
+                }
+            }
             const double kx=key.x-px,kz=key.z-pz,kd=std::hypot(kx,kz);
             const double ka=kx*forward.x+kz*forward.z,ks=-kx*forward.z+kz*forward.x;
             const std::string kb=ka>kd*.75?"AHEAD":ka<-kd*.75?"BEHIND":ks>0?"RIGHT":"LEFT";
-            ui.text(28,float(height)-104,world.keyCollected()?"KEY COLLECTED / EXIT UNLOCKED / E TO OPEN":
+            ui.text(28,float(height)-104,world.isParking()?
+                "POWER "+std::to_string(world.breakersPowered())+"/3 / "+(signalCircuit<0?std::string("SERVICE EXIT READY / E TO OPEN"):
+                    "CIRCUIT "+std::string(1,char('A'+signalCircuit))+" / "+std::to_string(int(kd))+" M / "+kb):
+                world.keyCollected()?"KEY COLLECTED / EXIT UNLOCKED / E TO OPEN":
                 world.isFun()?"SEARCH PRESENTS / OPENED "+std::to_string(world.presentsOpened())+" / NEXT "+std::to_string(World::presentKeyChance(world.presentsOpened()))+"%":
                 "KEY SIGNAL "+std::to_string(int(kd))+" M / "+kb,1.25f*scale,gold);
             }
+            if(world.isParking())ui.text(28,float(height)-128,Darkness::safe(world,px,pz)?"IN THE LIGHT / SAFE":"DARKNESS / AIM YOUR FLASHLIGHT AT THE EYES",1.15f*scale,Darkness::safe(world,px,pz)?Color{.47f,.88f,.68f,1}:gold);
+            if(nearBreaker)ui.text(width*.5f-170,height*.5f+58,"E / RESTORE CIRCUIT "+std::string(1,char('A'+nearbyBreaker)),1.3f*scale,paper);
             if(nearPresent) ui.text(width*.5f-160,height*.5f+58,
                 nearbyPresent.opened?"PRESENT ALREADY SEARCHED":"E / OPEN PRESENT",1.3f*scale,paper);
             if(hiding || nearHide) ui.text(width*.5f-170,height*.5f+58,
@@ -1963,7 +2059,7 @@ static int run(const Options& options) {
             ui.rect(float(width)-212, float(height)-49, 180, 5, {.08f,.09f,.06f,.9f});
             ui.rect(float(width)-212, float(height)-49, 180*stamina.value/100.f, 5, gold);
             if (nearDoor) {
-                const std::string prompt = nearbyDoor.isExit && !world.keyCollected()?"EXIT LOCKED / FIND KEY" : nearbyDoor.isExit && nearbyDoor.openness>.92f ? "WALK THROUGH TO EXIT / E CLOSE" : nearbyDoor.open ? "E / CLOSE DOOR" : nearbyDoor.isExit ? "E / OPEN EXIT DOOR" : "E / OPEN DOOR";
+                const std::string prompt = nearbyDoor.isExit && !world.exitUnlocked()?(world.isParking()?"EXIT LOCKED / RESTORE POWER":"EXIT LOCKED / FIND KEY") : nearbyDoor.isExit && nearbyDoor.openness>.92f ? "WALK THROUGH TO EXIT / E CLOSE" : nearbyDoor.open ? "E / CLOSE DOOR" : nearbyDoor.isExit ? "E / OPEN EXIT DOOR" : "E / OPEN DOOR";
                 const float promptW = UI::textWidth(prompt, 1.8f * scale);
                 ui.rect(width * .5f - promptW * .5f - 16, height * .63f - 12, promptW + 32, 38, {.025f, .1f, .065f, .94f});
                 ui.text(width * .5f - promptW * .5f, height * .63f, prompt, 1.8f * scale, {.65f, 1, .8f, 1});
@@ -2007,8 +2103,8 @@ static int run(const Options& options) {
             const float left=(width-boxW)*.5f, top=(height-boxH)*.5f;
             ui.rect(left,top,boxW,boxH,{.032f,.039f,.027f,.96f});
             ui.rect(left,top,boxW,2,gold);
-            ui.text(left+32,top+27,settingsOpen ? "CAMERA / SOUND / DISPLAY" : world.isFun()?"LEVEL FUN / PARTY ROOMS":"LEVEL 0 / ENDLESS EXPLORATION",1.4f,gold);
-            ui.text(left+32,top+57,settingsOpen ? "SETTINGS" : encounter.gameOver() ? "GAME OVER" : escaped ? "LEVEL FUN COMPLETE" : entered ? "PAUSED" : "BACKROOMS",3.6f,paper);
+            ui.text(left+32,top+27,settingsOpen ? "CAMERA / SOUND / DISPLAY" : world.isParking()?"STAGE 3 / UNDERGROUND PARKING":world.isFun()?"LEVEL FUN / PARTY ROOMS":"LEVEL 0 / ENDLESS EXPLORATION",1.4f,gold);
+            ui.text(left+32,top+57,settingsOpen ? "SETTINGS" : encounter.gameOver() ? "GAME OVER" : escaped ? "PARKING COMPLETE" : entered ? "PAUSED" : "BACKROOMS",3.6f,paper);
             if (settingsOpen) {
                 ui.text(left+boxW-245,top+69,"LIVE FPS "+std::to_string(int(fps)),1.6f,gold);
                 const std::array<std::string,13> labels={"MOUSE SENSITIVITY","MASTER VOLUME","BRIGHTNESS","FIELD OF VIEW","HEAD BOB","CAMERA SOFTNESS","VSYNC","MUSIC","MUSIC VOLUME","CONTACT SHADING","FPS COUNTER","RESET DEFAULTS","BACK"};
@@ -2029,8 +2125,8 @@ static int run(const Options& options) {
                 ui.text(left+32,top+boxH-47,"UP/DOWN SELECT   LEFT/RIGHT ADJUST   ESC BACK",1.3f,dim);
                 ui.text(left+32,top+boxH-25,"CLICK A ROW OR ITS - / + CONTROLS. SETTINGS SAVE AUTOMATICALLY.",1.1f,dim);
             } else {
-                ui.text(left+32,top+107,encounter.gameOver() ? (world.isFun()?"CAUGHT AT THE PARTY. RESTART FROM THE LEVEL FUN CHECKPOINT.":"IT FOUND YOU. BREAK SIGHT. CROUCH TO STAY QUIET.") : escaped ? "NEXT LEVEL COMING LATER. YOU CAN KEEP EXPLORING." : world.isFun()?"SEARCH PRESENTS FOR THE KEY. KEEP PARTYGOERS IN SIGHT.":"FOLLOW THE HUM. LISTEN FOR FOOTSTEPS THAT ARE NOT YOURS.",1.35f,dim);
-                const std::array<std::string,5> labels={encounter.gameOver()?(world.isFun()?"RESTART CHECKPOINT":"RESTART RUN"):escaped?"CONTINUE EXPLORING":entered?"RESUME":"ENTER THE BACKROOMS","SETTINGS","NEW SEEDED BUILDING",encounter.gameOver()?"MAIN MENU":"RETURN TO FIRST ROOM","QUIT"};
+                ui.text(left+32,top+107,encounter.gameOver() ? (world.isParking()?"THE DARKNESS FOUND YOU. AIM YOUR FLASHLIGHT AT THE EYES.":world.isFun()?"CAUGHT AT THE PARTY. RESTART FROM THE LEVEL FUN CHECKPOINT.":"IT FOUND YOU. BREAK SIGHT. CROUCH TO STAY QUIET.") : escaped ? "PARKING COMPLETE. THE SERVICE EXIT IS POWERED. YOU MADE IT." : world.isParking()?"LIGHT REPELS THE EYES. RESTORE A, B AND C TO ESCAPE.":world.isFun()?"SEARCH PRESENTS FOR THE KEY. KEEP PARTYGOERS IN SIGHT.":"FOLLOW THE HUM. LISTEN FOR FOOTSTEPS THAT ARE NOT YOURS.",1.35f,dim);
+                const std::array<std::string,5> labels={encounter.gameOver()?(world.level()!=Level::Zero?"RESTART CHECKPOINT":"RESTART RUN"):escaped?"CONTINUE EXPLORING":entered?"RESUME":"ENTER THE BACKROOMS","SETTINGS","NEW SEEDED BUILDING",encounter.gameOver()?"MAIN MENU":"RETURN TO FIRST ROOM","QUIT"};
                 for(int i=0;i<5;++i) {
                     float y=top+163+i*52; const bool selected=i==menuSelection;
                     ui.rect(left+32,y,boxW-64,43,selected ? Color{.69f,.59f,.31f,1} : Color{.08f,.09f,.058f,1});
@@ -2040,7 +2136,7 @@ static int run(const Options& options) {
                 ui.text(left+32,top+boxH-27,"CGF / OPENGL 3.3 / THRESHOLD VERSION 0.12",1.1f,dim);
             }
         }
-        if(showHelp) drawControlsGuide(ui,width,height,guidePage,world.isFun());
+        if(showHelp) drawControlsGuide(ui,width,height,guidePage,world.isFun(),world.isParking());
         ui.render(width, height);
 
         // Capture before swapping, while the completed image is in GL_BACK.
@@ -2104,7 +2200,8 @@ static int run(const Options& options) {
             << ". Shifts: " << world.shifts() << ". Room: " << roomName(roomInfo(int64_t(std::floor(px/CELL)),int64_t(std::floor(pz/CELL)),world.seed()).kind)
             << ". Exit used: " << (exitUsed ? "yes" : "no")
             << ". Escaped: " << (escaped ? "yes" : "no")
-            << ". Level: " << (world.isFun()?"Fun":"0") << ". Mouse active: " << (mouse.active?"yes":"no")
+            << ". Circuits: " << world.breakersPowered() << "/3"
+            << ". Level: " << levelName(world.level()) << ". Mouse active: " << (mouse.active?"yes":"no")
             << ". Eye height: " << eyeHeight << ". Crouched: " << (crouched ? "yes" : "no")
             << ". FOV: " << fieldOfView << ". Velocity: " << motion.speed()
             << ". Verity: " << (world.infiniteStamina()?"active":"inactive") << ". Stamina: " << stamina.value << ". Minimum stamina: " << minimumStamina
@@ -2132,6 +2229,8 @@ static int run(const Options& options) {
     log("Lamp shadow cache updates: "+std::to_string(lampShadowUpdates));
     audio.stop();
     log("Partygoers: "+std::to_string(partygoers.activeCount())+" / frozen frames "+std::to_string(partygoers.frozenFrames)+" / travelled "+std::to_string(partygoers.travelled));
+    log("Darkness eyes: "+std::to_string(darkness.activeCount())+" / dispersed "+std::to_string(darkness.dispelled)+" / spawned "+std::to_string(darkness.spawned));
+    release(darknessGpu);
     music.stop(); release(verityGpu); release(partyGpu); release(mouseGpu); release(keyGpu); release(doorGpu); release(threatGpu);
     for (auto& [coord, mesh] : gpu) {
         release(mesh);

@@ -7,6 +7,7 @@
 #include <optional>
 #include <set>
 #include <vector>
+#include <array>
 
 namespace br {
 
@@ -44,7 +45,13 @@ struct HidingSpot {
 };
 enum class RoomKind { Classic, Corridor, OpenHall, PillarHall, DeadEnd, OddRoom };
 enum class FloorSurface { Carpet, DampCarpet, Tile };
-enum class Level { Zero, Fun };
+enum class Level { Zero, Fun, Parking };
+inline const char* levelName(Level level) {
+    return level==Level::Parking?"Parking":level==Level::Fun?"Fun":"0";
+}
+ChunkCoord parkingExitCell(std::uint64_t seed);
+ChunkCoord parkingBreakerCell(std::uint64_t seed,int circuit);
+int parkingSector(std::int64_t cellX,std::int64_t cellZ);
 struct DoorInfo {
     std::uint64_t id;
     double x,z; // Global midpoint, also used for interaction and spatial audio.
@@ -97,6 +104,13 @@ public:
     explicit World(std::uint64_t seed,Level level=Level::Zero);
     Level level() const { return level_; }
     bool isFun() const { return level_==Level::Fun; }
+    bool isParking() const { return level_==Level::Parking; }
+    WorldPoint breakerLocation(int circuit) const;
+    bool breakerPowered(int circuit) const { return circuit>=0 && circuit<3 && breakers_[circuit]; }
+    int breakersPowered() const { return int(breakers_[0])+int(breakers_[1])+int(breakers_[2]); }
+    bool nearestBreaker(double x,double z,double range,int& circuit) const;
+    bool activateBreaker(int circuit,double x,double z);
+    bool exitUnlocked() const { return isParking()?breakersPowered()==3:keyCollected_; }
     void update(double x, double z, int radius = 2);
     const std::map<ChunkCoord,Chunk>& chunks() const { return chunks_; }
     // Optional game-loop prefetch. Synchronous update() remains complete for
@@ -142,12 +156,13 @@ public:
     std::size_t rememberedDoors() const { return openDoors_.size(); }
     std::uint64_t seed() const { return seed_; }
     std::size_t shifts() const { return shifts_; }
-    WorldPoint exitLocation() const { const auto c=exitCell(seed_); return {(c.x+1)*CELL-1.275,c.z*CELL+4.2}; }
+    WorldPoint exitLocation() const { const auto c=isParking()?parkingExitCell(seed_):exitCell(seed_); return {(c.x+1)*CELL-1.275,c.z*CELL+4.2}; }
 private:
     Chunk generate(ChunkCoord coord, std::uint64_t variant) const;
     std::uint64_t seed_;
     Level level_=Level::Zero;
     bool keyCollected_=false;
+    std::array<bool,3> breakers_{};
     std::set<std::uint64_t> openedPresents_;
     std::vector<WorldPoint> verityDrops_;
     bool verityCollected_=false;

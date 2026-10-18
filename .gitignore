@@ -26,4 +26,5 @@ __pycache__/
 /encounter_tests.exe
 /progression_tests
 /fun_tests
+/parking_tests
 /assets/*-v8.png

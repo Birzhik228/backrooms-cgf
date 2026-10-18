@@ -169,6 +169,7 @@ void clue(Chunk& c, float centerX, float centerZ, bool east, float normalSign) {
 }
 
 #include "common/fun_geometry.h"
+#include "common/parking_geometry.h"
 
 bool circleHits(const Aabb& b, double x, double z, double radius) {
     const double dx=x-std::clamp(x,b.minX,b.maxX);
@@ -343,10 +344,47 @@ bool edgeOpen(std::int64_t x, std::int64_t z,
 
 World::World(std::uint64_t seed,Level level) : seed_(seed),level_(level) {}
 
+int parkingSector(std::int64_t x,std::int64_t z) { return x<0?0:z<0?1:2; }
+ChunkCoord parkingExitCell(std::uint64_t seed) { return {0,-7-std::int64_t(seed%3)}; }
+ChunkCoord parkingBreakerCell(std::uint64_t seed,int circuit) {
+    const auto offset=std::int64_t(hashCell(circuit,0,seed^0x504f574552ULL)%2);
+    if(circuit==0)return {-6-offset,-3};
+    if(circuit==1)return {3,-8-offset};
+    return {7+offset,5};
+}
+WorldPoint World::breakerLocation(int circuit) const {
+    const auto c=parkingBreakerCell(seed_,circuit);
+    return {c.x*CELL+5.825,c.z*CELL+1.4};
+}
+bool World::nearestBreaker(double x,double z,double range,int& circuit) const {
+    if(!isParking() || !std::isfinite(x) || !std::isfinite(z) || !std::isfinite(range))return false;
+    bool found=false;
+    for(int i=0;i<3;++i)if(!breakers_[i]) {
+        const auto p=breakerLocation(i);const double d=std::hypot(x-p.x,z-p.z);
+        if(d>range || d<.2 || z<p.z || !chunks_.count(chunkAt(p.x,p.z)))continue;
+        bool clear=true;
+        for(double t=.05;t<d-.15;t+=.05)if(blocked(x+(p.x-x)*t/d,z+(p.z-z)*t/d,.04)) {clear=false;break;}
+        if(clear){circuit=i;range=d;found=true;}
+    }
+    return found;
+}
+bool World::activateBreaker(int circuit,double x,double z) {
+    int nearest=-1;
+    if(circuit<0 || circuit>=3 || !nearestBreaker(x,z,1.8,nearest) || nearest!=circuit)return false;
+    breakers_[circuit]=true;
+    // Mesh revisions invalidate both streamed GPU meshes and cached shadows.
+    // Rebuild prepared chunks too, so a prefetched dark sector cannot return.
+    for(auto* collection:{&chunks_,&prepared_})for(auto& entry:*collection) {
+        auto replacement=generate(entry.first,0);replacement.revision=nextRevision_++;
+        entry.second=std::move(replacement);
+    }
+    return true;
+}
+
 Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
-    if(isFun()) {
-        auto chunk=funChunk(coord,seed_,variant,openedPresents_);
-        const auto cell=exitCell(seed_);
+    if(isFun() || isParking()) {
+        auto chunk=isParking()?parkingChunk(coord,seed_,breakers_):funChunk(coord,seed_,variant,openedPresents_);
+        const auto cell=isParking()?parkingExitCell(seed_):exitCell(seed_);
         if(chunkAt(cell.x*CELL,cell.z*CELL)==coord) {
             const auto id=hashCell(cell.x,cell.z,seed_^0xe817d006ULL);
             const auto state=openDoors_.find(id);
@@ -644,7 +682,7 @@ bool World::toggleDoor(std::uint64_t id,double playerX,double playerZ,double pla
         }
         if (found) break;
     }
-    if (!found || (selected.isExit && !keyCollected_) || std::hypot(playerX-selected.x,playerZ-selected.z)>3.0) return false;
+    if (!found || (selected.isExit && !exitUnlocked()) || std::hypot(playerX-selected.x,playerZ-selected.z)>3.0) return false;
     if (selected.open && doorHits(selected,0,playerX,playerZ,playerRadius)) return false;
     float swing=selected.swing;
     if(!selected.open && selected.openness<.001f)
@@ -770,7 +808,7 @@ WorldPoint World::keyLocation() const {
 }
 
 bool World::collectKey(double x,double z) {
-    if(isFun()) return false;
+    if(level_!=Level::Zero) return false;
     const auto key=keyLocation();
     if(keyCollected_ || !std::isfinite(x) || !std::isfinite(z) || std::hypot(x-key.x,z-key.z)>1.25) return false;
     for(int i=0;i<=16;++i) if(blocked(x+(key.x-x)*i/16,z+(key.z-z)*i/16,.05)) return false;
@@ -869,7 +907,7 @@ bool World::nearestHidingSpot(double x,double z,double range,HidingSpot& result)
 }
 
 std::vector<Vertex> World::keyVertices(double originX,double originZ) const {
-    if(isFun() || keyCollected_) return {};
+    if(level_!=Level::Zero || keyCollected_) return {};
     const auto key=keyLocation();
     if(chunks_.find(chunkAt(key.x,key.z))==chunks_.end()) return {};
     Chunk mesh;
@@ -900,7 +938,7 @@ float World::soundTransmission(double ax,double az,double bx,double bz) const {
 }
 
 bool World::exitCrossed(double playerX,double playerZ) const {
-    if(!keyCollected_) return false;
+    if(!exitUnlocked()) return false;
     const auto approach=exitLocation();
     const double front=approach.z-1.2;
     if (!std::isfinite(playerX) || !std::isfinite(playerZ) || std::abs(playerX-approach.x)>EXIT_HALF-.3
@@ -910,6 +948,7 @@ bool World::exitCrossed(double playerX,double playerZ) const {
 }
 
 bool World::shiftBehind(double x, double z, float forwardX, float forwardZ,std::optional<WorldPoint> protectedActor,const std::vector<WorldPoint>& protectedActors) {
+    if(isParking())return false; // Circuit landmarks and parking bays stay stable.
     const double length=std::hypot(forwardX,forwardZ);
     if (length<0.01) return false;
     const double fx=forwardX/length,fz=forwardZ/length;

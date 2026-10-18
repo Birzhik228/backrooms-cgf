@@ -16,7 +16,7 @@ struct GuideLayout {
     }
 };
 
-inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=false) {
+inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=false,bool parking=false) {
     const GuideLayout g(width,height);
     const Color gold{.78f,.66f,.36f,1},paper{.91f,.89f,.76f,1},muted{.53f,.55f,.43f,1};
     const Color ink{.045f,.055f,.036f,1},edge{.23f,.25f,.17f,1};
@@ -36,9 +36,9 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
     };
     ui.rect(0,0,float(width),float(height),{.009f,.013f,.008f,.83f});
     rect(8,10,900,550,{0,0,0,.35f});rect(0,0,900,550,ink);rect(0,0,900,2,gold);
-    text(32,24,"FIELD GUIDE",1.3f,gold);text(165,24,fun?"LEVEL FUN":"LEVEL 0",1.3f,muted);
+    text(32,24,"FIELD GUIDE",1.3f,gold);text(165,24,parking?"PARKING":fun?"LEVEL FUN":"LEVEL 0",1.3f,muted);
     rect(838,14,38,32,{.11f,.13f,.08f,1});line(851,24,863,36,1.5f,paper);line(863,24,851,36,1.5f,paper);
-    const char* stages[]={"MOVE","EXPLORE",fun?"WATCH":"SURVIVE"};
+    const char* stages[]={"MOVE","EXPLORE",parking?"RESTORE":fun?"WATCH":"SURVIVE"};
     for(int i=0;i<3;++i) {
         const float x=32+i*279;
         rect(x,61,260,3,i<=page?gold:edge);
@@ -47,8 +47,8 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
     }
     const char* titles[]={"FIND YOUR FOOTING","FOLLOW THE SIGNAL","STAY OUT OF SIGHT"};
     const char* subtitles[]={"Take a moment. Learn how to move.","Light the way. Find the key. Reach the exit.","Listen carefully. You are not alone."};
-    text(32,116,fun&&page>0?"THE PARTY GOES ON":titles[page],2.65f,paper);
-    text(32,150,fun&&page>0?"Partygoers move when you look away. Keep them in sight.":subtitles[page],1.35f,muted);
+    text(32,116,parking&&page>0?"BRING THE LIGHTS BACK":fun&&page>0?"THE PARTY GOES ON":titles[page],2.65f,paper);
+    text(32,150,parking&&page>0?"Shine your flashlight at the floating eyes. Restore power.":fun&&page>0?"Partygoers move when you look away. Keep them in sight.":subtitles[page],1.35f,muted);
     rect(32,187,380,260,{.071f,.085f,.052f,1});
     // Blueprint-style illustrations are native UI geometry, crisp at every size.
     for(int i=0;i<9;++i) line(48+i*43,199,48+i*43,431,1,{.095f,.112f,.072f,1});
@@ -63,6 +63,24 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
         row(260,"MOUSE","LOOK AROUND","Turn and watch your corners.");
         row(320,"SHIFT","SPRINT","Rest to recover stamina.");
         row(380,"CTRL","CROUCH","Lower yourself. Move quietly.");
+    } else if(parking) {
+        for(int i=0;i<3;++i) {
+            float x=72+i*108;rect(x,242,82,126,edge);rect(x+8,251,66,38,ink);
+            text(x+32,263,std::string(1,char('A'+i)),2,gold);
+            rect(x+25,310,31,36,gold);line(x+40,304,x+40,331,5,paper);
+        }
+        text(77,399,"THREE CIRCUITS / ONE EXIT",1.3f,gold);
+        if(page==1) {
+            row(200,"F","FLASHLIGHT","Aim at the eyes to disperse them.");
+            row(260,"TAB","LOCAL MAP","A / B / C mark the cabinets.");
+            row(320,"HUD","CIRCUIT SIGNAL","Distance to the nearest outage.");
+            row(380,"E","RESTORE POWER","Face the front of the cabinet.");
+        } else {
+            row(200,"LIGHT","SAFE REFUGES","Entrance, cabinets, powered sectors.");
+            row(260,"EYES","DON'T LET THEM CLOSE","The beam needs a clear line of sight.");
+            row(320,"3/3","ALL CIRCUITS ON","Open the exit with E and walk in.");
+            row(380,"R","RETURN TO ENTRANCE","Keep your restored circuits.");
+        }
     } else if(fun) {
         rect(75,315,210,12,paper);rect(86,327,8,65,edge);rect(265,327,8,65,edge);
         rect(140,265,78,50,gold);rect(140,282,78,7,paper);rect(136,261,86,8,paper);

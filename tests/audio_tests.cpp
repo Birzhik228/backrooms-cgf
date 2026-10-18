@@ -643,6 +643,40 @@ void writeAraneaMixerPreview(const std::filesystem::path& directory) {
     }
     std::cout<<"Actual mixer previews saved to "<<directory.string()<<" (master .75, no normalization).\n";
 }
+void darknessAudio() {
+    using namespace br;
+    const auto clip=synthesizeSound({SoundKind::DarknessJumpscare});
+    check(clip.size()==std::size_t(1.7*AUDIO_SAMPLE_RATE) && energy(clip)>500,"darkness has a distinct audible short sting");
+    check(clip.front()==0 && clip.back()==0,"darkness sting has click-free edges");
+    check(clip!=synthesizeSound({SoundKind::Jumpscare}),"parking does not reuse the Aranea scream");
+    check(clip==synthesizeSound({SoundKind::DarknessJumpscare}),"darkness PCM is deterministic and cacheable");
+    for(auto s:clip)check(std::abs(int(s))<24000,"darkness synthesis retains peak headroom");
+    AudioMixer mixer;AudioScene scene;scene.lightPower=scene.tension=0;mixer.setScene(scene);
+    for(int i=0;i<12;++i)mixer.play(SoundKind::Door,scene.listener);
+    mixer.play(SoundKind::DarknessJumpscare,{1000,0,1000});
+    check(mixer.activeVoices()==1,"darkness replaces a full mix with one centered capture sound");
+    mixer.play(SoundKind::Door,scene.listener);
+    check(mixer.activeVoices()==1,"ambient sounds cannot overlap darkness capture");
+    auto stereo=render(mixer,2*AUDIO_SAMPLE_RATE);
+    check(channelEnergy(stereo,0)>500 && channelEnergy(stereo,0)==channelEnergy(stereo,1),"darkness remains audible and centered regardless of distance");
+    check(mixer.activeVoices()==0,"darkness does not loop after the sting");
+    mixer.reset(1);mixer.setVolume(0);mixer.play(SoundKind::DarknessJumpscare,{});
+    check(energy(render(mixer,1024))==0,"master mute covers darkness capture");
+    mixer.setVolume(.75f);mixer.reset(1);mixer.play(SoundKind::DarknessJumpscare,{});
+    stereo=render(mixer,2*AUDIO_SAMPLE_RATE);
+    std::filesystem::create_directories("tests/artifacts");
+    std::ofstream file("tests/artifacts/darkness-jumpscare.wav",std::ios::binary);
+    auto u16=[&](std::uint16_t v){file.put(char(v));file.put(char(v>>8));};
+    auto u32=[&](std::uint32_t v){u16(std::uint16_t(v));u16(std::uint16_t(v>>16));};
+    const auto bytes=std::uint32_t(stereo.size()*2);
+    file.write("RIFF",4);u32(36+bytes);file.write("WAVEfmt ",8);u32(16);u16(1);u16(2);
+    u32(AUDIO_SAMPLE_RATE);u32(AUDIO_SAMPLE_RATE*4);u16(4);u16(16);file.write("data",4);u32(bytes);
+    for(auto s:stereo)u16(std::uint16_t(s));
+    check(bool(file),"actual mixer preview written");
+    mixer.reset(1);mixer.play(SoundKind::DarknessJumpscare,{});mixer.setPaused(true);
+    check(mixer.activeVoices()==0 && energy(render(mixer,512))==0,"pause clears darkness capture audio");
+    std::cout<<"Darkness audio passed: distinct sting, centered capture priority, headroom, mute, pause, one-shot duration and mixer preview.\n";
+}
 int main(int argc,char** argv) {
     const auto opening=br::synthesizeSound({br::SoundKind::PresentOpen});
     check(opening.size()==std::size_t(.58*br::AUDIO_SAMPLE_RATE) && energy(opening)>500,"present opening is a short audible paper sound");
@@ -651,7 +685,7 @@ int main(int argc,char** argv) {
 
     try { recordedBank(); wavReader(); samples(); movement(); positionalAudio(); stereoMixer(); threatAudio(); offlinePreview(); std::cout<<"Audio tests passed: recorded carpet/damp/tile footsteps, bounded WAV parsing, cadence, 3D distance and stereo panning, seeded ambience, creature tracking cues, capture sting priority/spectrum/headroom, master volume, pause/reset, 12-second stereo preview.\n"; }
     catch (const std::exception& error) { std::cerr<<"Audio tests failed: "<<error.what()<<'\n'; return 1; }
-    try { suppliedScare(); suppliedMonsterSteps(); std::cout<<"Supplied scream and heavy steps: attack, exclusive mix, attenuation, headroom and reset passed.\n"; }
+    try { suppliedScare(); suppliedMonsterSteps(); darknessAudio(); std::cout<<"Supplied scream and heavy steps: attack, exclusive mix, attenuation, headroom and reset passed.\n"; }
     catch(const std::exception& error) { std::cerr<<error.what()<<'\n'; return 1; }
     try { threatVocalCadence();araneaAudio();resumedThreatAudio();audibleThreatCalls();threatVoicePriority();
         if(argc==3&&std::string(argv[1])=="--aranea-preview")writeAraneaMixerPreview(argv[2]);

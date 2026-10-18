@@ -18,7 +18,7 @@ $taskCases=@(
  @{name='contact';args='--level-fun --auto-catch --frames 10';expected=@('Partygoer contact: game over. Restart at Level Fun checkpoint.','Encounter: game-over','Level: Fun','Catches: 1')},
  @{name='checkpoint';args='--level-fun --auto-catch --auto-restart --frames 95';expected=@('Restarted at Level Fun checkpoint.','Encounter: exploring','Restarts: 1','Level: Fun','Key: missing','Presents opened: 0')},
  @{name='presents';args='--level-fun --auto-key --no-threat --frames 65';expected=@('key found.','Key: collected','Level: Fun','Exit used: no')},
- @{name='fun-exit';args='--level-fun --auto-key --auto-exit --auto-walk --no-threat --frames 200';expected=@('Level Fun completed. Next level is not built yet.','Level: Fun','Escaped: yes')},
+ @{name='fun-exit';args='--level-fun --auto-key --auto-exit --auto-walk --no-threat --frames 200';expected=@('Transition: Level Fun -> Parking.','Level: Parking','Escaped: no','Circuits: 0/3','Key: missing')},
  @{name='pause';args='--level-fun --auto-pause --frames 10';expected=@('Level: Fun','Paused: yes')}
 )
 foreach($taskCase in $taskCases) {
