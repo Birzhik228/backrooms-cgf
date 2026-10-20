@@ -85,6 +85,8 @@ joined into the body and has a closed tip. See [room details](docs/room-details.
 
 
 Settings includes a live FPS readout and an **FPS COUNTER** toggle for gameplay. The toggle is saved with your other settings.
+The **FPS LIMIT** setting defaults to **60** (30/60/90/120/144/240/unlimited). Menus and unfocused windows are capped at 30 FPS. This cap works independently of VSync and uses a blocking high-resolution timer on Windows. Existing settings files receive the 60 FPS default without resetting other preferences. Hidden benchmarks remain uncapped unless `--fps-limit N` is supplied. See [performance measurements and checks](docs/performance-2026-10.md).
+
 
 Stamina starts at **100**, drains at **18 points per second** during actual sprint travel, and recovers at **14 points per second** after **1.5 seconds** without sprinting. Exhaustion prevents sprinting until stamina recovers to **22**. Pausing freezes stamina. Doors swing smoothly through **90° in about 0.8 seconds**. They choose a hinge direction away from the player when opened from a fully closed position. Their collision follows the moving panel; an obstructed closing door reverses instead of trapping the player. Pausing also freezes door movement. Reserved connecting routes remain traversable.
 

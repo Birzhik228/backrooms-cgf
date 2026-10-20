@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <thread>
 #include <cmath>
 #include <cstddef>
 #include <cstdlib>
@@ -67,6 +68,7 @@ static void glfwError(int code, const char* message) {
 
 struct Options {
     uint64_t seed = 12071998;
+    int fpsLimit = -1; // -1: settings; hidden benchmarks remain uncapped.
     int frames = 0, width = 1280, height = 800;
     bool hidden = false, demo = false, tour = false;
     bool explicitSeed=false,exitPreview=false,keyPreview=false;
@@ -131,6 +133,9 @@ static Options parseOptions(int argc, char** argv) {
             options.jumpscareConfigFile=next();
         } else if (argument == "--profile") {
             options.profile = next();
+        } else if (argument == "--fps-limit") {
+            options.fpsLimit = std::clamp(std::stoi(next()), 0, 240);
+            if(options.fpsLimit>0) options.fpsLimit=std::max(30,options.fpsLimit);
         } else if (argument == "--hidden") {
             options.hidden = true;
         } else if (argument == "--demo") {
@@ -234,6 +239,7 @@ static Options parseOptions(int argc, char** argv) {
                          "--auto-walk: forward movement with fixed 1/60-second simulation "
                          "steps; use --demo to begin unpaused. FPS uses real elapsed time.\n"
                          "--settings opens settings; --auto-settings verifies changing brightness.\n"
+                         "--fps-limit N overrides the frame cap (0: unlimited; default: 60 in normal play).\n"
                          "--settings-file path uses a custom settings file (hidden runs otherwise ignore saved settings).\n"
                          "--auto-door / --auto-close-door verify a nearby door interaction.\n"
                          "--menu-check exercises settings and resume; --auto-pause pauses on frame 2.\n"
@@ -411,6 +417,35 @@ struct FrameQueue {
             if (fence) glDeleteSync(fence);
             fence = nullptr;
         }
+    }
+};
+
+// High-resolution waitable timers avoid Windows' coarse sleep granularity.
+// The thread blocks; there is no spin loop or global timer-resolution change.
+class FramePacer {
+#ifdef _WIN32
+    HANDLE timer_=CreateWaitableTimerExW(nullptr,nullptr,0x00000002,TIMER_ALL_ACCESS);
+#endif
+public:
+    FramePacer()=default;
+    FramePacer(const FramePacer&)=delete;
+    FramePacer& operator=(const FramePacer&)=delete;
+    ~FramePacer() {
+#ifdef _WIN32
+        if(timer_)CloseHandle(timer_);
+#endif
+    }
+    void wait(double seconds) {
+        if(seconds<=0)return;
+#ifdef _WIN32
+        if(timer_) {
+            LARGE_INTEGER due;due.QuadPart=-std::max<LONGLONG>(1,LONGLONG(seconds*10000000.0));
+            if(SetWaitableTimer(timer_,&due,0,nullptr,nullptr,FALSE)) {
+                WaitForSingleObject(timer_,INFINITE);return;
+            }
+        }
+#endif
+        std::this_thread::sleep_for(std::chrono::duration<double>(seconds));
     }
 };
 
@@ -855,9 +890,11 @@ static int run(const Options& options) {
     };
 
     auto enterLevel = [&](Level next) {
+        const auto releasedMeshes=gpu.size();
         world=World(world.seed(),next);
         for(auto& entry:gpu) release(entry.second);
         gpu.clear();
+        log("Level cleanup: released "+std::to_string(releasedMeshes)+" chunk meshes; old GPU chunks remaining "+std::to_string(gpu.size()));
         release(doorGpu);release(keyGpu);release(mouseGpu);
         for(auto& cached:shadows.cache) cached.valid=false;
         returnToStart();
@@ -875,6 +912,7 @@ static int run(const Options& options) {
     };
 
     FrameQueue frameQueue;
+    FramePacer framePacer;
     std::ofstream profile;
     if (!options.profile.empty()) {
         profile.open(options.profile);
@@ -973,20 +1011,20 @@ static int run(const Options& options) {
             const float boxW = std::min(700.f, float(menuW)-40), boxH = 550;
             const float left=(menuW-boxW)*.5f, top=(menuH-boxH)*.5f;
             if (settingsOpen) {
-                if (input.hit(GLFW_KEY_UP)) settingSelection=(settingSelection+12)%13;
-                if (input.hit(GLFW_KEY_DOWN)) settingSelection=(settingSelection+1)%13;
+                if (input.hit(GLFW_KEY_UP)) settingSelection=(settingSelection+13)%14;
+                if (input.hit(GLFW_KEY_DOWN)) settingSelection=(settingSelection+1)%14;
                 int change = input.hit(GLFW_KEY_LEFT) ? -1 : (input.hit(GLFW_KEY_RIGHT) || input.hit(GLFW_KEY_ENTER)) ? 1 : 0;
                 bool activate = input.hit(GLFW_KEY_ENTER);
                 if (input.clicked && mouseX>=left+28 && mouseX<=left+boxW-28) {
-                    int row=int(std::floor((mouseY-top-112)/27));
-                    if (row>=0 && row<13) {
+                    int row=int(std::floor((mouseY-top-112)/25));
+                    if (row>=0 && row<14) {
                         settingSelection=row;
-                        activate = row>=11;
+                        activate = row>=12;
                         if (row==7 || row==10) change=1;
                         if (mouseX>left+boxW-150) change=mouseX>left+boxW-85 ? 1 : -1;
                     }
                 }
-                if (change && settingSelection<11) {
+                if (change && settingSelection<12) {
                     switch(settingSelection) {
                     case 0: settings.sensitivity+=change*.01f; break;
                     case 1: settings.volume+=change*.05f; break;
@@ -999,11 +1037,17 @@ static int run(const Options& options) {
                     case 8: settings.musicVolume+=change*.05f; break;
                     case 9: settings.ambientOcclusion+=change*.1f; break;
                     case 10: settings.showFPS=!settings.showFPS; break;
+                    case 11: {
+                        constexpr std::array<int,7> caps={30,60,90,120,144,240,0};
+                        auto it=std::find(caps.begin(),caps.end(),settings.maxFps);
+                        int index=it==caps.end()?1:int(it-caps.begin());
+                        settings.maxFps=caps[(index+change+7)%7];break;
+                    }
                     }
                     saveSettings(); fieldOfView=settings.fov;
                 }
-                if (activate && settingSelection==11) { settings=Settings{}; saveSettings(); fieldOfView=settings.fov; }
-                if ((activate && settingSelection==12) || input.hit(GLFW_KEY_ESCAPE)) {
+                if (activate && settingSelection==12) { settings=Settings{}; saveSettings(); fieldOfView=settings.fov; }
+                if ((activate && settingSelection==13) || input.hit(GLFW_KEY_ESCAPE)) {
                     settingsOpen=false; escapeHandled=true; saveSettings();
                 }
             } else {
@@ -1705,6 +1749,7 @@ static int run(const Options& options) {
             Vec3 position;
             float power;
             Vec3 color;
+            int slot = -1;
         };
         std::vector<NearLight> lights;
         for (const auto& [coord, chunk] : world.chunks()) {
@@ -1733,6 +1778,7 @@ static int run(const Options& options) {
             if(a.position.z!=b.position.z)return a.position.z<b.position.z;
             return a.position.y<b.position.y;
         });
+        shadows.assignSlots(lights,originX,originZ);
         const Vec3 right=normalize(cross(cameraForward,{0,1,0}));
         Vec3 flashPosition=eye+right*.16f+Vec3{0,-.10f,0};
         // Keep the lamp on the camera side of a wall when hugging it.
@@ -1769,7 +1815,7 @@ static int run(const Options& options) {
         }
         int animatedShadowBudget=2;
         for(size_t i=0;i<lights.size();++i) {
-            auto& cached=shadows.cache[i];const Vec3 pos=lights[i].position;
+            auto& cached=shadows.cache[lights[i].slot];const Vec3 pos=lights[i].position;
             std::uint64_t shadowRevision=1469598103934665603ULL;
             for(const auto& [coord,chunk]:world.chunks()) {
                 const float x=float(coord.x*CHUNK_SIZE-originX),z=float(coord.z*CHUNK_SIZE-originZ);
@@ -1785,15 +1831,15 @@ static int run(const Options& options) {
                     shadowRevision=(shadowRevision^std::uint64_t(std::lround(door.openness*8)))*1099511628211ULL;
                 }
             }
-            if(!cached.valid||cached.revision!=shadowRevision||dot(pos-cached.position,pos-cached.position)>.000001f) {
+            if(!cached.valid||cached.revision!=shadowRevision) {
                 // Keep valid maps while coalescing animation updates. New lights
                 // must initialize immediately; stationary endpoints catch up.
-                if(cached.valid && dot(pos-cached.position,pos-cached.position)<=.000001f) {
+                if(cached.valid) {
                     if(animatedShadowBudget<=0)continue;
                     --animatedShadowBudget;
                 }
-                for(int face=0;face<6;++face){shadows.begin(int(i)*6+face);drawShadowGeometry(lampFace(pos,face),false);}
-                cached={pos,shadowRevision,true};++lampShadowUpdates;
+                for(int face=0;face<6;++face){shadows.begin(lights[i].slot*6+face);drawShadowGeometry(lampFace(pos,face),false);}
+                cached={pos,shadowRevision,true,originX+pos.x,originZ+pos.z};++lampShadowUpdates;
             }
         }
         glDisable(GL_POLYGON_OFFSET_FILL);glEnable(GL_CULL_FACE);glCullFace(GL_BACK);
@@ -1823,13 +1869,14 @@ static int run(const Options& options) {
         std::array<float, 72> lightPositions{}, lightColors{};
         std::array<float, 24> lightPowers{};
         for (size_t i = 0; i < lights.size(); ++i) {
-            lightPositions[i * 3] = lights[i].position.x;
-            lightPositions[i * 3 + 1] = lights[i].position.y;
-            lightPositions[i * 3 + 2] = lights[i].position.z;
-            lightColors[i * 3] = lights[i].color.x;
-            lightColors[i * 3 + 1] = lights[i].color.y;
-            lightColors[i * 3 + 2] = lights[i].color.z;
-            lightPowers[i] = lights[i].power;
+            const auto slot=lights[i].slot;
+            lightPositions[slot * 3] = lights[i].position.x;
+            lightPositions[slot * 3 + 1] = lights[i].position.y;
+            lightPositions[slot * 3 + 2] = lights[i].position.z;
+            lightColors[slot * 3] = lights[i].color.x;
+            lightColors[slot * 3 + 1] = lights[i].color.y;
+            lightColors[slot * 3 + 2] = lights[i].color.z;
+            lightPowers[slot] = lights[i].power;
         }
         glUniform3fv(scene.location("uLights[0]"), 24, lightPositions.data());
         glUniform1fv(scene.location("uLightPower[0]"), 24, lightPowers.data());
@@ -2107,15 +2154,15 @@ static int run(const Options& options) {
             ui.text(left+32,top+57,settingsOpen ? "SETTINGS" : encounter.gameOver() ? "GAME OVER" : escaped ? "PARKING COMPLETE" : entered ? "PAUSED" : "BACKROOMS",3.6f,paper);
             if (settingsOpen) {
                 ui.text(left+boxW-245,top+69,"LIVE FPS "+std::to_string(int(fps)),1.6f,gold);
-                const std::array<std::string,13> labels={"MOUSE SENSITIVITY","MASTER VOLUME","BRIGHTNESS","FIELD OF VIEW","HEAD BOB","CAMERA SOFTNESS","VSYNC","MUSIC","MUSIC VOLUME","CONTACT SHADING","FPS COUNTER","RESET DEFAULTS","BACK"};
+                const std::array<std::string,14> labels={"MOUSE SENSITIVITY","MASTER VOLUME","BRIGHTNESS","FIELD OF VIEW","HEAD BOB","CAMERA SOFTNESS","VSYNC","MUSIC","MUSIC VOLUME","CONTACT SHADING","FPS COUNTER","FPS LIMIT","RESET DEFAULTS","BACK"};
                 auto decimal=[](float value,int precision) {std::ostringstream out;out<<std::fixed<<std::setprecision(precision)<<value;return out.str();};
-                const std::array<std::string,11> values={decimal(settings.sensitivity,3),std::to_string(int(settings.volume*100+.5f))+"%",std::to_string(int(settings.brightness*100+.5f))+"%",std::to_string(int(settings.fov)),std::to_string(int(settings.headBob*100+.5f))+"%",std::to_string(int(settings.blur*100+.5f))+"%",settings.vsync?"ON":"OFF",settings.musicEnabled?"ON":"OFF",std::to_string(int(settings.musicVolume*100+.5f))+"%",std::to_string(int(settings.ambientOcclusion*100+.5f))+"%",settings.showFPS?"ON":"OFF"};
-                for(int i=0;i<13;++i) {
-                    float y=top+112+i*27;
+                const std::array<std::string,12> values={decimal(settings.sensitivity,3),std::to_string(int(settings.volume*100+.5f))+"%",std::to_string(int(settings.brightness*100+.5f))+"%",std::to_string(int(settings.fov)),std::to_string(int(settings.headBob*100+.5f))+"%",std::to_string(int(settings.blur*100+.5f))+"%",settings.vsync?"ON":"OFF",settings.musicEnabled?"ON":"OFF",std::to_string(int(settings.musicVolume*100+.5f))+"%",std::to_string(int(settings.ambientOcclusion*100+.5f))+"%",settings.showFPS?"ON":"OFF",settings.maxFps?std::to_string(settings.maxFps):"UNLIMITED"};
+                for(int i=0;i<14;++i) {
+                    float y=top+112+i*25;
                     const bool selected=i==settingSelection;
-                    ui.rect(left+28,y,boxW-56,27,selected ? Color{.19f,.21f,.13f,1} : Color{.048f,.055f,.037f,1});
+                    ui.rect(left+28,y,boxW-56,25,selected ? Color{.19f,.21f,.13f,1} : Color{.048f,.055f,.037f,1});
                     ui.text(left+42,y+10,labels[i],1.5f,selected?gold:paper);
-                    if(i<11) {
+                    if(i<12) {
                         ui.text(left+boxW-260,y+10,values[i],1.4f,paper);
                         ui.text(left+boxW-126,y+9,"-",1.8f,gold);
                         ui.text(left+boxW-65,y+9,"+",1.8f,gold);
@@ -2161,6 +2208,15 @@ static int run(const Options& options) {
         const double swapStart = glfwGetTime();
         glfwSwapBuffers(window);
         const double swapMs = (glfwGetTime() - swapStart) * 1000;
+        int cap = options.fpsLimit >= 0 ? options.fpsLimit : options.hidden ? 0 : settings.maxFps;
+        if (!options.hidden && (input.paused || !glfwGetWindowAttrib(window, GLFW_FOCUSED)))
+            cap = cap > 0 ? std::min(cap, 30) : 30;
+        // Sleep only the remaining frame budget: no busy-wait and no catch-up burst.
+        // Swap/vsync and GPU queue waits already count towards this budget.
+        if (cap > 0) {
+            const double remaining = 1.0 / cap - (glfwGetTime() - frameStart);
+            framePacer.wait(remaining);
+        }
         ++frame;
 
         // Measure complete rendered frames, including swap/vsync. These real

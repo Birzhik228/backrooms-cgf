@@ -112,7 +112,28 @@ bool Threat::spawn(const World& world,const ThreatPlayer& player) {
 
 bool Threat::plan(const World& world,double goalX,double goalZ) {
     path_.clear(); pathIndex_=0; pathNodesVisited_=0;
-    if (world.blocked(x_,z_,RADIUS) || world.blocked(goalX,goalZ,RADIUS)) return false;
+    if (world.blocked(x_,z_,RADIUS)) return false;
+    if (world.blocked(goalX,goalZ,RADIUS)) {
+        // The player's smaller capsule can stand closer to a wall than ours.
+        // Approach a visible point within contact range on the SAME side;
+        // never snap a goal through a wall or make an occupied cell walkable.
+        if (world.blocked(goalX,goalZ,.035)) return false;
+        double best=std::numeric_limits<double>::infinity();
+        WorldPoint approach{};
+        for (double radius:{.12,.24,.36,.48}) {
+            for (int direction=0;direction<16;++direction) {
+                const double angle=direction*2*PI/16;
+                const WorldPoint p{goalX+std::sin(angle)*radius,goalZ+std::cos(angle)*radius};
+                if (world.blocked(p.x,p.z,RADIUS) || world.headClearance(p.x,p.z,RADIUS)<2.24f ||
+                    !visibleSegment(world,goalX,goalZ,p.x,p.z)) continue;
+                const double score=distanceSquared(x_,z_,p.x,p.z);
+                if(score<best) {best=score;approach=p;}
+            }
+            if(std::isfinite(best)) break;
+        }
+        if(!std::isfinite(best)) return false;
+        goalX=approach.x;goalZ=approach.z;
+    }
     if (segmentClear(world,x_,z_,goalX,goalZ,RADIUS)) {
         path_.push_back({goalX,goalZ});
         return true;
@@ -188,6 +209,13 @@ bool Threat::plan(const World& world,double goalX,double goalZ) {
         compact.push_back(point);
     }
     path_=std::move(compact);
+    // A newly attached grid centre may lie behind the actor. Skip it only
+    // when the next segment is reachable by the same swept capsule check.
+    for(int skip=0;skip<8 && pathIndex_+1<path_.size();++skip) {
+        const auto& next=path_[pathIndex_+1];
+        if(!segmentClear(world,x_,z_,next.x,next.z,RADIUS)) break;
+        ++pathIndex_;
+    }
     return true;
 }
 
@@ -312,6 +340,8 @@ void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool 
         yaw_+=dt*.8f; hasGoal_=false; path_.clear(); pathIndex_=0;
     }
     if (hasGoal_ && repath_<=0) {
+        // Refresh for moving goals and opening doors. plan() skips reachable
+        // attachment points so a refresh cannot pull us back to a grid centre.
         const bool valid=plan(world,goalX_,goalZ_);
         repath_=state_==ThreatState::Wander?1.8f:.65f;
         if (!valid && state_==ThreatState::Wander) { hasGoal_=false; wanderWait_=1; }

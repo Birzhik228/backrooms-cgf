@@ -74,12 +74,14 @@ int main() {
     check(low.yaw==42 && low.pitch==3,"Mouse reset prevents stale delta after pause");
     Settings settings;
     const auto path=std::filesystem::temp_directory_path()/"backrooms-v10-settings-test.cfg";
-    settings.showFPS=true;settings.volume=.3f;settings.blur=0;settings.vsync=false;
+    check(settings.maxFps==60,"New and legacy settings default to 60 FPS");
+    settings.maxFps=90;settings.showFPS=true;settings.volume=.3f;settings.blur=0;settings.vsync=false;
     settings.musicEnabled=false;settings.musicVolume=.65f;settings.ambientOcclusion=.4f;
     check(settings.save(path.string()),"Settings save succeeds");
     Settings loaded;
     check(loaded.load(path.string()) && loaded.volume==.3f && loaded.blur==0 && !loaded.vsync,"Settings reload preserves user preferences");
     check(!loaded.musicEnabled && loaded.musicVolume==.65f,"Music toggle and independent volume persist");
+    check(loaded.maxFps==90,"Frame cap persists");
     check(loaded.showFPS,"FPS toggle persists");
     check(loaded.ambientOcclusion==.4f,"Contact shading strength persists");
     {std::ofstream malformed(path);malformed<<"volume 200\nfov -500\nbrightness nan\nunknown 10\nsensitivity garbage\nblur -1\n";}
@@ -91,6 +93,9 @@ int main() {
     bounded.load(path.string());
     check(bounded.musicVolume==1 && !bounded.musicEnabled,"Music volume is bounded and toggle works independently");
     check(bounded.ambientOcclusion==0,"Contact shading clamps invalid strength to off");
+    bounded.maxFps=-9;bounded.sanitize();check(bounded.maxFps==0,"Unlimited cap is bounded");
+    bounded.maxFps=1;bounded.sanitize();check(bounded.maxFps==30,"Cap protects minimum simulation rate");
+    bounded.maxFps=999;bounded.sanitize();check(bounded.maxFps==240,"Cap has safe upper bound");
     std::filesystem::remove(path);
     std::cout << "Movement/settings tests passed: movement, stamina, recovery, smoothing, reset, settings roundtrip and malformed input.\n";
 }

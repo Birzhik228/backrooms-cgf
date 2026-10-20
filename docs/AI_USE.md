@@ -53,3 +53,11 @@ user-specified floating-eye darkness and flashlight defense, level transitions,
 HUD/guide/restart integration and native/rendered verification. New geometry
 and eye visuals are authored in code; no third-party game assets were copied.
 Research sources and implementation boundaries are listed in `parking.md`.
+
+## Performance and navigation - 20 October 2026
+
+Codex investigated reported third-stage heating, measured local frame/process
+costs, implemented configurable frame pacing and stable lamp shadow-cache slots,
+and corrected wall-adjacent/corner navigation. Assistance included regression
+and rendered checks and the measurements in `performance-2026-10.md`. No friend's
+hardware or temperature measurements were available; no thermal guarantee is made.

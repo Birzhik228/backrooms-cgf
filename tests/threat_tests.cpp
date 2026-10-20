@@ -106,6 +106,52 @@ void forwardLocomotion() {
     std::cout<<"Forward movement, four directions, bounded turnarounds and corner pivots: PASS\n";
 }
 
+void wallAndCornerRecovery() {
+    br::World world(42); world.update(3.75,3.75);
+    for(float dt:{1.f/60,1.f/30,.1f}) {
+        br::ThreatPlayer player;player.x=.9;player.z=.33;player.noise=1;
+        check(!world.blocked(player.x,player.z,.23) &&
+              world.blocked(player.x,player.z,br::Threat::RADIUS),
+              "wall fixture is legal for the player but too tight for the creature");
+        br::Threat enemy;enemy.resetAt(3.75,3.75);
+        for(int frame=0;frame<int(8/dt)&&!enemy.caught();++frame) {
+            const double x=enemy.x(),z=enemy.z();const float yaw=enemy.yaw();
+            enemy.update(world,player,dt);checkForwardStep(enemy,x,z,yaw,dt);
+            check(!world.blocked(enemy.x(),enemy.z(),br::Threat::RADIUS),
+                  "wall-hugging target never pulls the creature into a wall");
+        }
+        check(enemy.caught(),"creature approaches and catches a wall-hugging player instead of freezing");
+
+        // Previously oscillated forever between z=-4.875/-4.815, alternating
+        // Chase/Search and rebuilding its route back to the same grid centre.
+        enemy.resetAt(.5,-8);player.x=player.z=3.75;
+        bool usedDetour=false;
+        for(int frame=0;frame<int(20/dt)&&!enemy.caught();++frame) {
+            const double x=enemy.x(),z=enemy.z();const float yaw=enemy.yaw();
+            enemy.update(world,player,dt);checkForwardStep(enemy,x,z,yaw,dt);
+            usedDetour|=enemy.pathPointCount()>1;
+            check(!world.blocked(enemy.x(),enemy.z(),br::Threat::RADIUS),
+                  "corner recovery retains swept wall collision");
+            check(enemy.pathNodesVisited()<=br::Threat::MAX_PATH_NODES,"recovery search stays bounded");
+        }
+        check(usedDetour && enemy.caught(),"repeated perception changes cannot trap the actor at a route corner");
+    }
+    // A route planned around a closed door must shorten when it opens.
+    br::World opening(12071998);opening.update(-3.75,1);
+    br::DoorInfo door{};check(opening.nearestDoor(-3.75,1,2,door),"dynamic door fixture exists");
+    br::Threat enemy;enemy.resetAt(-3.75,-4,PI);
+    br::ThreatPlayer target;target.x=-3.75;target.z=1;target.noise=1;
+    enemy.update(opening,target,1.f/60);
+    check(opening.toggleDoor(door.id,target.x,target.z),"dynamic door opens");
+    for(int frame=0;frame<300&&!enemy.caught();++frame) {
+        opening.advanceDoors(1.f/60,target.x,target.z);
+        target.noise=frame<30?1:0;enemy.update(opening,target,1.f/60);
+        check(!opening.blocked(enemy.x(),enemy.z(),br::Threat::RADIUS),"opening-door shortcut respects walls");
+    }
+    check(enemy.caught(),"retained detour yields to newly opened direct route");
+    std::cout<<"Wall-hugging player and corner recovery at 60/30/10 Hz and opening-door shortcut: PASS\n";
+}
+
 void perceptionAndCatch() {
     br::World world(42); world.update(3.75,3.75);
     br::Threat enemy(42);
@@ -277,7 +323,7 @@ void unreachableBudgetAndSeedSweep() {
 
 int main() {
     try {
-        forwardLocomotion(); perceptionAndCatch(); occlusionAndDoor(); memoryPauseAndNavigation(); safeSpawnAndStreaming(); unreachableBudgetAndSeedSweep();
+        forwardLocomotion(); wallAndCornerRecovery(); perceptionAndCatch(); occlusionAndDoor(); memoryPauseAndNavigation(); safeSpawnAndStreaming(); unreachableBudgetAndSeedSweep();
         std::cout<<"Threat tests: PASS\n"; return 0;
     } catch (const std::exception& error) {
         std::cerr<<"Threat tests: FAIL: "<<error.what()<<'\n'; return 1;

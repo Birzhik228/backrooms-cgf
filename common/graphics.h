@@ -1,6 +1,7 @@
 #pragma once
 #include "Shader.h"
 #include <array>
+#include <algorithm>
 #include <cstdint>
 #include <stdexcept>
 
@@ -22,8 +23,28 @@ inline Mat4 lampFace(Vec3 eye,int face) {
 }
 struct ShadowMaps {
     GLuint fbo=0,flash=0,lamps=0;
-    struct Cache {Vec3 position{};std::uint64_t revision=0;bool valid=false;};
+    struct Cache {Vec3 position{};std::uint64_t revision=0;bool valid=false;double worldX=0,worldZ=0;};
     std::array<Cache,24> cache{};
+    // Retained global lamp identities reserve their slots before newcomers evict
+    // unused maps. A render-origin shift does not change a lamp-relative map.
+    template<class Lights> void assignSlots(Lights& lights,double originX,double originZ) {
+        std::array<bool,24> occupied{};
+        for(auto& light:lights) {
+            light.slot=-1;
+            for(int slot=0;slot<24;++slot) {
+                const auto& cached=cache[slot];
+                if(!occupied[slot] && cached.valid &&
+                   cached.worldX==originX+light.position.x &&
+                   cached.worldZ==originZ+light.position.z && cached.position.y==light.position.y) {
+                    light.slot=slot;occupied[slot]=true;break;
+                }
+            }
+        }
+        for(auto& light:lights) if(light.slot<0) {
+            const int slot=int(std::find(occupied.begin(),occupied.end(),false)-occupied.begin());
+            light.slot=slot;occupied[slot]=true;cache[slot].valid=false;
+        }
+    }
     static constexpr int flashSize=1024,lampSize=256;
     void init() {
         glGenFramebuffers(1,&fbo);

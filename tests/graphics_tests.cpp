@@ -14,6 +14,27 @@ int main(int argc,char** argv){try{
     glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
     auto* window=glfwCreateWindow(32,32,"Graphics probes",nullptr,nullptr);require(window!=nullptr,"GL context");
     glfwMakeContextCurrent(window);require(gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)!=0,"GLAD");
+    struct TestLight { Vec3 position; int slot=-1; };
+    ShadowMaps slots;
+    std::vector<TestLight> lamps;
+    for(int i=0;i<24;++i) lamps.push_back({{float(i),3,0},-1});
+    slots.assignSlots(lamps,0,0);
+    for(int i=0;i<24;++i) {
+        require(lamps[i].slot==i,"Initial slots unique");
+        slots.cache[i]={lamps[i].position,7,true,double(i),0};
+    }
+    // A new lamp sorts first, but must not evict any of the 23 retained lamps.
+    lamps.erase(lamps.begin()+5);lamps.insert(lamps.begin(),{{-4,3,0},-1});
+    for(auto& lamp:lamps)lamp.slot=-1;
+    slots.assignSlots(lamps,0,0);
+    require(lamps[0].slot==5 && !slots.cache[5].valid,"Only departed lamp slot is evicted");
+    for(size_t i=1;i<lamps.size();++i)
+        require(lamps[i].slot==int(lamps[i].position.x) && slots.cache[lamps[i].slot].valid,"Retained maps survive selection changes");
+    lamps.erase(lamps.begin());
+    for(auto& lamp:lamps){lamp.position.x-=100;lamp.slot=-1;}
+    slots.assignSlots(lamps,100,0);
+    for(auto& lamp:lamps)require(lamp.slot==int(lamp.position.x+100),"Origin rebasing retains global lamp identity");
+    std::cout<<"Shadow slot retention, eviction and rebasing passed.\n";
     ShadowMaps maps;maps.init();Shader shadow("vshader_shadow.glsl","fshader_shadow.glsl");
     const std::string vertex=R"(#version 330 core
 uniform vec3 uReceiver,uNormal;
