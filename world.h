@@ -23,7 +23,8 @@ struct ChunkCoord {
     }
     bool operator==(const ChunkCoord& other) const { return x == other.x && z == other.z; }
 };
-ChunkCoord exitCell(std::uint64_t seed);
+enum class Level { Zero, Fun, Parking };
+ChunkCoord exitCell(std::uint64_t seed,Level level=Level::Zero);
 struct Aabb { double minX,minZ,maxX,maxZ; };
 // Local chunk-space footprint of elevated solid geometry. Full-height walls
 // stay in obstacles; these records measure room available above a tall actor.
@@ -45,7 +46,6 @@ struct HidingSpot {
 };
 enum class RoomKind { Classic, Corridor, OpenHall, PillarHall, DeadEnd, OddRoom };
 enum class FloorSurface { Carpet, DampCarpet, Tile };
-enum class Level { Zero, Fun, Parking };
 inline const char* levelName(Level level) {
     return level==Level::Parking?"Parking":level==Level::Fun?"Fun":"0";
 }
@@ -85,8 +85,8 @@ struct Chunk {
 std::int64_t floorDiv(std::int64_t value, std::int64_t divisor);
 ChunkCoord chunkAt(double x, double z);
 std::uint64_t hashCell(std::int64_t x, std::int64_t z, std::uint64_t seed);
-RoomKind roomKind(std::int64_t x, std::int64_t z, std::uint64_t seed);
-RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed);
+RoomKind roomKind(std::int64_t x, std::int64_t z, std::uint64_t seed,Level level=Level::Zero);
+RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed,Level level=Level::Zero);
 const char* roomName(RoomKind kind);
 FloorSurface floorSurfaceAt(double x,double z,std::uint64_t seed);
 float lampEnvelope(LampState state,float phase,float time);
@@ -97,7 +97,7 @@ bool edgeReserved(std::int64_t x, std::int64_t z,
                   std::int64_t otherX, std::int64_t otherZ, std::uint64_t seed);
 bool edgeOpen(std::int64_t x, std::int64_t z,
               std::int64_t otherX, std::int64_t otherZ,
-              std::uint64_t seed, std::uint64_t variant = 0);
+              std::uint64_t seed, std::uint64_t variant = 0,Level level=Level::Zero);
 
 class World {
 public:
@@ -156,7 +156,7 @@ public:
     std::size_t rememberedDoors() const { return openDoors_.size(); }
     std::uint64_t seed() const { return seed_; }
     std::size_t shifts() const { return shifts_; }
-    WorldPoint exitLocation() const { const auto c=isParking()?parkingExitCell(seed_):exitCell(seed_); return {(c.x+1)*CELL-1.275,c.z*CELL+4.2}; }
+    WorldPoint exitLocation() const { const auto c=exitCell(seed_,level_); return {(c.x+1)*CELL-1.275,c.z*CELL+4.2}; }
 private:
     Chunk generate(ChunkCoord coord, std::uint64_t variant) const;
     std::uint64_t seed_;

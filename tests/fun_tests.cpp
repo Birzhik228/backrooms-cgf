@@ -49,7 +49,7 @@ int main() {try {
         for(int z=-4;z<10;++z) for(int x=-4;x<10;++x) {
             const double cx=(x+.5)*br::CELL,cz=(z+.5)*br::CELL;
             check(!w.blocked(cx,cz,.25),"cell centre stays clear");
-            for(bool east:{true,false}) if(br::edgeOpen(x,z,x+(east?1:0),z+(east?0:1),seed))
+            for(bool east:{true,false}) if(br::edgeOpen(x,z,x+(east?1:0),z+(east?0:1),seed,0,br::Level::Fun))
                 for(int i=0;i<=40;++i) check(!w.blocked(cx+(east?br::CELL*i/40:0),cz+(east?0:br::CELL*i/40),.25),"decorations do not obstruct connected routes");
         }
         const auto original=digest(w.chunks().at({0,0}));

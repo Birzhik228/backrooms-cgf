@@ -34,7 +34,9 @@
 #include "common/textures.h"
 #include "common/ui.h"
 #include "common/controls_guide.h"
+#include "common/level_menu.h"
 #include "common/audio.h"
+#include "common/atmosphere.h"
 #include "common/movement.h"
 #include "common/gameplay.h"
 #include "common/player_state.h"
@@ -84,6 +86,9 @@ struct Options {
     bool autoVerity=false, autoKey=false, autoHide=false, hideFixture=false;
     bool mouseFixture=false, mousePreview=false, guideCheck=false, guideClose=false, guideClick=false;
     bool guideBack=false, guideSkip=false;
+    bool levelMenuCheck=false,levelMenuClose=false,levelMenuClick=false,levelMenuResume=false,levelMenuBackClick=false;
+    bool controlHoldCheck=false,controlPauseCheck=false,controlTapCheck=false;
+    int levelMenuTarget=0,levelMenuAt=-1;
     bool autoCatch=false, autoRestart=false, autoRestartClick=false, autoScareEscape=false, autoJumpscare=false;
     double threatX=8, threatZ=3.75;
     float threatYaw=-90;
@@ -218,6 +223,19 @@ static Options parseOptions(int argc, char** argv) {
         } else if (argument == "--guide-click") { options.guideClick=true;
         } else if (argument == "--guide-back") { options.guideBack=true;
         } else if (argument == "--guide-skip") { options.guideSkip=true;
+        } else if (argument == "--level-menu-check") { options.levelMenuCheck=true;
+        } else if (argument == "--level-menu-close") { options.levelMenuCheck=true;options.levelMenuClose=true;
+        } else if (argument == "--level-menu-click") { options.levelMenuCheck=true;options.levelMenuClick=true;
+        } else if (argument == "--level-menu-resume") { options.levelMenuCheck=true;options.levelMenuResume=true;
+        } else if (argument == "--level-menu-back-click") { options.levelMenuCheck=true;options.levelMenuBackClick=true;
+        } else if (argument == "--level-menu-at") {
+            options.levelMenuAt=std::clamp(std::stoi(next()),0,10000);
+        } else if (argument == "--level-menu-select") {
+            options.levelMenuCheck=true;options.levelMenuTarget=std::stoi(next());
+            if(options.levelMenuTarget<1||options.levelMenuTarget>3)throw std::runtime_error("Level selection must be 1, 2 or 3.");
+        } else if (argument == "--control-hold-check") { options.controlHoldCheck=true;
+        } else if (argument == "--control-pause-check") { options.controlPauseCheck=true;
+        } else if (argument == "--control-tap-check") { options.controlTapCheck=true;
         } else if (argument == "--auto-hide") { options.autoHide=true;
         } else if (argument == "--hide-fixture") { options.hideFixture=true;
         } else if (argument == "--auto-jumpscare") { options.autoJumpscare=true;
@@ -227,6 +245,9 @@ static Options parseOptions(int argc, char** argv) {
             std::cout << "Backrooms: --seed N --frames N --capture image.bmp --hidden "
                          "--demo --tour --x X --z Z --yaw DEGREES --width N --height N\n"
                          "--level-fun starts the party checkpoint; --parking starts the third stage.\n"
+                         "Escape opens the pause menu with level selection; hold Ctrl to crouch.\n"
+                         "--level-menu-check [--level-menu-select 1..3] [--level-menu-click] verifies the selector.\n"
+                         "--level-menu-close / --control-hold-check verify closing and crouch input.\n"
                          "--darkness-preview / --auto-breakers verify garage threats and power.\n"
                          "Verification: --exit-preview --key-preview --no-flashlight --map --metrics --wireframe --auto-walk\n"
                          "--auto-exit simulates E once; --auto-continue simulates Enter afterward.\n"
@@ -574,11 +595,12 @@ struct Input {
     bool hit(int key) const { return pressed[key]; }
     bool down(int key) const { return glfwGetKey(window, key) == GLFW_PRESS; }
 
+    void onKey(int key,int action) {
+        if(key>=0&&key<=GLFW_KEY_LAST&&action==GLFW_PRESS)pendingPressed[key]=true;
+    }
     static void key(GLFWwindow* window, int key, int, int action, int) {
         auto* self = static_cast<Input*>(glfwGetWindowUserPointer(window));
-        if (self && key >= 0 && key <= GLFW_KEY_LAST && action == GLFW_PRESS) {
-            self->pendingPressed[key] = true;
-        }
+        if(self)self->onKey(key,action);
     }
 
     static void button(GLFWwindow* window, int button, int action, int) {
@@ -754,6 +776,8 @@ static int run(const Options& options) {
     log("Jumpscare: duration "+std::to_string(scareConfig.duration)+" s, turn "+std::to_string(scareConfig.cameraTurnDuration)+" s, face "+std::to_string(scareConfig.faceDistance)+" m.");
     bool hiding=false;
     ThreatVocalCadence threatVocals;
+    Level0Atmosphere atmosphere(world.seed());
+    int atmosphereAmbient=0,atmosphereSteps=0,atmosphereHints=0;
     HidingSpot hidingSpot{};
     float occlusionClock=0,threatTransmission=1;
     float scareYaw=0, scarePitch=0, scareTargetYaw=0, scareTargetPitch=0;
@@ -830,6 +854,9 @@ static int run(const Options& options) {
     PlayerMotion motion;
     Stamina stamina;
     bool settingsOpen = options.settingsMenu;
+    bool levelMenuOpen=false;
+    int levelMenuSelection=0,levelMenuVisits=0,levelMenuTravel=0;
+    int scriptedSelectorOpened=-1;
     int menuSelection = 0, settingSelection = 0, doorsUsed = 0;
     float tension = 0, minimumStamina = 100;
     float bobOffset = 0;
@@ -866,6 +893,7 @@ static int run(const Options& options) {
         partygoers.reset();release(partyGpu);lastPartyPose={};
         darkness.reset();release(darknessGpu);
         hiding=false; threatVocals.reset(); occlusionClock=0; threatTransmission=1;
+        atmosphere.reset(world.seed());
         threatAnimation=0; lastThreatMeshTime=-1;
         threatStoop=0; lastThreatStoop=-1; threatRunningSteps=false;
         threatGaitPhase=threatVisualSpeed=threatHeadYaw=threatHeadPitch=0; lastThreatContact={};
@@ -889,7 +917,8 @@ static int run(const Options& options) {
         input.pause(false); entered=true;
     };
 
-    auto enterLevel = [&](Level next) {
+    auto enterLevel = [&](Level next,bool selected=false) {
+        const Level previousLevel=world.level();
         const auto releasedMeshes=gpu.size();
         world=World(world.seed(),next);
         for(auto& entry:gpu) release(entry.second);
@@ -898,14 +927,21 @@ static int run(const Options& options) {
         release(doorGpu);release(keyGpu);release(mouseGpu);
         for(auto& cached:shadows.cache) cached.valid=false;
         returnToStart();
-        exitUsed=true;exitArmed=false;escaped=false;
+        exitUsed=!selected;exitArmed=selected;escaped=false;
         showHelp=false;guidePending=false;settingsOpen=false;
+        levelMenuOpen=false;entered=true;
         input.pause(false);
-        notice=world.isParking()?"PARKING / SHINE YOUR LIGHT AT THE EYES / RESTORE POWER":"LEVEL FUN / CHECKPOINT REACHED / SEARCH THE PRESENTS";noticeTime=8;
-        if(world.isParking()) {
+        if(selected) {
+            flashlight=true;showMap=false;doorsUsed=0;minimumStamina=100;
+            ++levelMenuTravel;
+            log(std::string("Level selected: ")+levelName(next)+" / fresh entrance / seed "+std::to_string(world.seed()));
+        }
+        notice=world.isParking()?"PARKING / SHINE YOUR LIGHT AT THE EYES / RESTORE POWER":world.isFun()?
+            "LEVEL FUN / CHECKPOINT REACHED / SEARCH THE PRESENTS":"LEVEL 0 / FIND THE KEY / REACH THE EXIT";noticeTime=8;
+        if(!selected && previousLevel==Level::Fun && world.isParking()) {
             log("Checkpoint reached: Parking entrance.");
             log("Transition: Level Fun -> Parking. Restore circuits A, B and C.");
-        } else {
+        } else if(!selected && previousLevel==Level::Zero && world.isFun()) {
             log("Checkpoint reached: Level Fun entrance.");
             log("Transition: Level 0 -> Level Fun. Partygoers enabled; Aranea and mouse disabled.");
         }
@@ -929,7 +965,7 @@ static int run(const Options& options) {
         // Cap ordinary simulation stalls to avoid teleporting through a wall.
         // The automated walk has deterministic motion per frame, independent of
         // render speed; performance counters always use real wall-clock time.
-        const float dt = (options.darknessPreview || options.autoBreakers || options.partyPreview || options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.autoJumpscare || options.autoKey || options.autoHide || options.mouseFixture || options.guideCheck || options.forcedThreat) ? 1.f / 60.f :
+        const float dt = (options.levelMenuCheck || options.controlHoldCheck || options.controlPauseCheck || options.controlTapCheck || options.darknessPreview || options.autoBreakers || options.partyPreview || options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.autoJumpscare || options.autoKey || options.autoHide || options.mouseFixture || options.guideCheck || options.forcedThreat) ? 1.f / 60.f :
                          static_cast<float>(std::min(rawDelta, .05));
         elapsed += dt;
         const double inputStart = glfwGetTime();
@@ -937,6 +973,45 @@ static int run(const Options& options) {
         // Scripted checks use the same latched callbacks as physical keys.
         auto simulateKey = [&](int key) { Input::key(window,key,0,GLFW_PRESS,0); };
         std::optional<std::array<double,2>> scriptedMenuClick;
+        const int selectorStart=options.levelMenuAt>=0?options.levelMenuAt:(options.autoKey||options.autoBreakers)?12:2;
+        if(options.levelMenuCheck && frame>=selectorStart && levelMenuVisits==0 && !encounter.scaring()) {
+            if(showHelp || !input.paused)simulateKey(GLFW_KEY_ESCAPE);
+            else if(options.levelMenuClick) {
+                int w,h;glfwGetFramebufferSize(window,&w,&h);
+                scriptedMenuClick=std::array<double,2>{w*.5,(h-550)*.5+163+2*48+20};
+                Input::button(window,GLFW_MOUSE_BUTTON_LEFT,GLFW_PRESS,0);
+            } else if(menuSelection!=2)simulateKey(GLFW_KEY_DOWN);
+            else simulateKey(GLFW_KEY_ENTER);
+        }
+        if(options.controlHoldCheck && (frame==2||frame==32))
+            input.onKey(GLFW_KEY_LEFT_CONTROL,frame==2?GLFW_PRESS:GLFW_RELEASE);
+        if(options.controlPauseCheck && (frame==2||frame==4))
+            input.onKey(GLFW_KEY_LEFT_CONTROL,frame==2?GLFW_PRESS:GLFW_RELEASE);
+        if(options.controlTapCheck && (frame==selectorStart||frame==selectorStart+1))
+            input.onKey(GLFW_KEY_LEFT_CONTROL,frame==selectorStart?GLFW_PRESS:GLFW_RELEASE);
+        if(options.controlPauseCheck&&frame==3)simulateKey(GLFW_KEY_ESCAPE);
+        if(options.levelMenuResume && scriptedSelectorOpened>=0 && frame==scriptedSelectorOpened+2)
+            simulateKey(GLFW_KEY_ESCAPE);
+        if(options.levelMenuCheck && levelMenuOpen) {
+            if(scriptedSelectorOpened<0)scriptedSelectorOpened=frame;
+            if((options.levelMenuClose||options.levelMenuResume) && frame==scriptedSelectorOpened+1)
+                simulateKey(GLFW_KEY_ESCAPE);
+            else if(options.levelMenuBackClick && frame==scriptedSelectorOpened+1) {
+                int w,h;glfwGetFramebufferSize(window,&w,&h);const LevelMenuLayout box(w,h);
+                scriptedMenuClick=std::array<double,2>{box.left+360*box.scale,box.top+455*box.scale};
+                Input::button(window,GLFW_MOUSE_BUTTON_LEFT,GLFW_PRESS,0);
+            } else if(options.levelMenuTarget && frame>=scriptedSelectorOpened+1 && frame<=scriptedSelectorOpened+6) {
+                if(options.levelMenuClick && frame==scriptedSelectorOpened+1) {
+                    int w,h;glfwGetFramebufferSize(window,&w,&h);const LevelMenuLayout box(w,h);
+                    scriptedMenuClick=std::array<double,2>{box.left+360*box.scale,
+                        box.top+(180+(options.levelMenuTarget-1)*86)*box.scale};
+                    Input::button(window,GLFW_MOUSE_BUTTON_LEFT,GLFW_PRESS,0);
+                } else if(!options.levelMenuClick) {
+                    if(levelMenuSelection!=options.levelMenuTarget-1)simulateKey(GLFW_KEY_DOWN);
+                    else simulateKey(GLFW_KEY_ENTER);
+                }
+            }
+        }
         if(options.autoSettings && frame<=2) simulateKey(frame==2 ? GLFW_KEY_LEFT : GLFW_KEY_DOWN);
         if(options.musicMenuCheck && frame<=7) simulateKey(frame==7 ? GLFW_KEY_ENTER : GLFW_KEY_DOWN);
         if(options.menuCheck && frame<=6) {
@@ -979,6 +1054,24 @@ static int run(const Options& options) {
         };
         bool resumeAction = false, newSeedAction = false, resetAction = false, quitAction = false;
         bool escapeHandled = false;
+        const bool selectorConsumes=levelMenuOpen;
+        if(levelMenuOpen) {
+            int fw,fh,ww,wh;glfwGetFramebufferSize(window,&fw,&fh);glfwGetWindowSize(window,&ww,&wh);
+            double mx,my;glfwGetCursorPos(window,&mx,&my);
+            mx*=double(fw)/std::max(1,ww);my*=double(fh)/std::max(1,wh);
+            if(scriptedMenuClick){mx=(*scriptedMenuClick)[0];my=(*scriptedMenuClick)[1];}
+            if(input.hit(GLFW_KEY_UP))levelMenuSelection=(levelMenuSelection+3)%4;
+            if(input.hit(GLFW_KEY_DOWN))levelMenuSelection=(levelMenuSelection+1)%4;
+            bool activate=input.hit(GLFW_KEY_ENTER);
+            if(input.clicked) {
+                const int row=LevelMenuLayout(fw,fh).rowAt(mx,my);
+                if(row>=0){levelMenuSelection=row;activate=true;}
+            }
+            if(input.hit(GLFW_KEY_ESCAPE)||(activate&&levelMenuSelection==3)) {
+                levelMenuOpen=false;log("Level menu closed; returned to pause menu.");
+            } else if(activate)enterLevel(Level(levelMenuSelection),true);
+        }
+        if(selectorConsumes){input.pressed.fill(false);input.clicked=false;escapeHandled=true;}
         const bool guideWasOpen=showHelp;
         if(showHelp) {
             int fw,fh,ww,wh;glfwGetFramebufferSize(window,&fw,&fh);glfwGetWindowSize(window,&ww,&wh);
@@ -1001,7 +1094,7 @@ static int run(const Options& options) {
             // Modal input must never also activate a menu or gameplay action.
             input.pressed.fill(false);input.clicked=false;escapeHandled=true;
         }
-        if (input.paused && !encounter.scaring() && !guideWasOpen) {
+        if (input.paused && !encounter.scaring() && !guideWasOpen && !selectorConsumes) {
             int menuW, menuH, windowW, windowH;
             glfwGetFramebufferSize(window, &menuW, &menuH);
             glfwGetWindowSize(window, &windowW, &windowH);
@@ -1051,20 +1144,27 @@ static int run(const Options& options) {
                     settingsOpen=false; escapeHandled=true; saveSettings();
                 }
             } else {
-                if (input.hit(GLFW_KEY_UP)) menuSelection=(menuSelection+4)%5;
-                if (input.hit(GLFW_KEY_DOWN)) menuSelection=(menuSelection+1)%5;
+                if (input.hit(GLFW_KEY_UP)) menuSelection=(menuSelection+5)%6;
+                if (input.hit(GLFW_KEY_DOWN)) menuSelection=(menuSelection+1)%6;
                 bool activate=input.hit(GLFW_KEY_ENTER);
                 if(input.clicked && mouseX>=left+32 && mouseX<=left+boxW-32) {
-                    int row=int(std::floor((mouseY-top-163)/52));
-                    if(row>=0 && row<5) {menuSelection=row;activate=true;}
+                    const double rowY=mouseY-top-163;
+                    int row=int(std::floor(rowY/48));
+                    if(row>=0 && row<6 && rowY-row*48<43) {menuSelection=row;activate=true;}
                 }
                 if(input.hit(GLFW_KEY_O)) {settingsOpen=true;activate=false;}
                 if(activate) {
                     if(menuSelection==0) resumeAction=true;
                     if(menuSelection==1) settingsOpen=true;
-                    if(menuSelection==2) newSeedAction=true;
-                    if(menuSelection==3) resetAction=true;
-                    if(menuSelection==4) quitAction=true;
+                    if(menuSelection==2) {
+                        levelMenuOpen=true;levelMenuSelection=int(world.level());
+                        guidePending=false;motion.reset();++levelMenuVisits;
+                        log("Level menu opened from pause menu.");
+                        input.pressed.fill(false);input.clicked=false;escapeHandled=true;
+                    }
+                    if(menuSelection==3) newSeedAction=true;
+                    if(menuSelection==4) resetAction=true;
+                    if(menuSelection==5) quitAction=true;
                 }
             }
         }
@@ -1138,7 +1238,7 @@ static int run(const Options& options) {
             freshRun(world.seed()+104729);
             notice="NEW SEED / NEW BUILDING"; noticeTime=3;
         }
-        if(guidePending && entered && !input.paused && encounter.alive()) {
+        if(guidePending && entered && !input.paused && encounter.alive() && !levelMenuOpen) {
             guidePending=false;showHelp=true;guidePage=0;input.pause(true);motion.reset();
             log("Controls popup opened.");
         }
@@ -1163,6 +1263,7 @@ static int run(const Options& options) {
         double frameDistance = 0;
         if (!input.paused) {
             crouched = hiding || world.headClearance(px,pz,.23)<1.8f || input.down(GLFW_KEY_LEFT_CONTROL) || input.down(GLFW_KEY_RIGHT_CONTROL) ||
+                (options.controlHoldCheck && frame>=2 && frame<32) ||
                 (options.autoCrouch && !(options.autoStand && frame >= options.frames / 2));
             const float targetHeight = crouched ? 1.08f : 1.65f;
             eyeHeight += (targetHeight - eyeHeight) * (1.f - std::exp(-dt * 12.f));
@@ -1562,7 +1663,7 @@ static int run(const Options& options) {
         }
 
         const double audioStart = glfwGetTime();
-        const auto currentRoom = roomInfo(int64_t(std::floor(px / CELL)), int64_t(std::floor(pz / CELL)), world.seed());
+        const auto currentRoom = roomInfo(int64_t(std::floor(px / CELL)), int64_t(std::floor(pz / CELL)), world.seed(),world.level());
         const auto floorSurface = world.isParking()?FloorSurface::Tile:world.isFun()?FloorSurface::Carpet:floorSurfaceAt(px, pz, world.seed());
         const Surface surface = floorSurface==FloorSurface::Tile ? Surface::HardFloor :
             floorSurface==FloorSurface::DampCarpet ? Surface::DampCarpet : Surface::Carpet;
@@ -1597,9 +1698,37 @@ static int run(const Options& options) {
             occlusionClock=.1f;
         }
         soundScene.threatTransmission=threatTransmission;
+        soundScene.level0Atmosphere=world.level()==Level::Zero;
         soundScene.tension=encounter.alive()?tension:0;
         if(!encounter.alive()) soundScene.lightPower=0;
+        AtmosphereContext atmosphereState;
+        atmosphereState.listener=soundScene.listener;
+        atmosphereState.paused=input.paused||options.threatPreview;
+        atmosphereState.alive=encounter.alive();
+        atmosphereState.hidden=hiding;
+        atmosphereState.threatActive=world.level()==Level::Zero&&threat.active()&&!options.noThreat;
+        atmosphereState.threat={threat.x(),1.35,threat.z()};
+        atmosphereState.threatDanger=threat.state()==ThreatState::Chase||threat.state()==ThreatState::Search;
+        const double hintDistance=std::hypot(threat.x()-px,threat.z()-pz);
+        // Visibility here is the player's view, not the creature's sight cone.
+        atmosphereState.threatVisible=atmosphereState.threatActive&&threatTransmission>.99f&&
+            ((threat.x()-px)*forward.x+(threat.z()-pz)*forward.z)>.15*hintDistance;
+        soundScene.atmosphereQuiet=!atmosphereState.alive||atmosphereState.paused||atmosphereState.hidden||
+            atmosphereState.threatDanger||atmosphereState.threatVisible||
+            (atmosphereState.threatActive&&hintDistance<10);
         audio.setScene(soundScene);
+        if(const auto cue=atmosphere.update(world,atmosphereState,dt)) {
+            audio.play(cue->kind,cue->position,cue->gain,cue->transmission);
+            const bool steps=cue->kind==SoundKind::DistantFootsteps;
+            const bool hint=cue->kind==SoundKind::ThreatRustle;
+            if(steps)++atmosphereSteps;else if(hint)++atmosphereHints;else ++atmosphereAmbient;
+            std::ostringstream event;
+            event << "Level 0 atmosphere: " << (steps?"distant steps":hint?"Aranea rustle":"room ambience")
+                  << " / distance " << std::fixed << std::setprecision(2)
+                  << std::hypot(cue->position.x-px,cue->position.z-pz)
+                  << " m / transmission " << cue->transmission;
+            log(event.str());
+        }
         audio.update(dt, float(frameDistance), crouched, sprinting && moving, surface, input.paused && (!encounter.presenting() || scareSuspended || !scareConfig.audio));
         if (!input.paused) {
             // Widen only for real sprint travel, not for Shift held at a wall.
@@ -2144,7 +2273,7 @@ static int run(const Options& options) {
                     {.02f, .025f, .02f, .85f});
             ui.text(width * .5f - textWidth * .5f, 94, notice, 1.5f, gold);
         }
-        if (input.paused && !encounter.scaring() && !showHelp) {
+        if (input.paused && !encounter.scaring() && !showHelp && !levelMenuOpen) {
             ui.rect(0,0,float(width),float(height),{.014f,.018f,.011f,.70f});
             const float boxW=std::min(700.f,float(width)-40), boxH=550;
             const float left=(width-boxW)*.5f, top=(height-boxH)*.5f;
@@ -2173,17 +2302,18 @@ static int run(const Options& options) {
                 ui.text(left+32,top+boxH-25,"CLICK A ROW OR ITS - / + CONTROLS. SETTINGS SAVE AUTOMATICALLY.",1.1f,dim);
             } else {
                 ui.text(left+32,top+107,encounter.gameOver() ? (world.isParking()?"THE DARKNESS FOUND YOU. AIM YOUR FLASHLIGHT AT THE EYES.":world.isFun()?"CAUGHT AT THE PARTY. RESTART FROM THE LEVEL FUN CHECKPOINT.":"IT FOUND YOU. BREAK SIGHT. CROUCH TO STAY QUIET.") : escaped ? "PARKING COMPLETE. THE SERVICE EXIT IS POWERED. YOU MADE IT." : world.isParking()?"LIGHT REPELS THE EYES. RESTORE A, B AND C TO ESCAPE.":world.isFun()?"SEARCH PRESENTS FOR THE KEY. KEEP PARTYGOERS IN SIGHT.":"FOLLOW THE HUM. LISTEN FOR FOOTSTEPS THAT ARE NOT YOURS.",1.35f,dim);
-                const std::array<std::string,5> labels={encounter.gameOver()?(world.level()!=Level::Zero?"RESTART CHECKPOINT":"RESTART RUN"):escaped?"CONTINUE EXPLORING":entered?"RESUME":"ENTER THE BACKROOMS","SETTINGS","NEW SEEDED BUILDING",encounter.gameOver()?"MAIN MENU":"RETURN TO FIRST ROOM","QUIT"};
-                for(int i=0;i<5;++i) {
-                    float y=top+163+i*52; const bool selected=i==menuSelection;
+                const std::array<std::string,6> labels={encounter.gameOver()?(world.level()!=Level::Zero?"RESTART CHECKPOINT":"RESTART RUN"):escaped?"CONTINUE EXPLORING":entered?"RESUME":"ENTER THE BACKROOMS","SETTINGS","CHOOSE A LEVEL","NEW SEEDED BUILDING",encounter.gameOver()?"MAIN MENU":"RETURN TO FIRST ROOM","QUIT"};
+                for(int i=0;i<6;++i) {
+                    float y=top+163+i*48; const bool selected=i==menuSelection;
                     ui.rect(left+32,y,boxW-64,43,selected ? Color{.69f,.59f,.31f,1} : Color{.08f,.09f,.058f,1});
                     ui.text(left+50,y+14,labels[i],1.7f,selected?Color{.055f,.065f,.035f,1}:paper);
                 }
                 ui.text(left+32,top+472,encounter.gameOver()?"CLICK RESTART OR PRESS ENTER   O SETTINGS   Q QUIT":"CLICK OR UP/DOWN + ENTER   O SETTINGS   ESC RESUME",1.2f,dim);
-                ui.text(left+32,top+boxH-27,"CGF / OPENGL 3.3 / THRESHOLD VERSION 0.12",1.1f,dim);
+                ui.text(left+32,top+boxH-27,"CHOOSE A LEVEL TO START AT ITS ENTRANCE    CTRL / CROUCH",1.1f,dim);
             }
         }
         if(showHelp) drawControlsGuide(ui,width,height,guidePage,world.isFun(),world.isParking());
+        if(levelMenuOpen)drawLevelMenu(ui,width,height,levelMenuSelection,int(world.level()));
         ui.render(width, height);
 
         // Capture before swapping, while the completed image is in GL_BACK.
@@ -2253,7 +2383,7 @@ static int run(const Options& options) {
             << "Completed " << frame << " frames. Max resident chunks: " << maxChunks
             << ". Average FPS: " << averageFps << ". Last FPS: " << fps
             << ". Max frame ms: " << maxFrameMs << ". Position: " << px << ", " << pz
-            << ". Shifts: " << world.shifts() << ". Room: " << roomName(roomInfo(int64_t(std::floor(px/CELL)),int64_t(std::floor(pz/CELL)),world.seed()).kind)
+            << ". Shifts: " << world.shifts() << ". Room: " << roomName(roomInfo(int64_t(std::floor(px/CELL)),int64_t(std::floor(pz/CELL)),world.seed(),world.level()).kind)
             << ". Exit used: " << (exitUsed ? "yes" : "no")
             << ". Escaped: " << (escaped ? "yes" : "no")
             << ". Circuits: " << world.breakersPowered() << "/3"
@@ -2265,10 +2395,12 @@ static int run(const Options& options) {
             << ". Creature footfalls: " << threatFootfalls
             << ". Creature walk/run footfalls: " << threatWalkFootfalls << "/" << threatRunFootfalls
             << ". Creature visual notices/roars: " << threatNotices << "/" << threatRoars
+            << ". Level 0 ambience/steps/hints: " << atmosphereAmbient << "/" << atmosphereSteps << "/" << atmosphereHints
             << ". Head yaw: " << threatHeadYaw*180/PI
             << ". Threat: " << threatStateName(threat.state()) << ". Catches: " << catches << ". Restarts: " << restarts
             << ". Mouse squeaks: " << mouseSqueaks << ". Guide: " << (showHelp?"open":"closed")
             << ". Guide page: " << guidePage+1
+            << ". Level menu: " << (levelMenuOpen?"open":"closed") << ". Level menu opens/travels: " << levelMenuVisits << "/" << levelMenuTravel
             << ". Presents opened: " << world.presentsOpened() << ". Key: " << (world.keyCollected()?"collected":"missing") << ". Hiding: " << (hiding?"yes":"no")
             << ". Encounter: " << (encounter.scaring()?"jumpscare":encounter.gameOver()?"game-over":"exploring")
             << ". Music loaded: " << (musicLoaded ? "yes" : "no")

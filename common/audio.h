@@ -10,7 +10,7 @@ enum class Gait { Walk, Crouch, Sprint };
 enum class SoundKind {
     Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door,
     ThreatNotice, ThreatStep, ThreatRunStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient, PresentOpen,
-    DarknessJumpscare
+    DarknessJumpscare, VentRattle, DistantFootsteps, ThreatRustle
 };
 struct SoundEvent {
     SoundKind kind=SoundKind::Footstep;
@@ -65,6 +65,12 @@ struct AudioScene {
     AudioPosition listener{},forward{0,0,-1},fluorescent{3,3.2,3};
     float lightPower=1,lightInstability=0,tension=0;
     float threatTransmission=1;
+    // Level 0 schedules world-aware ambience in gameplay instead of the old
+    // random creak/drip/stinger timer. Other levels keep the original timer.
+    bool level0Atmosphere=false;
+    // Duck only atmosphere one-shots during danger/hiding, leaving actual
+    // creature footsteps, calls and capture feedback at their normal level.
+    bool atmosphereQuiet=false;
 };
 struct StereoGain { float left=0,right=0; };
 StereoGain positionalGains(const AudioScene& scene,AudioPosition source,
@@ -85,7 +91,7 @@ public:
     void reset(std::uint32_t seed=1);
     void setPaused(bool paused);
     void enqueue(const SoundEvent& event);
-    void play(SoundKind kind,AudioPosition position,float gain=1);
+    void play(SoundKind kind,AudioPosition position,float gain=1,float transmission=1);
     void render(std::int16_t* interleavedStereo,std::size_t frames);
     std::size_t activeVoices() const;
 private:
@@ -109,7 +115,7 @@ public:
     // This does not reset capture-only ownership or service/open a device.
     void setPaused(bool paused);
     void reset(std::uint32_t seed=1);
-    void play(SoundKind kind,AudioPosition position,float gain=1);
+    void play(SoundKind kind,AudioPosition position,float gain=1,float transmission=1);
     void update(float dt,float actualDistance,bool crouched,bool sprinting,
                 Surface surface=Surface::Carpet,bool paused=false);
     bool available() const;

@@ -24,8 +24,8 @@ struct ThreatPlayer {
 class Threat {
 public:
     static constexpr double RADIUS=.26;
-    static constexpr double SPAWN_MIN_DISTANCE=16.0;
-    static constexpr double SPAWN_MAX_DISTANCE=22.0;
+    static constexpr double SPAWN_MIN_DISTANCE=24.0;
+    static constexpr double SPAWN_MAX_DISTANCE=32.0;
     static constexpr std::size_t MAX_PATH_NODES=4096;
     explicit Threat(std::uint64_t seed=42) { reset(seed); }
     void reset(std::uint64_t seed);
@@ -55,6 +55,8 @@ private:
     double x_=0,z_=0,goalX_=0,goalZ_=0,lastX_=0,lastZ_=0;
     float yaw_=0,speed_=0,age_=0,sinceSense_=100,repath_=0,wanderWait_=0,spawnRetry_=0;
     bool seesPlayer_=false,hasGoal_=false;
+    WorldPoint spawnAnchor_{};
+    bool hasSpawnAnchor_=false;
     bool enraged_=false;
     float alarmRemaining_=0;
     WorldPoint alarm_{};

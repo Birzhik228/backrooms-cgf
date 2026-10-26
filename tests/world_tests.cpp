@@ -136,17 +136,20 @@ void variedRoomsAndExit() {
         }
     }
     auto startingMaterials=allowedMaterials; startingMaterials.erase(16); startingMaterials.erase(57);
-    check(materials==startingMaterials,"classic surfaces, lamps and clues are generated without the distant exit sign at spawn");
+    auto ordinaryMaterials=materials;ordinaryMaterials.erase(16);ordinaryMaterials.erase(57);
+    check(ordinaryMaterials==startingMaterials,"classic surfaces, lamps and clues remain present when the nearer exit is resident");
     check(hasUnlitFixture,"some fluorescent fixtures remain unlit for atmosphere");
     check(vertexCount<500000,"varied world retains a bounded mesh budget");
 
     const auto exit=world.exitLocation();
-    check(std::hypot(exit.x-br::CELL/2,exit.z-br::CELL/2)>180,
-          "exit is a distant destination over 180 m from the player spawn");
+    const double exitDistance=std::hypot(exit.x-br::CELL/2,exit.z-br::CELL/2);
+    check(exitDistance>80 && exitDistance<=140,
+          "Level 0 exit is a nearby destination within 140 m of the player spawn");
     for (const auto& [coord,chunk]:world.chunks()) {
         (void)coord;
         for (const auto& door:chunk.doors)
-            check(!door.isExit,"no exit remains in the initial resident window or its former location");
+            if(door.isExit)check(std::hypot(door.x-br::CELL/2,door.z-br::CELL/2)>80,
+                "a resident exit still lies outside the entrance rooms");
     }
     check(br::World(991).exitLocation().x!=exit.x || br::World(991).exitLocation().z!=exit.z,
           "exit landmark varies across seeds");
@@ -236,7 +239,7 @@ void doorsAndLampStates() {
                 if (lamp.state==br::LampState::Dying) check(power<.63f,"dying tubes never emit full power");
             }
         }
-        for (const auto& vertex:chunk.vertices) if (vertex.material>=32) {
+        for (const auto& vertex:chunk.vertices) if (vertex.material>=32 && vertex.material<35) {
             const int packedState=static_cast<int>(vertex.material)-32;
             const float phase=vertex.material-std::floor(vertex.material);
             bool matchingLamp=false;

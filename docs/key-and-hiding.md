@@ -6,6 +6,13 @@ within 1.25 metres with a clear path to collect it. The exit unlocks but remains
 closed until the player faces it and presses E. Its pose persists through room
 streaming. A new run resets the key; returning with R retains it.
 
+On the first level (Level 0), the guaranteed connected route from the starting
+room to the exit approach is now about 123-138 metres, always below 140 metres.
+The key lies on that route 3-5 rooms before the exit. HUD distances measure a
+straight line and can therefore be shorter than the walk around room corners.
+Seeded directions and room variety remain; Fun and Parking keep their existing
+exit locations and layouts.
+
 Pickup calls Aranea to that location once, regardless of sound attenuation.
 A dormant creature can spawn using the usual hidden, reachable spawn rules.
 It runs toward the recorded location at 35% increased pursuit speed and forgets the
@@ -64,7 +71,11 @@ offline tools; the game still uses WinMM without runtime decoding dependencies.
 
 ## Verification
 
-`build.ps1 -Test` includes the new progression suite. It checks five seeds,
+`build.ps1 -Test` includes the progression suite. The shorter Level 0 route
+checks cover 256 seeds for landmark distances, reserved route length, key
+placement and seeded variety. Eight routes are walked through streamed collision
+geometry to collect the key and open the exit. Fixed regression coordinates
+protect the existing Fun and Parking exits. The remaining checks cover five seeds,
 locked exit rejection, reachable key placement, one-shot pickup, streaming
 persistence, reset, seeded wall pockets, their roofs and solid backing, open/closed door transmission,
 increased pursuit speed and hidden-player perception. Audio tests assert equal
@@ -89,8 +100,8 @@ recess captures were visually inspected.
 ## 17 October 2026 update
 
 Exit cells now vary in both axes and quadrants with the world seed. The key is
-placed 3–5 parent edges toward the entrance, so the reserved route is always
-connected and the remaining walk to the door is about 25–40 metres. A normal
+placed 3â€“5 parent edges toward the entrance, so the reserved route is always
+connected and the remaining walk to the door is about 25â€“40 metres. A normal
 launch uses a new seed; explicit `--seed` and hidden verification runs remain
 reproducible. Restart/R retain the layout. Native tests traverse the actual
 reserved route, collect the key and verify the unlocked exit survives streaming.

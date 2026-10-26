@@ -62,7 +62,7 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
         row(200,"WASD","MOVE AROUND","Walk through the rooms.");
         row(260,"MOUSE","LOOK AROUND","Turn and watch your corners.");
         row(320,"SHIFT","SPRINT","Rest to recover stamina.");
-        row(380,"CTRL","CROUCH","Lower yourself. Move quietly.");
+        row(380,"CTRL","CROUCH","Hold to move low and quietly.");
     } else if(parking) {
         for(int i=0;i<3;++i) {
             float x=72+i*108;rect(x,242,82,126,edge);rect(x+8,251,66,38,ink);
@@ -93,7 +93,7 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
             row(320,"R","RETURN TO START","Stay on this level.");
             row(380,"E","UNLOCK THE EXIT","Find the key, then open the door.");
         } else {
-            row(200,"ESC","TAKE A BREAK","Pause and release the cursor.");
+            row(200,"ESC","PAUSE MENU","Settings and level selection.");
             row(260,"M","MUTE SOUND","Toggle the game audio.");
             row(320,"LOOK","KEEP THEM IN SIGHT","Contact is deadly. Watch your back.");
             row(380,"H","OPEN THIS GUIDE","Revisit the controls.");
@@ -120,7 +120,7 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
         line(295,272,289,260,2,gold);line(306,267,306,252,2,gold);line(318,269,325,257,2,gold);
         text(64,403,"SMALL SOUNDS CAN REVEAL YOU",1.15f,gold);
         row(200,"E","HIDE OR LEAVE","Break line of sight first.");
-        row(260,"ESC","TAKE A BREAK","Pause and release the cursor.");
+        row(260,"ESC","PAUSE MENU","Settings and level selection.");
         row(320,"H","OPEN THIS GUIDE","Come back whenever you need.");
         text(446,384,"MICE SQUEAK WHEN TOUCHED.",1.45f,gold);
         text(446,408,"The creature comes to investigate.",1.22f,muted);

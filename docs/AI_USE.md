@@ -1,5 +1,20 @@
 # AI assistance and authorship disclosure
 
+On 26 October 2026, Codex assisted with the requested level selector, native
+menu layout, fresh-level transitions and validation. At the user's follow-up
+request, the selector was moved into the Escape menu and Ctrl retained only
+its crouch action. Level 0's seeded key/exit route was
+shortened to under 140 metres while preserving later levels' layouts.
+See [level selection](level-selection.md) for controls and verification.
+
+On 19 October 2026, the user requested more atmosphere on Level 0 and farther
+Aranea spawning. Codex assisted with sparse world-aware ambient timing, soft
+cached ventilation/rustle synthesis, muffled sequences from the existing
+credited soil recordings, actual-creature presence hints, danger suppression,
+24–32 metre spawn selection with initial-position clearance, and automated
+audio/world/gameplay checks. No new third-party recording was downloaded.
+See [Level 0 atmosphere](level0-atmosphere.md).
+
 OpenAI Codex assisted with this version 0.12 educational prototype, including substantial C++/GLSL code, procedural asset code, build support and documentation. Codex also assisted with testing and debugging and generated the historical v0.8 presentation material. Consult `verification.md` for the checks actually performed. The user selected the Backrooms theme and requested effectively endless generation and free exploration with optional clues, subsequently adding one hostile creature.
 
 Earlier requests added an exit, lighting, room variety, furniture, non-hostile figures, separate furnished areas, varied room proportions and movement sounds. In version 0.4 the user supplied five photos and requested pursuing Nextbot-style entities. Codex assisted with image-format conversion, upright billboards, collision-aware pursuit and caught/retry behavior. Version 0.5 increased movement and chase speed. Version 0.6 added special districts and water footsteps, preparation of nearby chunks, bounded mesh reuse and GPU frame queue limits.

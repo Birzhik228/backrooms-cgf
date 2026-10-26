@@ -95,8 +95,8 @@ void wall(Chunk& c, bool east, float edge, float begin, bool open, bool wide) {
 }
 
 bool sharedHall(std::int64_t x, std::int64_t z, std::int64_t bx, std::int64_t bz,
-                std::uint64_t seed) {
-    const auto one=roomInfo(x,z,seed),two=roomInfo(bx,bz,seed);
+                std::uint64_t seed,Level level=Level::Zero) {
+    const auto one=roomInfo(x,z,seed,level),two=roomInfo(bx,bz,seed,level);
     return one.x==two.x && one.z==two.z;
 }
 
@@ -221,18 +221,27 @@ std::uint64_t hashCell(std::int64_t x, std::int64_t z, std::uint64_t seed) {
                ^ mix(static_cast<std::uint64_t>(z) + 0x632be59bd9b4e019ULL));
 }
 
-RoomKind roomKind(std::int64_t x, std::int64_t z, std::uint64_t seed) {
-    return roomInfo(x,z,seed).kind;
+RoomKind roomKind(std::int64_t x, std::int64_t z, std::uint64_t seed,Level level) {
+    return roomInfo(x,z,seed,level).kind;
 }
 
-ChunkCoord exitCell(std::uint64_t seed) {
+ChunkCoord exitCell(std::uint64_t seed,Level level) {
+    if(level==Level::Parking)return parkingExitCell(seed);
     const auto h=hashCell(0,0,seed^0x45584954ULL);
-    // Both axes vary, well outside the starting resident window.
+    if(level==Level::Zero) {
+        // Each parent edge reduces Manhattan distance by one. A 16–18-cell
+        // route plus the 2.52m final approach fits inside a 140m walk, even
+        // when the straight-line HUD distance is shorter around corners.
+        const auto length=16+std::int64_t((h>>2)%3);
+        const auto first=2+std::int64_t((h>>12)%(length-3));
+        return {(h&1?1:-1)*first,(h&2?1:-1)*(length-first)};
+    }
+    // Preserve Level Fun's existing seeded landmark and room topology.
     return {(h&1?1:-1)*(18+std::int64_t((h>>2)%10)),
             (h&2?1:-1)*(18+std::int64_t((h>>12)%10))};
 }
 
-RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed) {
+RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed,Level level) {
     // A small rectangular partition gives actual room footprints, independent
     // of chunk loading. Every cell in a rectangle shares one ceiling height.
     const auto tileX=floorDiv(x,3)*3,tileZ=floorDiv(z,3)*3;
@@ -275,8 +284,9 @@ RoomInfo roomInfo(std::int64_t x, std::int64_t z, std::uint64_t seed) {
     }
     if (flavor%13==0 && kind!=RoomKind::DeadEnd) kind=RoomKind::OddRoom;
     // The entrance and exit approach remain uncluttered familiar yellow rooms.
-    if ((roomX==0 && roomZ==0) || (roomX<=exitCell(seed).x && roomX+width>exitCell(seed).x
-                               && roomZ<=exitCell(seed).z && roomZ+depth>exitCell(seed).z))
+    const auto exit=exitCell(seed,level);
+    if ((roomX==0 && roomZ==0) || (roomX<=exit.x && roomX+width>exit.x
+                               && roomZ<=exit.z && roomZ+depth>exit.z))
         kind=RoomKind::Classic;
     return {roomX,roomZ,width,depth,static_cast<float>(ROOM_HEIGHT),kind};
 }
@@ -317,10 +327,11 @@ bool edgeReserved(std::int64_t x, std::int64_t z,
 }
 
 namespace {
-bool hasDoor(std::int64_t x,std::int64_t z,std::int64_t bx,std::int64_t bz,std::uint64_t seed) {
-    if (edgeReserved(x,z,bx,bz,seed) || sharedHall(x,z,bx,bz,seed)) return false;
-    if (roomKind(x,z,seed)==RoomKind::DeadEnd || roomKind(bx,bz,seed)==RoomKind::DeadEnd) return false;
-    if ((x==exitCell(seed).x && z==exitCell(seed).z) || (bx==exitCell(seed).x && bz==exitCell(seed).z)) return false;
+bool hasDoor(std::int64_t x,std::int64_t z,std::int64_t bx,std::int64_t bz,std::uint64_t seed,Level level=Level::Zero) {
+    if (edgeReserved(x,z,bx,bz,seed) || sharedHall(x,z,bx,bz,seed,level)) return false;
+    if (roomKind(x,z,seed,level)==RoomKind::DeadEnd || roomKind(bx,bz,seed,level)==RoomKind::DeadEnd) return false;
+    const auto exit=exitCell(seed,level);
+    if ((x==exit.x && z==exit.z) || (bx==exit.x && bz==exit.z)) return false;
     const double midX=(x+bx+1)*CELL*.5,midZ=(z+bz+1)*CELL*.5;
     // Nearby optional branch doors make the E interaction discoverable. None
     // can close a guaranteed route, and distant doors remain seed-driven.
@@ -330,12 +341,12 @@ bool hasDoor(std::int64_t x,std::int64_t z,std::int64_t bx,std::int64_t bz,std::
 
 bool edgeOpen(std::int64_t x, std::int64_t z,
               std::int64_t otherX, std::int64_t otherZ,
-              std::uint64_t seed, std::uint64_t variant) {
+              std::uint64_t seed, std::uint64_t variant,Level level) {
     if (!adjacent(x,z,otherX,otherZ)) return false;
     if (edgeReserved(x,z,otherX,otherZ,seed)) return true;
-    if (sharedHall(x,z,otherX,otherZ,seed)) return true;
-    if (hasDoor(x,z,otherX,otherZ,seed)) return true;
-    if (roomKind(x,z,seed)==RoomKind::DeadEnd || roomKind(otherX,otherZ,seed)==RoomKind::DeadEnd) return false;
+    if (sharedHall(x,z,otherX,otherZ,seed,level)) return true;
+    if (hasDoor(x,z,otherX,otherZ,seed,level)) return true;
+    if (roomKind(x,z,seed,level)==RoomKind::DeadEnd || roomKind(otherX,otherZ,seed,level)==RoomKind::DeadEnd) return false;
     const bool sameChunk=floorDiv(x,CHUNK_CELLS)==floorDiv(otherX,CHUNK_CELLS)
                       && floorDiv(z,CHUNK_CELLS)==floorDiv(otherZ,CHUNK_CELLS);
     const auto salt=(sameChunk && variant != 0) ? mix(variant) : 0;
@@ -384,7 +395,7 @@ bool World::activateBreaker(int circuit,double x,double z) {
 Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
     if(isFun() || isParking()) {
         auto chunk=isParking()?parkingChunk(coord,seed_,breakers_):funChunk(coord,seed_,variant,openedPresents_);
-        const auto cell=isParking()?parkingExitCell(seed_):exitCell(seed_);
+        const auto cell=exitCell(seed_,level_);
         if(chunkAt(cell.x*CELL,cell.z*CELL)==coord) {
             const auto id=hashCell(cell.x,cell.z,seed_^0xe817d006ULL);
             const auto state=openDoors_.find(id);
@@ -800,8 +811,8 @@ std::vector<Vertex> World::doorVertices(double originX,double originZ) const {
 }
 
 WorldPoint World::keyLocation() const {
-    // Seeded landmark on the guaranteed connected north route, before the exit.
-    auto c=exitCell(seed_);
+    // Seeded landmark on the guaranteed connected parent route, before the exit.
+    auto c=exitCell(seed_,level_);
     const int steps=3+int(hashCell(1,0,seed_)%3);
     for(int i=0;i<steps;++i)c=parent(c.x,c.z,seed_);
     return {(c.x+.5)*CELL,(c.z+.5)*CELL};

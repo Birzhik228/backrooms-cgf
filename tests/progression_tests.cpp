@@ -1,11 +1,61 @@
 #include "world.h"
 #include "common/threat.h"
 #include "common/mouse.h"
+#include "landmark_route.h"
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
+#include <set>
 void check(bool ok,const char* message) { if(!ok) throw std::runtime_error(message); }
+void closerLevel0Landmarks() {
+    std::set<std::pair<std::int64_t,std::int64_t>> destinations;
+    std::set<int> quadrants;
+    for(std::uint64_t seed=0;seed<256;++seed) {
+        br::World world(seed);
+        const auto exit=world.exitLocation(),key=world.keyLocation();
+        const auto cell=br::exitCell(seed);
+        destinations.insert({cell.x,cell.z});quadrants.insert((cell.x>0?1:0)+(cell.z>0?2:0));
+        check(std::hypot(exit.x-br::CELL/2,exit.z-br::CELL/2)<=140,"exit marker stays within 140 m for every sampled seed");
+        check(std::hypot(key.x-br::CELL/2,key.z-br::CELL/2)<=140,"key marker stays within 140 m for every sampled seed");
+        const auto route=landmarkRoute(seed);double length=0,keyLength=-1;
+        for(std::size_t i=1;i<route.size();++i) {
+            length+=std::hypot(route[i].x-route[i-1].x,route[i].z-route[i-1].z);
+            if(std::hypot(route[i].x-key.x,route[i].z-key.z)<.001)keyLength=length;
+        }
+        // This catches a nearby straight-line landmark with a long detour.
+        check(length>=120 && length<=140,"guaranteed route including door approach is 120–140 m");
+        check(keyLength>0 && length-keyLength>22 && length-keyLength<41,"key remains 3–5 connected rooms before the door");
+        if(seed<8) {
+            bool pickedUp=false;
+            for(std::size_t i=1;i<route.size();++i)for(int step=0;step<=40;++step) {
+                const double t=step/40.0,x=route[i-1].x+(route[i].x-route[i-1].x)*t,
+                    z=route[i-1].z+(route[i].z-route[i-1].z)*t;
+                world.update(x,z);
+                check(!world.blocked(x,z,.25),"shorter reserved route is physically traversable through streamed rooms");
+                pickedUp=world.collectKey(x,z)||pickedUp;
+            }
+            check(pickedUp,"walking the guaranteed route collects the key before reaching the exit");
+            br::DoorInfo door;
+            check(world.nearestDoor(exit.x,exit.z,2,door)&&door.isExit,"shorter route terminates at the exit door");
+            check(world.toggleDoor(door.id,exit.x,exit.z),"the route's collected key opens its exit");
+        }
+    }
+    check(destinations.size()>50 && quadrants.size()==4,"closer exits retain seeded variety across all quadrants");
+    // Regression fixtures from the unchanged Fun/Parking layouts before this edit.
+    const std::array<std::uint64_t,3> seeds={0,42,12071998};
+    const std::array<br::ChunkCoord,3> funCells={br::ChunkCoord{-21,18},{21,-18},{19,20}};
+    const std::array<br::ChunkCoord,3> parkingCells={br::ChunkCoord{0,-7},{0,-7},{0,-8}};
+    for(std::size_t i=0;i<seeds.size();++i)for(auto level:{br::Level::Fun,br::Level::Parking}) {
+        const auto expected=level==br::Level::Fun?funCells[i]:parkingCells[i];
+        const auto actual=br::exitCell(seeds[i],level);
+        check(actual==expected,"later-level exit cells are unchanged by the Level 0 distance setting");
+        const auto point=br::World(seeds[i],level).exitLocation();
+        check(std::abs(point.x-((expected.x+1)*br::CELL-1.275))<1e-8 &&
+              std::abs(point.z-(expected.z*br::CELL+4.2))<1e-8,"later-level door approaches retain their original coordinates");
+    }
+}
 int main() { try {
+    closerLevel0Landmarks();
     for(unsigned seed:{0u,1u,42u,991u,12071998u}) {
         br::World w(seed);auto exit=w.exitLocation();w.update(exit.x,exit.z);
         bool darkExit=false;

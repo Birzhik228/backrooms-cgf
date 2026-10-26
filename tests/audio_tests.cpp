@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <iostream>
 #include <iterator>
+#include <limits>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -677,6 +678,122 @@ void darknessAudio() {
     check(mixer.activeVoices()==0 && energy(render(mixer,512))==0,"pause clears darkness capture audio");
     std::cout<<"Darkness audio passed: distinct sting, centered capture priority, headroom, mute, pause, one-shot duration and mixer preview.\n";
 }
+void level0AtmosphereAudio() {
+    using namespace br;
+    constexpr std::array<SoundKind,3> kinds={SoundKind::VentRattle,SoundKind::DistantFootsteps,SoundKind::ThreatRustle};
+    std::set<std::vector<std::int16_t>> distinct;
+    for(auto kind:kinds)for(std::uint32_t variant=1;variant<=4;++variant) {
+        const SoundEvent event{kind,Gait::Walk,Surface::Carpet,variant};
+        const auto clip=synthesizeSound(event);distinct.insert(clip);
+        check(clip.size()>AUDIO_SAMPLE_RATE&&clip.size()<3*AUDIO_SAMPLE_RATE,"Atmosphere clips have a finite short duration");
+        check(clip.front()==0&&clip.back()==0&&energy(clip)>100,"Atmosphere clips are audible with soft endpoints");
+        check(clip==synthesizeSound(event),"Atmosphere variants are deterministic and cacheable");
+        for(auto sample:clip)check(std::abs(int(sample))<20000,"Atmosphere clips retain substantial peak headroom");
+    }
+    check(distinct.size()==12,"Three atmosphere cue types each have four different variants");
+    const auto recorded=synthesizeSound({SoundKind::DistantFootsteps});
+    check(!loadAraneaSamples("missing-atmosphere-bank"),"Missing Aranea bank activates safe atmosphere fallback");
+    const auto fallback=synthesizeSound({SoundKind::DistantFootsteps});
+    check(!fallback.empty()&&energy(fallback)>100&&fallback!=recorded,"Distant footsteps retain a soft fallback without recordings");
+    check(loadAraneaSamples(),"Restore Aranea bank before creating cached atmosphere mixer");
+    AudioMixer mixer;AudioScene scene;scene.lightPower=scene.tension=0;scene.listener={0,1.65,0};scene.level0Atmosphere=true;
+    mixer.setScene(scene);
+    for(auto kind:kinds) {
+        mixer.reset(321);mixer.play(kind,{-8,1.65,0},.8f);
+        const auto open=render(mixer,3*AUDIO_SAMPLE_RATE);
+        check(channelEnergy(open,0)>50&&channelEnergy(open,1)==0,"Atmosphere cues pan toward their stable world source");
+        mixer.reset(321);mixer.play(kind,{-8,1.65,0},.8f,.38f);
+        const auto wall=render(mixer,3*AUDIO_SAMPLE_RATE);
+        check(energy(wall)>energy(open)*.36&&energy(wall)<energy(open)*.43,"Per-event transmission attenuates the actual mixed cue");
+        scene.threatTransmission=0;mixer.setScene(scene);mixer.reset(321);mixer.play(kind,{-8,1.65,0},.8f,.38f);
+        check(render(mixer,3*AUDIO_SAMPLE_RATE)==wall,"Ambient and rustle occlusion is independent of global creature transmission");
+        scene.threatTransmission=1;mixer.setScene(scene);
+        mixer.setVolume(0);mixer.reset(321);mixer.play(kind,scene.listener);
+        check(energy(render(mixer,3*AUDIO_SAMPLE_RATE))==0,"Master mute silences each atmosphere cue");
+        mixer.setVolume(1);mixer.reset(321);mixer.play(kind,scene.listener);mixer.setPaused(true);
+        check(mixer.activeVoices()==0&&energy(render(mixer,128))==0,"Pause clears and silences atmosphere voices");
+        mixer.play(kind,scene.listener);mixer.setPaused(false);
+        check(mixer.activeVoices()==0,"Atmosphere does not queue during pause");
+        mixer.reset(321);mixer.play(kind,scene.listener,1,0);
+        mixer.play(kind,scene.listener,1,std::numeric_limits<float>::quiet_NaN());
+        check(mixer.activeVoices()==0,"Silent or invalid transmission cannot consume a voice");
+        mixer.play(SoundKind::Jumpscare,scene.listener);mixer.play(kind,scene.listener);
+        check(mixer.activeVoices()==1,"Capture remains exclusive over all new atmosphere voices");
+    }
+    mixer.setVolume(.75f);mixer.reset(321);mixer.play(SoundKind::ThreatRustle,{0,1.65,-14},.7f,.38f);
+    const double hintRms=energy(render(mixer,synthesizeSound({SoundKind::ThreatRustle}).size()));
+    check(hintRms>70&&hintRms<200,"One-wall rustle at 14m remains a quiet but present cue in the actual mix");
+    mixer.reset(321);mixer.play(SoundKind::ThreatNotice,{0,1.65,-14},1,.38f);
+    check(energy(render(mixer,synthesizeSound({SoundKind::ThreatNotice}).size()))>hintRms*4,
+          "The presence hint remains substantially quieter than a real detection scream");
+    mixer.setVolume(1);
+    for(auto kind:{SoundKind::VentRattle,SoundKind::DistantFootsteps,SoundKind::ThreatRustle,
+                  SoundKind::AmbientCreak,SoundKind::WaterDrip}) {
+        AudioMixer normal,ducked;normal.setScene(scene);ducked.setScene(scene);normal.reset(123);ducked.reset(123);
+        normal.play(kind,scene.listener);ducked.play(kind,scene.listener);
+        render(normal,AUDIO_SAMPLE_RATE/5);render(ducked,AUDIO_SAMPLE_RATE/5);
+        auto danger=scene;danger.atmosphereQuiet=true;ducked.setScene(danger);
+        render(normal,AUDIO_SAMPLE_RATE/7);render(ducked,AUDIO_SAMPLE_RATE/7);
+        const double normalTail=energy(render(normal,AUDIO_SAMPLE_RATE/12));
+        check(energy(render(ducked,AUDIO_SAMPLE_RATE/12))<normalTail*.05,
+              "Existing atmosphere tails duck quickly when danger starts");
+        render(ducked,3*AUDIO_SAMPLE_RATE);ducked.setScene(scene);
+        check(ducked.activeVoices()==0,"Ducked hints finish silently and do not replay after danger");
+    }
+    for(auto kind:{SoundKind::ThreatStep,SoundKind::ThreatRunStep,SoundKind::ThreatNotice,SoundKind::Jumpscare}) {
+        AudioMixer normal,ducked;normal.setScene(scene);auto danger=scene;danger.atmosphereQuiet=true;ducked.setScene(danger);
+        normal.reset(123);ducked.reset(123);normal.play(kind,scene.listener);ducked.play(kind,scene.listener);
+        check(render(normal,2*AUDIO_SAMPLE_RATE)==render(ducked,2*AUDIO_SAMPLE_RATE),
+              "Atmosphere ducking never changes actual creature or capture sounds");
+    }
+    mixer.reset(99);check(energy(render(mixer,30*AUDIO_SAMPLE_RATE))==0,"Level0 scheduler replaces the old random creak/drip timer");
+    scene.tension=.9f;mixer.setScene(scene);render(mixer,4*AUDIO_SAMPLE_RATE);
+    check(mixer.activeVoices()==0,"Level0 scheduler suppresses the old automatic electrical stinger");
+    scene.tension=0;scene.level0Atmosphere=false;mixer.setScene(scene);mixer.reset(99);
+    check(energy(render(mixer,30*AUDIO_SAMPLE_RATE))>1,"Other levels retain the original random ambience");
+    mixer.reset(99);render(mixer,3*AUDIO_SAMPLE_RATE);scene.tension=.9f;mixer.setScene(scene);render(mixer,128);
+    check(mixer.activeVoices()==1,"Other levels retain the original tension stinger");
+    std::cout<<"Level0 atmosphere audio passed: distinct cached clips, soil fallback, static occlusion, panning, mute/pause, capture exclusivity and legacy-level ambience.\n";
+}
+void writeLevel0MixerPreview(const std::filesystem::path& directory) {
+    using namespace br;
+    std::filesystem::create_directories(directory);
+    auto write=[&](const std::string& name,const std::vector<std::int16_t>& samples) {
+        std::ofstream file(directory/name,std::ios::binary);check(bool(file),"Create Level0 mixer preview");
+        auto u16=[&](std::uint16_t value){file.put(char(value));file.put(char(value>>8));};
+        auto u32=[&](std::uint32_t value){u16(std::uint16_t(value));u16(std::uint16_t(value>>16));};
+        const auto bytes=std::uint32_t(samples.size()*2);
+        file.write("RIFF",4);u32(36+bytes);file.write("WAVEfmt ",8);u32(16);u16(1);u16(2);
+        u32(AUDIO_SAMPLE_RATE);u32(AUDIO_SAMPLE_RATE*4);u16(4);u16(16);
+        file.write("data",4);u32(bytes);for(auto value:samples)u16(std::uint16_t(value));
+        check(bool(file),"Write unnormalized stereo PCM from the actual Level0 mixer");
+    };
+    AudioScene scene;scene.listener={0,1.65,0};scene.fluorescent={3,3.2,3};scene.lightPower=.5f;scene.level0Atmosphere=true;
+    AudioMixer mixer;mixer.setScene(scene);mixer.setVolume(.75f);mixer.reset(321);
+    std::vector<std::int16_t> preview(18*AUDIO_SAMPLE_RATE*2);std::size_t cursor=0;
+    for(int frame=0;frame<18*60;++frame) {
+        if(frame==60)mixer.play(SoundKind::VentRattle,{-5,2.8,-3},.55f,1);
+        if(frame==5*60)mixer.play(SoundKind::DistantFootsteps,{-7,.2,-7},.8f,.38f);
+        if(frame==10*60)mixer.play(SoundKind::ThreatRustle,{7,.6,-12},.7f,.38f);
+        if(frame==14*60)mixer.play(SoundKind::DistantFootsteps,{9,.2,-11},.8f,.144f);
+        const auto end=std::size_t((frame+1)*AUDIO_SAMPLE_RATE/60);
+        mixer.render(preview.data()+cursor*2,end-cursor);cursor=end;
+    }
+    write("level0-atmosphere-mixer.wav",preview);
+    scene.lightPower=0;mixer.setScene(scene);
+    struct Probe {const char* name;SoundKind kind;double distance;float gain,transmission;};
+    for(const auto probe:{Probe{"vent-6m",SoundKind::VentRattle,6,.55f,1},
+            Probe{"soil-10m-one-wall",SoundKind::DistantFootsteps,10,.8f,.38f},
+            Probe{"soil-16m-two-walls",SoundKind::DistantFootsteps,16,.8f,.144f},
+            Probe{"rustle-14m-one-wall",SoundKind::ThreatRustle,14,.7f,.38f},
+            Probe{"rustle-22m-one-wall",SoundKind::ThreatRustle,22,.7f,.38f}}) {
+        mixer.reset(321);mixer.play(probe.kind,{0,1.65,-probe.distance},probe.gain,probe.transmission);
+        const auto output=render(mixer,synthesizeSound({probe.kind}).size());
+        write(std::string(probe.name)+".wav",output);
+        std::cout<<probe.name<<" mixer RMS="<<energy(output)<<" (master .75, no normalization).\n";
+    }
+    std::cout<<"Level0 mixer previews saved to "<<directory.string()<<".\n";
+}
 int main(int argc,char** argv) {
     const auto opening=br::synthesizeSound({br::SoundKind::PresentOpen});
     check(opening.size()==std::size_t(.58*br::AUDIO_SAMPLE_RATE) && energy(opening)>500,"present opening is a short audible paper sound");
@@ -691,4 +808,7 @@ int main(int argc,char** argv) {
         if(argc==3&&std::string(argv[1])=="--aranea-preview")writeAraneaMixerPreview(argv[2]);
         std::cout<<"Aranea audio passed: atomic banks, soil walk/run variants, queued and sustained visual calls, 14-22m audibility, voice priority, wall attenuation, paired-contact headroom, first-frame resume cues, pause/mute/reset and unchanged player/capture audio.\n"; }
     catch(const std::exception& error) { std::cerr<<"Aranea audio tests failed: "<<error.what()<<'\n';return 1; }
+    try { level0AtmosphereAudio();
+        if(argc==3&&std::string(argv[1])=="--level0-preview")writeLevel0MixerPreview(argv[2]); }
+    catch(const std::exception& error) { std::cerr<<"Level0 atmosphere audio tests failed: "<<error.what()<<'\n';return 1; }
 }

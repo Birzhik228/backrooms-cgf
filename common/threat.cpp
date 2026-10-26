@@ -60,6 +60,7 @@ void Threat::reset(std::uint64_t seed) {
     yaw_=speed_=age_=repath_=wanderWait_=spawnRetry_=0;
     sinceSense_=100; state_=ThreatState::Dormant;
     seesPlayer_=hasGoal_=false; path_.clear(); pathIndex_=pathNodesVisited_=0;
+    spawnAnchor_={}; hasSpawnAnchor_=false;
 }
 
 void Threat::resetAt(double x,double z,float yaw) {
@@ -94,6 +95,10 @@ bool Threat::spawn(const World& world,const ThreatPlayer& player) {
         const double distance=SPAWN_MIN_DISTANCE+random01()*(SPAWN_MAX_DISTANCE-SPAWN_MIN_DISTANCE);
         const double candidateX=player.x+std::sin(angle)*distance;
         const double candidateZ=player.z-std::cos(angle)*distance;
+        // Preserve some quiet space around the entrance even if the player
+        // moves during the grace period. Ordinary patrol can still enter it.
+        if (hasSpawnAnchor_ && distanceSquared(candidateX,candidateZ,spawnAnchor_.x,spawnAnchor_.z)<
+            SPAWN_MIN_DISTANCE*SPAWN_MIN_DISTANCE) continue;
         if (world.blocked(candidateX,candidateZ,RADIUS) || playerCanSee(world,player,candidateX,candidateZ)) continue;
         x_=candidateX; z_=candidateZ;
         // An unobstructed coordinate alone is insufficient: prove a route back
@@ -269,6 +274,11 @@ void Threat::hearAlarm(const World& world,const ThreatPlayer& player,double x,do
     if(caught() || !std::isfinite(x) || !std::isfinite(z)) return;
     const double range=48*std::sqrt(world.soundTransmission(x,z,x_,z_));
     if(!globalCall && active() && std::hypot(x-x_,z-z_)>range) return;
+    // A key/alarm can arrive before the first simulation update. Capture the
+    // same starting clearance before its immediate spawn attempt as well.
+    if (!hasSpawnAnchor_ && std::isfinite(player.x) && std::isfinite(player.z)) {
+        spawnAnchor_={player.x,player.z}; hasSpawnAnchor_=true;
+    }
     alarm_={x,z};alarmRemaining_=5;age_=std::max(age_,SPAWN_GRACE);spawnRetry_=0;
     if(!active()) spawn(world,player);
 }
@@ -276,6 +286,9 @@ void Threat::hearAlarm(const World& world,const ThreatPlayer& player,double x,do
 void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool paused) {
     if (paused || caught() || !std::isfinite(dt) || dt<=0 ||
         !std::isfinite(player.x) || !std::isfinite(player.z)) return;
+    if (!hasSpawnAnchor_) {
+        spawnAnchor_={player.x,player.z}; hasSpawnAnchor_=true;
+    }
     dt=std::min(dt,.1f);
     age_+=dt; speed_=0; spawnRetry_-=dt; repath_-=dt; wanderWait_-=dt;
     if(alarmRemaining_>0) {

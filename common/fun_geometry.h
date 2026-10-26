@@ -118,13 +118,13 @@ Chunk funChunk(ChunkCoord coord,std::uint64_t seed,std::uint64_t variant,const s
         c.overheads.push_back({{x0,z0,x1,z1},float(ROOM_HEIGHT)});
         for(bool east:{true,false}) {
             const auto bx=gx+(east?1:0),bz=gz+(east?0:1);
-            if(sharedHall(gx,gz,bx,bz,seed)) continue;
+            if(sharedHall(gx,gz,bx,bz,seed,Level::Fun)) continue;
             const auto start=c.vertices.size();
-            wall(c,east,east?x1:z1,east?z0:x0,edgeOpen(gx,gz,bx,bz,seed,variant),true);
+            wall(c,east,east?x1:z1,east?z0:x0,edgeOpen(gx,gz,bx,bz,seed,variant,Level::Fun),true);
             for(std::size_t i=start;i<c.vertices.size();++i) if(c.vertices[i].material==0)c.vertices[i].material=40;
         }
         // Preserve a clear cross between every cell centre and its doorways.
-        if(gx==exitCell(seed).x && gz==exitCell(seed).z) {
+        if(gx==exitCell(seed,Level::Fun).x && gz==exitCell(seed,Level::Fun).z) {
             const auto begin=c.vertices.size();
             exitDoor(c,x0,z0);
             for(auto i=begin;i<c.vertices.size();++i)if(c.vertices[i].material==0)c.vertices[i].material=40;

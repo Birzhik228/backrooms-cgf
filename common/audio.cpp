@@ -19,7 +19,7 @@ namespace {
 constexpr double PI=3.14159265358979323846;
 constexpr std::size_t FOOTSTEP_COUNT=6;
 constexpr std::size_t POSITIONED_CLIP_COUNT=
-    std::size_t(SoundKind::DarknessJumpscare)-std::size_t(SoundKind::AmbientCreak)+1;
+    std::size_t(SoundKind::ThreatRustle)-std::size_t(SoundKind::AmbientCreak)+1;
 bool captureSound(SoundKind kind) {
     return kind==SoundKind::Jumpscare || kind==SoundKind::DarknessJumpscare;
 }
@@ -192,6 +192,55 @@ std::vector<std::int16_t> threatSound(const SoundEvent& event) {
     result.front()=0; result.back()=0;
     return result;
 }
+
+std::vector<std::int16_t> atmosphereSound(const SoundEvent& event) {
+    if(event.kind==SoundKind::DistantFootsteps) {
+        // Reuse the soft soil bank rather than adding a hard heel or toe click.
+        // Irregular, separate contacts hint at movement beyond a wall; the
+        // scheduler supplies a stable world position and that wall's loss.
+        const unsigned contacts=2+event.variation%2;
+        const double interval=.61+.035*(event.variation%3);
+        std::vector<double> mixed(std::size_t((.65+contacts*interval)*AUDIO_SAMPLE_RATE));
+        for(unsigned contact=0;contact<contacts;++contact) {
+            auto source=threatSound({SoundKind::ThreatStep,Gait::Walk,Surface::Carpet,event.variation+contact});
+            const auto onset=std::size_t((.08+contact*interval)*AUDIO_SAMPLE_RATE);
+            double muffled=0;
+            for(std::size_t i=0;i<source.size()&&onset+i<mixed.size();++i) {
+                muffled+=.075*(double(source[i])/32767.-muffled);
+                const double t=double(i)/AUDIO_SAMPLE_RATE;
+                const double duration=double(source.size())/AUDIO_SAMPLE_RATE;
+                const double fade=std::min({1.,t/.022,(duration-t)/.065});
+                mixed[onset+i]+=1.45*muffled*fade*(contact==1?.83:1.);
+            }
+        }
+        std::vector<std::int16_t> result(mixed.size());
+        std::transform(mixed.begin(),mixed.end(),result.begin(),[](double value){return pcm(value);});
+        result.front()=result.back()=0;
+        return result;
+    }
+    const bool vent=event.kind==SoundKind::VentRattle;
+    const double duration=vent?2.35:1.28;
+    std::vector<std::int16_t> result(std::size_t(duration*AUDIO_SAMPLE_RATE));
+    std::uint32_t state=event.variation*747796405u+2891336453u;
+    if(!state)state=1;
+    double body=0,soft=0;
+    for(std::size_t i=0;i<result.size();++i) {
+        const double t=double(i)/AUDIO_SAMPLE_RATE,n=noise(state);
+        body+=.024*(n-body);soft+=(vent?.22:.12)*(n-soft);
+        // Filtered air and a loose duct settling; no pitched electrical chord
+        // or metallic impulses. The rustle is a low, short exhale and drag,
+        // distinct from the creature's detection scream and pursuit roar.
+        const double swell=vent?std::pow(std::sin(PI*t/duration),1.4):
+            std::exp(-std::pow((t-.39)/.28,2))+.45*std::exp(-std::pow((t-.88)/.20,2));
+        const double texture=vent?(.72+.28*std::pow(std::sin((8+.4*event.variation)*t),2)):
+            (.80+.20*std::sin(t*29)*std::sin(t*19));
+        const double envelope=std::min({1.,t/.09,(duration-t)/.18});
+        const double value=vent?(.28*body+.24*(soft-body)):(1.375*body+.625*(soft-body));
+        result[i]=pcm(value*swell*texture*envelope);
+    }
+    result.front()=result.back()=0;
+    return result;
+}
 }
 
 std::vector<std::int16_t> readFootstepWav(const std::string& path) {
@@ -270,6 +319,8 @@ std::size_t recordedFootstepCount() { return loadedSteps; }
 
 std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
     SoundEvent event=input;
+    if(event.kind==SoundKind::VentRattle||event.kind==SoundKind::DistantFootsteps||event.kind==SoundKind::ThreatRustle)
+        return atmosphereSound(event);
     if(event.kind==SoundKind::DarknessJumpscare) {
         // Original electrical shriek for the garage: bass impact, dissonant
         // falling tones and a torn, band-limited hiss. No borrowed scream.
@@ -479,6 +530,8 @@ struct AudioMixer::Impl {
         float nearDistance=3;
         unsigned priority=0;
         std::uint64_t started=0;
+        float transmission=1;
+        bool atmosphere=false;
     };
     std::array<std::array<std::array<std::vector<std::int16_t>,6>,3>,3> steps;
     std::array<std::vector<std::int16_t>,3> cloth;
@@ -490,6 +543,7 @@ struct AudioMixer::Impl {
     std::array<std::uint32_t,2> monsterVariation{};
     std::uint64_t sample=0,nextAmbient=0,lastStinger=0,voiceSequence=0;
     float volume=1,currentVolume=1,humLeft=0,humRight=0,currentTension=0;
+    float atmosphereGain=1;
     bool paused=false,tensionArmed=true,captureOnly=false;
 
     Impl() {
@@ -529,12 +583,13 @@ struct AudioMixer::Impl {
     void restart(std::uint32_t value) {
         seed=value?value:1; random=seed; variation=0; monsterVariation={}; sample=0;
         voices={}; voiceSequence=0; captureOnly=false; humLeft=humRight=currentTension=0;
+        atmosphereGain=scene.atmosphereQuiet?0.f:1.f;
         currentVolume=volume; tensionArmed=scene.tension<.65f; lastStinger=0;
         nextAmbient=std::uint64_t((5+randomUnit()*5)*AUDIO_SAMPLE_RATE);
     }
     void add(const std::vector<std::int16_t>& clip,AudioPosition position,bool positional,float gain,
-             bool occluded=false,float nearDistance=3,unsigned priority=0) {
-        if (paused || !std::isfinite(gain) || gain<=0) return;
+             bool occluded=false,float nearDistance=3,unsigned priority=0,float transmission=1,bool atmosphere=false) {
+        if (paused || clip.empty() || !std::isfinite(gain) || gain<=0 || !std::isfinite(transmission) || transmission<=0) return;
         Voice* slot=nullptr;
         for (auto& voice:voices) if (!voice.clip) {
             slot=&voice;break;
@@ -545,11 +600,12 @@ struct AudioMixer::Impl {
             (!slot||voice.priority<slot->priority||
              (voice.priority==slot->priority&&voice.started<slot->started)))slot=&voice;
         if(slot)*slot={&clip,0,position,positional,std::min(gain,1.0f),occluded,
-                       nearDistance,priority,voiceSequence++};
+                       nearDistance,priority,voiceSequence++,std::min(transmission,1.f),atmosphere};
     }
-    void environmental(SoundKind kind,AudioPosition position,float gain) {
+    void environmental(SoundKind kind,AudioPosition position,float gain,float transmission=1) {
         const auto index=int(kind)-int(SoundKind::AmbientCreak);
-        if (index<0 || std::size_t(index)>=ambience.size() || paused || !std::isfinite(gain) || gain<=0) return;
+        if (index<0 || std::size_t(index)>=ambience.size() || paused || !std::isfinite(gain) || gain<=0 ||
+            !std::isfinite(transmission) || transmission<=0) return;
         const bool capture=captureSound(kind);
         // Catch feedback must not be dropped by a full ambience queue, nor pile
         // on top of twelve existing sources. It belongs at the camera.
@@ -557,13 +613,15 @@ struct AudioMixer::Impl {
         if (capture) { voices={}; captureOnly=true; humLeft=humRight=currentTension=0; currentVolume=volume; }
         const bool monsterStep=kind==SoundKind::ThreatStep||kind==SoundKind::ThreatRunStep;
         const bool vocal=kind==SoundKind::ThreatRoar||kind==SoundKind::ThreatNotice;
+        const bool distant=kind==SoundKind::VentRattle||kind==SoundKind::DistantFootsteps||kind==SoundKind::ThreatRustle;
+        const bool atmosphere=distant||(scene.level0Atmosphere&&(kind==SoundKind::AmbientCreak||kind==SoundKind::WaterDrip));
         const std::size_t variant=capture?std::min(std::size_t(randomUnit()*4),std::size_t(3)):
             monsterStep?monsterVariation[kind==SoundKind::ThreatRunStep?1:0]++%4:variation++%4;
         add(ambience[std::size_t(index)][variant],position,!capture,gain,
-            monsterStep||vocal,vocal?7.f:3.f,vocal?1u:0u);
+            monsterStep||vocal,vocal?7.f:(distant?6.f:3.f),vocal?1u:0u,transmission,atmosphere);
     }
     void schedule() {
-        if(captureOnly) return;
+        if(captureOnly||scene.level0Atmosphere) return;
         if (sample>=nextAmbient) {
             const double angle=randomUnit()*PI*2,distance=14+randomUnit()*18;
             const AudioPosition source{scene.listener.x+std::cos(angle)*distance,
@@ -612,7 +670,7 @@ void AudioMixer::enqueue(const SoundEvent& event) {
         impl_->add(impl_->steps[gait][surface][(event.variation-1)%6],{},false,1);
     else if (event.kind==SoundKind::ClothRustle) impl_->add(impl_->cloth[gait],{},false,1);
 }
-void AudioMixer::play(SoundKind kind,AudioPosition position,float gain) { impl_->environmental(kind,position,gain); }
+void AudioMixer::play(SoundKind kind,AudioPosition position,float gain,float transmission) { impl_->environmental(kind,position,gain,transmission); }
 std::size_t AudioMixer::activeVoices() const {
     std::size_t result=0;
     for (const auto& voice:impl_->voices) result+=voice.clip!=nullptr;
@@ -642,6 +700,10 @@ void AudioMixer::render(std::int16_t* output,std::size_t frames) {
             m.humRight+=.001f*(humGain.right*humPower-m.humRight);
             m.currentTension+=.000018f*(m.scene.tension-m.currentTension);
             m.currentVolume+=.001f*(m.volume-m.currentVolume);
+            // ~120ms to duck an already-playing hint by95%; release is
+            // gentler. Muted voices still advance and cannot replay later.
+            m.atmosphereGain+=(m.scene.atmosphereQuiet?.00114f:.0005f)*
+                ((m.scene.atmosphereQuiet?0.f:1.f)-m.atmosphereGain);
             const auto table=std::size_t(m.sample%AUDIO_SAMPLE_RATE);
             const double drone=m.droneTable[table]*m.currentTension*m.currentTension;
             double left=m.humTable[table]*m.humLeft+drone;
@@ -650,8 +712,9 @@ void AudioMixer::render(std::int16_t* output,std::size_t frames) {
             for (std::size_t v=0;v<m.voices.size();++v) {
                 auto& voice=m.voices[v];
                 if (!voice.clip) continue;
-                const double sound=(*voice.clip)[voice.cursor++]/32767.0*voice.gain;
-                const float occlusion=voice.occluded?m.scene.threatTransmission:1.f;
+                const double sound=(*voice.clip)[voice.cursor++]/32767.0*voice.gain*
+                    (voice.atmosphere?m.atmosphereGain:1.f);
+                const float occlusion=voice.transmission*(voice.occluded?m.scene.threatTransmission:1.f);
                 left+=sound*gains[v].left*occlusion; right+=sound*gains[v].right*occlusion;
                 if (voice.cursor==voice.clip->size()) voice.clip=nullptr;
             }
@@ -756,7 +819,7 @@ void Audio::setPaused(bool paused) {
 #endif
     impl_->paused=paused;
 }
-void Audio::play(SoundKind kind,AudioPosition position,float gain) {
+void Audio::play(SoundKind kind,AudioPosition position,float gain,float transmission) {
     if (!available()) return;
     if(captureSound(kind)) {
         impl_->mixer.setPaused(false); impl_->paused=false;
@@ -764,7 +827,7 @@ void Audio::play(SoundKind kind,AudioPosition position,float gain) {
         impl_->flush(); // Remove queued ambience before the very first scream sample.
 #endif
     }
-    impl_->mixer.play(kind,position,gain);
+    impl_->mixer.play(kind,position,gain,transmission);
     if(captureSound(kind) && !impl_->service()) stop();
 }
 void Audio::reset(std::uint32_t seed) {

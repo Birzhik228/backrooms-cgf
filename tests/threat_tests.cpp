@@ -264,8 +264,8 @@ void safeSpawnAndStreaming() {
     for(int i=0;i<1200 && !first.active();++i) first.update(world,player,1.f/60);
     for(int i=0;i<1800 && !second.active();++i) second.update(world,player,1.f/60);
     check(first.active() && second.active(),"reachable safe spawn is found");
-    check(std::hypot(first.x()-player.x,first.z()-player.z)>=br::Threat::SPAWN_MIN_DISTANCE,"closer entity still appears at least 16 m from player");
-    check(std::hypot(first.x()-player.x,first.z()-player.z)<=br::Threat::SPAWN_MAX_DISTANCE+.01,"entity appears within 22 m for earlier encounters");
+    check(std::hypot(first.x()-player.x,first.z()-player.z)>=br::Threat::SPAWN_MIN_DISTANCE,"entity appears at least 24 m from player");
+    check(std::hypot(first.x()-player.x,first.z()-player.z)<=br::Threat::SPAWN_MAX_DISTANCE+.01,"entity appears within the bounded 32 m spawn band");
     check(first.x()==second.x() && first.z()==second.z(),"seed and initial player pose deterministically reproduce a spawn");
     check(first.pathPointCount()>0,"spawn proves a navigable route to player");
     const double dx=first.x()-player.x,dz=first.z()-player.z,dist=std::hypot(dx,dz);
@@ -279,7 +279,7 @@ void safeSpawnAndStreaming() {
     player.forwardX=-1;
     for(int i=0;i<1200 && std::hypot(watched.x()-player.x,watched.z()-player.z)>75;++i)
         watched.update(world,player,1.f/60);
-    check(std::hypot(watched.x()-player.x,watched.z()-player.z)<=br::Threat::SPAWN_MAX_DISTANCE+.01,"turning away permits safe recycling into the closer spawn band");
+    check(std::hypot(watched.x()-player.x,watched.z()-player.z)<=br::Threat::SPAWN_MAX_DISTANCE+.01,"turning away permits safe recycling into the spawn band");
     player.forwardX=0; player.forwardZ=-1;
 
     // Change the streamed working set entirely. The same one actor must be
@@ -287,7 +287,7 @@ void safeSpawnAndStreaming() {
     player.x=903.75; player.z=3.75; world.update(player.x,player.z);
     for(int i=0;i<1200 && std::hypot(first.x()-player.x,first.z()-player.z)>75;++i)
         first.update(world,player,1.f/60);
-    check(std::hypot(first.x()-player.x,first.z()-player.z)<=br::Threat::SPAWN_MAX_DISTANCE+.01,"one entity follows distant stream changes into the closer spawn band");
+    check(std::hypot(first.x()-player.x,first.z()-player.z)<=br::Threat::SPAWN_MAX_DISTANCE+.01,"one entity follows distant stream changes into the spawn band");
     check(!world.blocked(first.x(),first.z(),br::Threat::RADIUS),"relocated entity stays on loaded walkable floor");
     check(!br::Threat::visibleSegment(world,player.x,player.z,player.x+500,player.z),"nonresident geometry cannot be traversed or seen through by navigation");
     std::cout<<"Grace, deterministic reachable safe spawn, endless streaming: PASS\n";
@@ -304,26 +304,95 @@ void unreachableBudgetAndSeedSweep() {
     check(enemy.pathNodesVisited()==br::Threat::MAX_PATH_NODES,"unreachable route stops at the exact expansion budget");
     check(!enemy.caught() && !world.blocked(enemy.x(),enemy.z(),br::Threat::RADIUS),"budget exhaustion leaves entity safely at its current position");
 
-    for (const std::uint64_t seed:{0ULL,1ULL,13ULL,91ULL,777ULL}) {
+    for (const std::uint64_t seed:{0ULL,1ULL,13ULL,42ULL,91ULL,777ULL,12071998ULL,8675309ULL}) {
         br::World varied(seed); varied.update(3.75,3.75);
         br::Threat actor(seed); br::ThreatPlayer observer; observer.x=observer.z=3.75;
         for(int i=0;i<1800 && !actor.active();++i) actor.update(varied,observer,1.f/60);
         check(actor.active() && !varied.blocked(actor.x(),actor.z(),br::Threat::RADIUS),"safe reachable spawn succeeds across varied seeds");
         const double distance=std::hypot(actor.x()-observer.x,actor.z()-observer.z);
         check(distance>=br::Threat::SPAWN_MIN_DISTANCE && distance<=br::Threat::SPAWN_MAX_DISTANCE,
-              "all seeds use the closer 16 to 22 m spawn band");
+              "all seeds use the 24 to 32 m spawn band");
         const double forwardDot=((actor.x()-observer.x)*observer.forwardX+(actor.z()-observer.z)*observer.forwardZ)/distance;
         check(forwardDot<.25 || !br::Threat::visibleSegment(varied,observer.x,observer.z,actor.x(),actor.z()),
-              "closer spawn does not pop into the player's view across varied seeds");
+              "spawn does not pop into the player's view across varied seeds");
         check(actor.pathPointCount()>0 && actor.pathNodesVisited()<=br::Threat::MAX_PATH_NODES,"each seeded spawn has a bounded route");
     }
     std::cout<<"Unreachable path budget and varied-seed reachable spawning: PASS\n";
+}
+
+void entranceSpawnClearance() {
+    bool entranceCandidateRejected=false;
+    bool alarmCandidateRejected=false;
+    for (const std::uint64_t seed:{0ULL,1ULL,13ULL,42ULL,91ULL,777ULL,12071998ULL,8675309ULL}) {
+        br::World world(seed); world.update(3.75,3.75);
+        br::ThreatPlayer entrance; entrance.x=entrance.z=3.75;
+        br::ThreatPlayer moved=entrance; moved.x=27.75; moved.forwardX=1; moved.forwardZ=0;
+        check(!world.blocked(moved.x,moved.z,br::Threat::RADIUS),"moved player fixture remains in the entrance corridor");
+        br::Threat anchored(seed),fresh(seed);
+        anchored.update(world,entrance,1.f/60);
+        // Moving during the grace period must not allow an appearance next to
+        // the original starting location behind the player's current position.
+        for(int i=0;i<1800 && !anchored.active();++i) anchored.update(world,moved,1.f/60);
+        check(anchored.active(),"a spawn outside both clearance circles remains reachable across seeds");
+        const double movedDistance=std::hypot(anchored.x()-moved.x,anchored.z()-moved.z);
+        check(movedDistance>=24 && movedDistance<=32,"moving player retains the ordinary 24 to 32 m spawn range");
+        check(std::hypot(anchored.x()-entrance.x,anchored.z()-entrance.z)>=24,
+              "initial entrance retains 24 m spawn clearance after the player walks away");
+        check(anchored.pathPointCount()>0 && anchored.pathNodesVisited()<=br::Threat::MAX_PATH_NODES,
+              "entrance clearance preserves a reachable route within the fixed search budget");
+        check((anchored.x()-moved.x)/movedDistance<.25 ||
+              !br::Threat::visibleSegment(world,moved.x,moved.z,anchored.x(),anchored.z()),
+              "entrance-aware spawn is still hidden from the current player view");
+
+        for(int i=0;i<1800 && !fresh.active();++i) fresh.update(world,moved,1.f/60);
+        check(fresh.active(),"fresh moved-origin control finds a spawn");
+        const bool nearOldEntrance=std::hypot(fresh.x()-entrance.x,fresh.z()-entrance.z)<24;
+        entranceCandidateRejected|=nearOldEntrance;
+        if (nearOldEntrance) {
+            check(anchored.x()!=fresh.x() || anchored.z()!=fresh.z(),"entrance exclusion actually rejects otherwise valid candidates");
+            anchored.reset(seed);
+            // Paused and zero-length updates must not capture the old origin.
+            anchored.update(world,entrance,.1f,true);
+            anchored.update(world,entrance,0);
+            for(int i=0;i<1800 && !anchored.active();++i) anchored.update(world,moved,1.f/60);
+            check(anchored.active() && anchored.x()==fresh.x() && anchored.z()==fresh.z(),
+                  "reset clears the old anchor and the first ordinary update records the new origin");
+        }
+        anchored.resetAt(moved.x-1,moved.z,PI/2);
+        check(anchored.active() && anchored.x()==moved.x-1 && anchored.z()==moved.z,
+              "explicit capture fixtures can still reset inside the ordinary spawn clearance");
+
+        // An alarm may arrive before update(). With no resident geometry its
+        // first attempt fails, but later retries must retain that first origin.
+        br::World alarmWorld(seed);
+        br::Threat earlyAlarm(seed),alarmControl(seed);
+        earlyAlarm.hearAlarm(alarmWorld,entrance,entrance.x,entrance.z,true);
+        alarmControl.hearAlarm(alarmWorld,moved,moved.x,moved.z,true);
+        check(!earlyAlarm.active() && !alarmControl.active(),"pre-update alarm cannot spawn into nonresident geometry");
+        alarmWorld.update(moved.x,moved.z);
+        for(int i=0;i<1800 && !earlyAlarm.active();++i) earlyAlarm.update(alarmWorld,moved,1.f/60);
+        for(int i=0;i<1800 && !alarmControl.active();++i) alarmControl.update(alarmWorld,moved,1.f/60);
+        check(earlyAlarm.active() && alarmControl.active(),"pre-update alarm retries can find reachable loaded space");
+        const double alarmDistance=std::hypot(earlyAlarm.x()-moved.x,earlyAlarm.z()-moved.z);
+        check(alarmDistance>=24 && alarmDistance<=32 &&
+              std::hypot(earlyAlarm.x()-entrance.x,earlyAlarm.z()-entrance.z)>=24,
+              "pre-update alarm preserves both the player range and the original entrance clearance");
+        check(earlyAlarm.pathPointCount()>0 && earlyAlarm.pathNodesVisited()<=br::Threat::MAX_PATH_NODES,
+              "alarm spawn still proves a route within the fixed search budget");
+        check((earlyAlarm.x()-moved.x)/alarmDistance<.25 ||
+              !br::Threat::visibleSegment(alarmWorld,moved.x,moved.z,earlyAlarm.x(),earlyAlarm.z()),
+              "pre-update alarm spawn remains hidden");
+        alarmCandidateRejected|=std::hypot(alarmControl.x()-entrance.x,alarmControl.z()-entrance.z)<24;
+    }
+    check(entranceCandidateRejected,"seed sweep includes candidates that would otherwise spawn too near the original entrance");
+    check(alarmCandidateRejected,"pre-update alarm sweep exercises rejection near its original entrance");
+    std::cout<<"Entrance clearance after moving away, reset anchor, early alarm and explicit fixtures: PASS\n";
 }
 }
 
 int main() {
     try {
-        forwardLocomotion(); wallAndCornerRecovery(); perceptionAndCatch(); occlusionAndDoor(); memoryPauseAndNavigation(); safeSpawnAndStreaming(); unreachableBudgetAndSeedSweep();
+        forwardLocomotion(); wallAndCornerRecovery(); perceptionAndCatch(); occlusionAndDoor(); memoryPauseAndNavigation(); safeSpawnAndStreaming(); unreachableBudgetAndSeedSweep(); entranceSpawnClearance();
         std::cout<<"Threat tests: PASS\n"; return 0;
     } catch (const std::exception& error) {
         std::cerr<<"Threat tests: FAIL: "<<error.what()<<'\n'; return 1;

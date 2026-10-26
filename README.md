@@ -1,21 +1,91 @@
-# BACKROOMS / Threshold v0.12 — Aranea Membri update
+# BACKROOMS / Threshold v0.12 — Three-stage exploration
 
-An effectively endless, connected yellow interior in **C++17 and OpenGL 3.3 core** for the Computer Graphics Fundamentals project. Explore worn rooms, repeating corridors and open halls with smooth first-person controls, stamina, interactive doors and spatial sound. One four-legged Aranea Membri creature wanders the level, hears movement and chases when it detects you. Break contact, hide and follow optional clues toward an exit.
+A first-person horror exploration game in **C++17 and OpenGL 3.3 core** for the Computer Graphics Fundamentals project. Explore three connected stages: worn yellow rooms, a deceptively cheerful party maze and a dark underground garage. Smooth first-person controls, stamina, interactive doors and spatial sound support a different objective and threat in each stage. Listen carefully, manage your surroundings and find the next exit.
 
 ![Aranea Membri in-game](assets/preview.png)
 
 *The current four-legged Aranea Membri, captured in-game.*
 
-## Third stage: Underground Parking - 18 October 2026
+## Levels
 
-The route now continues **Level 0 -> Level Fun -> Parking**. The dark concrete
-garage contains floating eyes that approach through the unlit bays. Aim an
-enabled flashlight at them to disperse them; columns block the beam. Contact
-in darkness is lethal. The lit entrance and electrical cabinets offer refuges.
-Restore circuits **A, B and C** with **E** to make their sectors safe, then open
-the service exit and walk through it. Death restarts at the Parking checkpoint.
-The HUD and Tab map guide you to the cabinets. Direct launch:
-`Backrooms.exe --demo --parking`. See [mechanics and research](docs/parking.md).
+The normal route is **Yellow Rooms (Level 0) -> Level Fun -> Underground Parking**.
+You can also start any stage through **Escape -> Choose a Level**. Selecting a
+stage starts it with fresh progress while keeping the seed and settings.
+Checkpoints last for the current session and are not saved after closing the game.
+
+### Stage 1 — Yellow Rooms / Level 0
+
+Worn wallpaper, fluorescent lights and repeating corridors hide one four-legged
+**Aranea Membri**. It hears movement, pursues you on sight and searches after
+losing contact. Quiet ventilation, distant footsteps behind walls and rustling
+from the hidden creature make empty rooms feel occupied. Break line of sight
+and use hiding places to escape pursuit.
+
+Find the brass key, follow the exit signal, open the red door with **E** and walk
+through it to reach Level Fun. The connected route to the exit is about
+**123–138 metres** from the start, with the key a few rooms before the door.
+
+### Stage 2 — Level Fun
+
+Orange walls, green carpet, party tables, cakes, balloons, garlands and wrapped
+presents fill a connected party maze. Four yellow **Partygoers** with red balloons
+freeze while you can see them and pursue when you look away. Contact is lethal:
+the screen cuts to Game Over without a jumpscare, and **Restart Checkpoint**
+returns you to the Level Fun entrance with fresh progress.
+
+Face a present and press **E** to search it for the exit key. The chance rises
+after each miss, and the 15th searched present guarantees the key. Some boxes
+release a squeaking mouse that attracts and speeds up the Partygoers. A rare
+**Verity** pickup restores stamina and grants unlimited sprint stamina for the
+current Level Fun run. Once you have the key, follow the exit signal, open the
+door with **E** and walk into Parking.
+
+Direct launch: `Backrooms.exe --demo --level-fun`.
+See [Level Fun mechanics and checkpoint rules](docs/level-fun.md).
+
+### Stage 3 — Underground Parking
+
+Concrete columns, parked cars, service pipes and damp floor patches break up
+a dark underground garage. Pairs of floating eyes approach through the unlit
+bays. Aim an enabled **flashlight** at them to disperse them; simply looking
+is not enough, and columns block the beam. The lit entrance and cabinet
+approaches provide safe refuges. Contact in darkness triggers a jumpscare and
+Game Over; restarting returns to the Parking entrance with fresh circuits.
+
+Use the **CIRCUIT SIGNAL** and **Tab** map to find electrical cabinets **A, B and C**.
+Approach each cabinet from the front and press **E** to restore its sector's
+lights and make that sector safe. After all three circuits are online, follow
+the exit signal, open the service door with **E** and walk through it. Completing
+the stage also lets you continue exploring the garage.
+
+Direct launch: `Backrooms.exe --demo --parking`.
+See [Parking mechanics and flashlight rules](docs/parking.md).
+
+## Level selection and shorter first stage — 26 October 2026
+
+Press **Escape**, then **Choose a Level** to select Yellow Rooms, Level Fun or
+Parking with the mouse or Up/Down and Enter. Escape or Back returns to the
+pause menu; Escape there resumes play. **Ctrl** is only used for crouching.
+Selecting a level starts it at its entrance with fresh progress,
+including when selecting the current level, while keeping the seed and settings.
+
+The first level's exit is now within a **122.5–137.5 metre connected route**
+from the start. The key remains three to five rooms before the door. HUD
+straight-line distances can be smaller. See [level selection](docs/level-selection.md).
+
+## Level 0 atmosphere update — 19 October 2026
+
+The first level now has soft ventilation and settling sounds, occasional drips,
+and rare muffled soil footsteps behind real walls. Quiet breath/drag cues come
+from Aranea's actual position when it is hidden behind a nearby wall. Events
+are spaced apart and fade out during pursuit so the real creature remains
+audible. Pause and level transitions stop the Level 0 schedule.
+
+Aranea now spawns 24–32 metres from the player, with at least 24 metres of
+clearance from the run's initial player position. Spawns still require hidden,
+reachable floor; the monster can subsequently walk toward the entrance.
+See [atmosphere, spawn rules and verification](docs/level0-atmosphere.md).
+
 
 ## Aranea audio update — 13 October 2026
 
@@ -60,7 +130,7 @@ The GitHub repository contains source code and assets; the build produces `Backr
 | N, while paused | Start a different seeded building |
 | F12 | Save a BMP screenshot to `captures/` |
 | J | Trigger the debug jumpscare |
-| Escape | Pause / resume and release / capture mouse |
+| Escape | Pause / resume; choose **Choose a Level** in the menu to start any of the three levels |
 | Q, while paused | Quit |
 
 Walking reaches **2.5 m/s**, Shift reaches **4.0 m/s**, and crouching reaches **1.1 m/s**. Acceleration and braking give movement weight. Holding Ctrl eases the eye height from 1.65 to 1.08 metres. Footsteps follow actual travel: crouching stays quiet, and wall pushing does not keep playing walking sounds. **M** mutes the complete sound mix.
@@ -92,13 +162,13 @@ Stamina starts at **100**, drains at **18 points per second** during actual spri
 
 Mouse look is smoothly eased, and restrained head bob follows actual movement. The default camera has light soft focus and a field-of-view change from **78° to 82°** during sprint travel. Version 0.10 reduces the blur radius from 1.7 to **0.8 reference pixels** at the image centre, roughly halving the previous softness while keeping existing settings. The interface remains sharp. Rooms have dim fluorescent lighting and deep shadows; use **F** to toggle the flashlight. V hides the ordinary navigation HUD for a cleaner camera view; it does not record video.
 
-The clickable main and pause menus provide play/resume, settings, a new seed, a return to the entrance and quit. Settings include **mouse sensitivity, master volume, music on/off, music volume, brightness, field of view, head bob, camera softness and VSync**, plus **Contact Shading** (0–100%, default 65%) and a reset-defaults option. Music volume defaults to **35%**, multiplied by master volume. Changes are saved to `settings.cfg` beside the executable. Head bob and camera softness can be set to zero. Press Escape in settings to return to the menu.
+The clickable main and pause menus provide play/resume, settings, level selection, a new seed, a return to the entrance and quit. **Choose Level** is also available on Game Over. Escape or Back in the selector returns to the menu and keeps the game paused. Settings include **mouse sensitivity, master volume, music on/off, music volume, brightness, field of view, head bob, camera softness and VSync**, plus **Contact Shading** (0–100%, default 65%) and a reset-defaults option. Music volume defaults to **35%**, multiplied by master volume. Changes are saved to `settings.cfg` beside the executable. Head bob and camera softness can be set to zero. Press Escape in settings to return to the menu.
 
 The yellow wallpaper and acoustic-ceiling style continues through classic rooms, repeating corridors, open halls, pillar halls, dead ends and occasional odd rooms with hard tiled floors. Layouts vary across **7.5, 15 and 22.5 metre** footprints under a uniform 3.2 metre ceiling. Procedural wall scars, peeling patches and damp marks combine with normal-mapped wallpaper, dry/damp carpet, ceiling tiles and hard flooring. The connected world continues generating as you walk. The older photo Nextbots and separate themed districts remain removed. Seeded recesses carved into existing yellow walls provide hiding places; **H** marks them on the minimap. Approach and press **E** to hide or leave. Break the creature's line of sight before entering. Hiding stops movement, lowers the camera, and suppresses the flashlight while allowing you to look out.
 
 The Aranea animation update replaces the humanoid with the supplied four-legged creature. A staggered walking gait lifts one leg at a time while three support the body; running uses faster diagonal pairs. The body turns before moving, the head stays centered during locomotion and tracks independently while idle, the jaw moves, and step sounds follow all four foot contacts. The legs fold inward for doorways. See [Aranea animation and validation notes](docs/aranea-motion.md). The [earlier Smiler animation results](docs/smiler-motion.md) are historical and do not validate this replacement.
 
-The **Aranea Membri** uses the actual 3D mesh from the user-supplied `rec-room-backrooms-entity-62-aranea-membri.zip`, including `source/Scene.glb` and its two carpet textures. All 135 mesh parts and 15,220 triangles are retained. The source has no rig or animation; the project adds four articulated leg chains, head/jaw movement, walk/run cycles and a capture pose. Offline conversion produces `assets/models/aranea/aranea.brm` and two texture caches, so Blender and Python are not needed to build or play. Source provenance and rebuild instructions are in the [model notes](assets/models/aranea/README.md). This replaces the previous Smiler; its earlier source and animation remain in local backups. After an initial **8-second grace period**, one creature can enter unseen, reachable space **16–22 metres** from the player. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
+The **Aranea Membri** uses the actual 3D mesh from the user-supplied `rec-room-backrooms-entity-62-aranea-membri.zip`, including `source/Scene.glb` and its two carpet textures. All 135 mesh parts and 15,220 triangles are retained. The source has no rig or animation; the project adds four articulated leg chains, head/jaw movement, walk/run cycles and a capture pose. Offline conversion produces `assets/models/aranea/aranea.brm` and two texture caches, so Blender and Python are not needed to build or play. Source provenance and rebuild instructions are in the [model notes](assets/models/aranea/README.md). This replaces the previous Smiler; its earlier source and animation remain in local backups. After an initial **8-second grace period**, one creature can enter unseen, reachable space **24–32 metres** from the player, also outside a 24-metre radius around the initial player position. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
 
 The creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, folds its legs through doorways and cannot catch through a closed door. Its corrected skull and body both face forward: it turns before moving along a new route segment, and its head stays centered while walking or running. Positional footfalls help you hear its direction during a chase.
 
@@ -112,7 +182,7 @@ Sound uses the existing Windows **WinMM** output API, with no additional library
 
 The soundtrack plays from `assets/audio/music/numbers-temporex.mp3`, converted locally from the supplied file for compatibility with this computer's Windows decoder. The original `numbers-temporex.m4a` is preserved in the same directory. Windows WinMM/MCI plays the music separately from positional environmental sounds, without another runtime library. Pause, **M**, or switching music off pauses the track; resuming keeps its playback position. Music volume can be lowered independently of footsteps and ambience. The generated audio-preview WAV contains the environmental mix, not the song.
 
-The green **EXIT SIGNAL** shows distance and direction relative to your view. The exit is placed at a seeded random location. The key lies 3�5 connected rooms toward the entrance from that exit, keeping the remaining route to roughly 25�40 metres. Ordinary launches choose a fresh seed; `--seed` reproduces a layout and restarting preserves it. The exit starts **locked**. Follow the gold **KEY SIGNAL** and minimap marker to the seeded brass key. Walk close to collect it: the exit unlocks but stays closed, and the creature investigates the pickup location once. Follow the exit marker, **press E to open the door**, then walk through it to escape. Owning the key keeps the creature 35% faster but does not reveal your position or refresh its alert. The collected key persists while rooms stream; a new run resets it. See [key, hiding and audio details](docs/key-and-hiding.md). Pressing E alone does not end the game. Crossing the threshold now takes you directly to **Level Fun**, resets the player and clears the creature. Level Fun contains four yellow Partygoers with red balloons: they approach when unseen and freeze under your gaze. Contact is lethal without a jumpscare; restarting returns to the Level Fun entrance checkpoint. Search presents with E for its exit key (5% initial chance, +3 percentage points per miss, guaranteed by box 15), then manually open the exit and walk into the Parking checkpoint. See [Level Fun details](docs/level-fun.md). The local map shows the exit when it is in range.
+The green **EXIT SIGNAL** shows distance and direction relative to your view. The exit is placed at a seeded random location. The key lies 3–5 connected rooms toward the entrance from that exit, keeping the remaining route to roughly 25–40 metres. Ordinary launches choose a fresh seed; `--seed` reproduces a layout and restarting preserves it. The exit starts **locked**. Follow the gold **KEY SIGNAL** and minimap marker to the seeded brass key. Walk close to collect it: the exit unlocks but stays closed, and the creature investigates the pickup location once. Follow the exit marker, **press E to open the door**, then walk through it to escape. Owning the key keeps the creature 35% faster but does not reveal your position or refresh its alert. The collected key persists while rooms stream; a new run resets it. See [key, hiding and audio details](docs/key-and-hiding.md). Pressing E alone does not end the game. Crossing the threshold now takes you directly to **Level Fun**, resets the player and clears the creature. Level Fun contains four yellow Partygoers with red balloons: they approach when unseen and freeze under your gaze. Contact is lethal without a jumpscare; restarting returns to the Level Fun entrance checkpoint. Search presents with E for its exit key (5% initial chance, +3 percentage points per miss, guaranteed by box 15), then manually open the exit and walk into the Parking checkpoint. See [Level Fun details](docs/level-fun.md). The local map shows the exit when it is in range.
 
 To see the first clue, stand in the starting room, face its first north doorway, and aim the flashlight at the doorway's left side. Toggle F to compare.
 
@@ -121,7 +191,7 @@ To see the first clue, stand in the starting room, face its first north doorway,
 - Seeded, connected yellow rooms, corridors, halls, pillars, dead ends and occasional tiled rooms.
 - Smooth mouse look, gradual acceleration/braking, adjustable head bob, crouching, stamina and collision sliding.
 - Animated hinged doors, a seeded wall-integrated exit and nearby key, and flashlight-revealed clues.
-- The supplied textured 3D Aranea Membri with four-legged walk/run animation, independent head/jaw movement, 16–22 m spawns, sight/hearing detection, collision-aware pursuit, last-position searching and a timed loss of interest.
+- The supplied textured 3D Aranea Membri with four-legged walk/run animation, independent head/jaw movement, 24–32 m spawns, sight/hearing detection, collision-aware pursuit, last-position searching and a timed loss of interest.
 - A 3D capture jumpscare, Aranea ground footsteps and sighting/pursuit calls, game-over screen and same-seed restart.
 - Procedural worn materials with UV mapping, mipmaps and normal maps.
 - Working/dying/off fluorescent fixtures, per-light attenuation, cached six-face lamp shadows, PCF-filtered flashlight shadows, Blinn-Phong shading and distance fog.
