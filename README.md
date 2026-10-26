@@ -33,6 +33,10 @@ freeze while you can see them and pursue when you look away. Contact is lethal:
 the screen cuts to Game Over without a jumpscare, and **Restart Checkpoint**
 returns you to the Level Fun entrance with fresh progress.
 
+![A Partygoer in Level Fun, surrounded by party tables, cakes and balloons](assets/preview-level-fun.png)
+
+*Level Fun and a Partygoer, captured in-game.*
+
 Face a present and press **E** to search it for the exit key. The chance rises
 after each miss, and the 15th searched present guarantees the key. Some boxes
 release a squeaking mouse that attracts and speeds up the Partygoers. A rare
@@ -51,6 +55,10 @@ bays. Aim an enabled **flashlight** at them to disperse them; simply looking
 is not enough, and columns block the beam. The lit entrance and cabinet
 approaches provide safe refuges. Contact in darkness triggers a jumpscare and
 Game Over; restarting returns to the Parking entrance with fresh circuits.
+
+![Underground Parking with cars, concrete columns and flashlight-lit bays](assets/preview-parking.png)
+
+*Underground Parking, captured in-game with the flashlight enabled.*
 
 Use the **CIRCUIT SIGNAL** and **Tab** map to find electrical cabinets **A, B and C**.
 Approach each cabinet from the front and press **E** to restore its sector's
