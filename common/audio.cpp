@@ -19,7 +19,10 @@ namespace {
 constexpr double PI=3.14159265358979323846;
 constexpr std::size_t FOOTSTEP_COUNT=6;
 constexpr std::size_t POSITIONED_CLIP_COUNT=
-    std::size_t(SoundKind::ThreatRustle)-std::size_t(SoundKind::AmbientCreak)+1;
+    std::size_t(SoundKind::CityAmbience)-std::size_t(SoundKind::AmbientCreak)+1;
+bool cinematicSound(SoundKind kind) {
+    return kind>=SoundKind::ElevatorDoor && kind<=SoundKind::CityAmbience;
+}
 bool captureSound(SoundKind kind) {
     return kind==SoundKind::Jumpscare || kind==SoundKind::DarknessJumpscare;
 }
@@ -193,6 +196,93 @@ std::vector<std::int16_t> threatSound(const SoundEvent& event) {
     return result;
 }
 
+// Original synthesized placeholders, cached once with the other mixer clips.
+// Smooth envelopes avoid sharp clicks; only the arrival bell is a bright tone.
+std::vector<std::int16_t> cinematicClip(const SoundEvent& event) {
+    const bool door=event.kind==SoundKind::ElevatorDoor;
+    const bool motor=event.kind==SoundKind::ElevatorMotor;
+    const bool bell=event.kind==SoundKind::ElevatorBell;
+    const bool city=event.kind==SoundKind::CityAmbience;
+    const double duration=door?2.8:(motor?7.0:(bell?1.4:(city?20.0:11.0)));
+    std::vector<std::int16_t> result(std::size_t(duration*AUDIO_SAMPLE_RATE));
+    std::uint32_t random=event.variation*2891336453u+747796405u;
+    double air=0,low=0,phase=0;
+    const double pitch=.99+.005*(event.variation%4);
+    for(std::size_t i=0;i<result.size();++i) {
+        const double t=double(i)/AUDIO_SAMPLE_RATE,n=noise(random);
+        air+=.10*(n-air);low+=.008*(n-low);
+        double value=0;
+        if(door) {
+            const double slide=std::pow(std::sin(PI*std::min(1.,t/2.55)),1.2);
+            phase+=2*PI*pitch*(83+12*std::sin(PI*t/duration))/AUDIO_SAMPLE_RATE;
+            value=slide*(.075*std::sin(phase)+.026*std::sin(phase*2.7)+.23*air);
+            const double latch=t-2.55;
+            if(latch>=0)value+=.18*std::exp(-latch*26)*std::sin(2*PI*134*latch);
+        } else if(motor) {
+            const double acceleration=std::clamp(t/1.3,0.,1.);
+            const double braking=std::clamp((duration-t)/1.3,0.,1.);
+            const double speed=std::min(acceleration,braking);
+            phase+=2*PI*pitch*(39+24*speed)/AUDIO_SAMPLE_RATE;
+            const double envelope=std::min(1.,t/.28)*std::min(1.,(duration-t)/.45);
+            value=envelope*(.13*std::sin(phase)+.035*std::sin(phase*2)+.40*low+.04*air);
+            value*=.87+.13*std::sin(t*2*PI*4.6);
+        } else if(bell) {
+            for(int note=0;note<2;++note) {
+                const double age=t-note*.28;
+                if(age<0)continue;
+                const double hz=(note==0?784.:622.25)*pitch;
+                const double envelope=std::min(1.,age/.007)*std::exp(-age*3.5);
+                value+=.23*envelope*(std::sin(2*PI*hz*age)+.18*std::sin(2*PI*hz*2.003*age));
+            }
+        } else if(city) {
+            // Original street bed: tire wash and passing engines, distant
+            // non-verbal crowd murmur, pavement steps and restrained birds.
+            // It is a cached clip, not one voice or generator per city actor.
+            value=.15*low+.065*air;
+            for(int car=0;car<4;++car) {
+                const double age=t-(2.8+car*4.65+.12*(event.variation%3));
+                const double pass=std::exp(-age*age/(2.0+car*.15));
+                const double hz=car%2?87.:105.;
+                const double engine=std::sin(2*PI*pitch*(hz*age-2.0*age*age));
+                const double harmonic=std::sin(2*PI*pitch*(2*hz*age-4.0*age*age));
+                value+=pass*(.045*engine+.012*harmonic+.30*air+.25*low);
+            }
+            // Broad, indistinct voices: no words, threat growls or alarm cues.
+            const double conversation=.5+.5*std::sin(t*1.7)*std::sin(t*.63+.8);
+            value+=conversation*(.035*air+.008*std::sin(2*PI*172*t)*std::sin(t*7.3));
+            for(int group=0;group<3;++group)for(int step=0;step<7;++step) {
+                const double age=t-(1.0+group*6.2+step*.54);
+                if(age>=0&&age<.16) {
+                    const double envelope=std::min(1.,age/.007)*std::exp(-age*31);
+                    value+=envelope*(.045*std::sin(2*PI*118*age)+.055*air);
+                }
+            }
+            for(int bird=0;bird<8;++bird) {
+                const double age=t-(.6+bird*2.4);
+                if(age<0||age>.24)continue;
+                const double envelope=std::pow(std::sin(PI*age/.24),2);
+                value+=.022*envelope*std::sin(2*PI*pitch*(2100*age+950*age*age));
+            }
+            value*=std::min(1.,t/.35)*std::min(1.,(duration-t)/1.8);
+        } else {
+            // Distant road wash, a passing vehicle, and a few restrained birds.
+            const double pass=std::exp(-std::pow((t-5.1)/2.4,2));
+            value=.20*low+.032*air+pass*(.035*std::sin(2*PI*(72*t-.9*t*t))+.26*low);
+            for(int bird=0;bird<5;++bird) {
+                const double age=t-(.8+bird*1.85);
+                if(age<0||age>.34)continue;
+                const double envelope=std::pow(std::sin(PI*age/.34),2);
+                value+=.035*envelope*std::sin(2*PI*pitch*(1800*age+850*age*age));
+            }
+            value*=std::min(1.,t/1.0)*std::min(1.,(duration-t)/1.2);
+        }
+        const double edge=std::min({1.,t/.01,(duration-t)/.035});
+        result[i]=pcm(value*edge);
+    }
+    result.front()=result.back()=0;
+    return result;
+}
+
 std::vector<std::int16_t> atmosphereSound(const SoundEvent& event) {
     if(event.kind==SoundKind::DistantFootsteps) {
         // Reuse the soft soil bank rather than adding a hard heel or toe click.
@@ -319,6 +409,7 @@ std::size_t recordedFootstepCount() { return loadedSteps; }
 
 std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
     SoundEvent event=input;
+    if(cinematicSound(event.kind))return cinematicClip(event);
     if(event.kind==SoundKind::VentRattle||event.kind==SoundKind::DistantFootsteps||event.kind==SoundKind::ThreatRustle)
         return atmosphereSound(event);
     if(event.kind==SoundKind::DarknessJumpscare) {
@@ -606,6 +697,8 @@ struct AudioMixer::Impl {
         const auto index=int(kind)-int(SoundKind::AmbientCreak);
         if (index<0 || std::size_t(index)>=ambience.size() || paused || !std::isfinite(gain) || gain<=0 ||
             !std::isfinite(transmission) || transmission<=0) return;
+        if(scene.cinematic && !cinematicSound(kind) && kind!=SoundKind::Door &&
+           kind!=SoundKind::ElectricalStinger) return;
         const bool capture=captureSound(kind);
         // Catch feedback must not be dropped by a full ambience queue, nor pile
         // on top of twelve existing sources. It belongs at the camera.
@@ -617,11 +710,11 @@ struct AudioMixer::Impl {
         const bool atmosphere=distant||(scene.level0Atmosphere&&(kind==SoundKind::AmbientCreak||kind==SoundKind::WaterDrip));
         const std::size_t variant=capture?std::min(std::size_t(randomUnit()*4),std::size_t(3)):
             monsterStep?monsterVariation[kind==SoundKind::ThreatRunStep?1:0]++%4:variation++%4;
-        add(ambience[std::size_t(index)][variant],position,!capture,gain,
-            monsterStep||vocal,vocal?7.f:(distant?6.f:3.f),vocal?1u:0u,transmission,atmosphere);
+        add(ambience[std::size_t(index)][variant],position,!capture&&!cinematicSound(kind),gain,
+            monsterStep||vocal,vocal?7.f:(distant?6.f:3.f),cinematicSound(kind)?2u:(vocal?1u:0u),transmission,atmosphere);
     }
     void schedule() {
-        if(captureOnly||scene.level0Atmosphere) return;
+        if(captureOnly||scene.cinematic||scene.level0Atmosphere) return;
         if (sample>=nextAmbient) {
             const double angle=randomUnit()*PI*2,distance=14+randomUnit()*18;
             const AudioPosition source{scene.listener.x+std::cos(angle)*distance,
@@ -642,6 +735,10 @@ struct AudioMixer::Impl {
 AudioMixer::AudioMixer():impl_(std::make_unique<Impl>()) {}
 AudioMixer::~AudioMixer()=default;
 void AudioMixer::setScene(const AudioScene& scene) {
+    if(scene.cinematic!=impl_->scene.cinematic) {
+        impl_->voices={};impl_->captureOnly=false;
+        impl_->humLeft=impl_->humRight=impl_->currentTension=0;
+    }
     impl_->scene=scene;
     auto bounded=[](float value) { return std::isfinite(value)?std::clamp(value,0.f,1.f):0.f; };
     impl_->scene.lightPower=bounded(scene.lightPower);
@@ -655,7 +752,8 @@ void AudioMixer::setVolume(float volume) {
 void AudioMixer::reset(std::uint32_t seed) { impl_->restart(seed); }
 void AudioMixer::setPaused(bool paused) {
     if (paused!=impl_->paused) {
-        impl_->voices={};
+        // The finale clock pauses too: preserve its motor/door cue cursor.
+        if(!impl_->scene.cinematic)impl_->voices={};
         impl_->humLeft=impl_->humRight=impl_->currentTension=0;
         // Do not treat a high tension value preserved across a menu as a new event.
         impl_->tensionArmed=impl_->scene.tension<.65f;
@@ -708,7 +806,7 @@ void AudioMixer::render(std::int16_t* output,std::size_t frames) {
             const double drone=m.droneTable[table]*m.currentTension*m.currentTension;
             double left=m.humTable[table]*m.humLeft+drone;
             double right=m.humTable[table]*m.humRight+drone;
-            if(m.captureOnly) left=right=0;
+            if(m.captureOnly||m.scene.cinematic) left=right=0;
             for (std::size_t v=0;v<m.voices.size();++v) {
                 auto& voice=m.voices[v];
                 if (!voice.clip) continue;
@@ -767,6 +865,7 @@ bool writeAudioPreview(const std::string& path) {
 
 struct Audio::Impl {
     AudioMixer mixer;
+    bool cinematic=false;
     bool paused=false;
 #ifdef _WIN32
     static constexpr std::size_t BUFFER_COUNT=4,BUFFER_FRAMES=512;
@@ -809,7 +908,7 @@ bool Audio::available() const {
     return false;
 #endif
 }
-void Audio::setScene(const AudioScene& scene) { impl_->mixer.setScene(scene); }
+void Audio::setScene(const AudioScene& scene) { impl_->cinematic=scene.cinematic;impl_->mixer.setScene(scene); }
 void Audio::setVolume(float volume) { impl_->mixer.setVolume(volume); }
 void Audio::setPaused(bool paused) {
     impl_->mixer.setPaused(paused);
@@ -870,7 +969,9 @@ void Audio::stop() {
         waveOutClose(impl_->device); impl_->device=nullptr;
     }
 #endif
-    cadence_.reset(); impl_->mixer.setPaused(true); impl_->mixer.setPaused(impl_->paused);
+    cadence_.reset();
+    if(impl_->cinematic)impl_->mixer.reset(); // Mute discards cues rather than replaying them late.
+    impl_->mixer.setPaused(true); impl_->mixer.setPaused(impl_->paused);
 }
 void Audio::update(float dt,float actualDistance,bool crouched,bool sprinting,Surface surface,bool paused) {
     const auto events=cadence_.update(dt,actualDistance,crouched,sprinting,surface,paused);

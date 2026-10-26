@@ -10,7 +10,8 @@ enum class Gait { Walk, Crouch, Sprint };
 enum class SoundKind {
     Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door,
     ThreatNotice, ThreatStep, ThreatRunStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient, PresentOpen,
-    DarknessJumpscare, VentRattle, DistantFootsteps, ThreatRustle
+    DarknessJumpscare, VentRattle, DistantFootsteps, ThreatRustle,
+    ElevatorDoor, ElevatorMotor, ElevatorBell, SurfaceAmbience, CityAmbience
 };
 struct SoundEvent {
     SoundKind kind=SoundKind::Footstep;
@@ -68,6 +69,8 @@ struct AudioScene {
     // Level 0 schedules world-aware ambience in gameplay instead of the old
     // random creak/drip/stinger timer. Other levels keep the original timer.
     bool level0Atmosphere=false;
+    // Scripted finale owns its soundscape; suppress world hum/random danger.
+    bool cinematic=false;
     // Duck only atmosphere one-shots during danger/hiding, leaving actual
     // creature footsteps, calls and capture feedback at their normal level.
     bool atmosphereQuiet=false;

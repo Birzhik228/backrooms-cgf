@@ -29,3 +29,6 @@ __pycache__/
 /fun_tests
 /parking_tests
 /assets/*-v8.png
+
+/ending_tests
+/ending_audio_tests

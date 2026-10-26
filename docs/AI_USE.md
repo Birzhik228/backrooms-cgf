@@ -76,3 +76,30 @@ costs, implemented configurable frame pacing and stable lamp shadow-cache slots,
 and corrected wall-adjacent/corner navigation. Assistance included regression
 and rendered checks and the measurements in `performance-2026-10.md`. No friend's
 hardware or temperature measurements were available; no thermal guarantee is made.
+
+## Elevator test ending - 26 October 2026
+
+At the user's request, Codex authored an original in-engine animated ending:
+procedural elevator/lobby/Backrooms geometry, scripted camera and door motion,
+procedural materials and lighting, synthesized placeholder cinematic sounds,
+playback controls, Parking-exit integration and regression checks. Existing
+project gameplay and preferences were preserved. No third-party scene or new
+library was used. The scene is a prototype, not a prerendered video.
+
+
+## City ending revision - 26 October 2026
+
+At the user's request, the test ending now exits into a daylight city instead of
+returning to the yellow rooms. Codex authored bounded procedural street/building
+geometry, pedestrian walk cycles, moving vehicles, a longer camera path, city
+sound synthesis and regression checks. All city assets are code-generated and
+reuse the existing renderer/audio dependencies. The scene remains a scripted
+in-engine prototype; the ordinary streamed levels are not replaced by a city map.
+
+### City sunlight - 26 October 2026
+
+Added an original analytic sky sun and directional shadow rendering to the
+city ending. Cached static and animated depth maps use two fixed projections;
+city geometry and pedestrian/car transforms supply the shadow silhouettes.
+No external shaders, assets or libraries were introduced. Rendered occlusion,
+pause/cache lifetime and replay tests accompany the change.

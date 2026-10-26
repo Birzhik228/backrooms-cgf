@@ -35,6 +35,8 @@
 #include "common/ui.h"
 #include "common/controls_guide.h"
 #include "common/level_menu.h"
+#include "common/ending_renderer.h"
+#include "common/ending_ui.h"
 #include "common/audio.h"
 #include "common/atmosphere.h"
 #include "common/movement.h"
@@ -73,6 +75,8 @@ struct Options {
     int fpsLimit = -1; // -1: settings; hidden benchmarks remain uncapped.
     int frames = 0, width = 1280, height = 800;
     bool hidden = false, demo = false, tour = false;
+    bool endingPreview=false,endingCheck=false;
+    float endingTime=0;
     bool explicitSeed=false,exitPreview=false,keyPreview=false;
     bool noFlashlight = false, map = false, metrics = false;
     bool wireframe = false, autoWalk = false, autoExit = false, autoContinue = false;
@@ -141,6 +145,14 @@ static Options parseOptions(int argc, char** argv) {
         } else if (argument == "--fps-limit") {
             options.fpsLimit = std::clamp(std::stoi(next()), 0, 240);
             if(options.fpsLimit>0) options.fpsLimit=std::max(30,options.fpsLimit);
+        } else if (argument == "--ending-preview") {
+            options.endingPreview=true;
+        } else if (argument == "--ending-time") {
+            options.endingPreview=true;options.endingTime=std::stof(next());
+            if(!std::isfinite(options.endingTime))throw std::runtime_error("Invalid ending time");
+            options.endingTime=std::clamp(options.endingTime,0.f,EndingSequence::DURATION);
+        } else if (argument == "--ending-check") {
+            options.endingPreview=true;options.endingCheck=true;
         } else if (argument == "--hidden") {
             options.hidden = true;
         } else if (argument == "--demo") {
@@ -259,6 +271,7 @@ static Options parseOptions(int argc, char** argv) {
                          "--unbounded-queue disables normal two-frame GPU pacing for comparisons.\n"
                          "--auto-walk: forward movement with fixed 1/60-second simulation "
                          "steps; use --demo to begin unpaused. FPS uses real elapsed time.\n"
+                         "--ending-preview starts the elevator film; --ending-time N seeks to a test shot; F9 previews in-game.\n"
                          "--settings opens settings; --auto-settings verifies changing brightness.\n"
                          "--fps-limit N overrides the frame cap (0: unlimited; default: 60 in normal play).\n"
                          "--settings-file path uses a custom settings file (hidden runs otherwise ignore saved settings).\n"
@@ -851,6 +864,17 @@ static int run(const Options& options) {
     bool guidePending=(!options.hidden && !options.tour) || options.guideCheck;
     bool wireframe = options.wireframe, shifting = true, entered = !input.paused;
     bool escaped = false, exitUsed = false, exitArmed = true;
+    EndingSequence ending;
+    EndingRenderer endingRenderer;
+    bool endingActive=false,endingPaused=false,endingFinishedLogged=false;
+    int endingCompletions=0,endingReplays=0,endingSelection=1;
+    std::string endingPhase;
+    float endingCueTime=-1;
+    const char* endingAmbienceRestore=nullptr;
+    double endingFrozenX=px,endingFrozenZ=pz;
+    float endingFrozenStamina=100;
+    bool endingWorldFrozen=true;
+
     PlayerMotion motion;
     Stamina stamina;
     bool settingsOpen = options.settingsMenu;
@@ -947,6 +971,34 @@ static int run(const Options& options) {
         }
     };
 
+    auto restoreEndingAmbience=[&](const char* reason) {
+        if(muted||ending.finished())return;
+        const float time=ending.time();
+        SoundKind kind;float gain,start;const char* bed;
+        if(time>=23) { kind=SoundKind::CityAmbience;gain=.70f;start=23;bed="city"; }
+        else if(time>=13) { kind=SoundKind::SurfaceAmbience;gain=.60f;start=13;bed="lobby"; }
+        else if(time>=3&&time<10) { kind=SoundKind::ElevatorMotor;gain=.70f;start=3;bed="motor"; }
+        else return;
+        if(endingCueTime<start)return; // The ordinary cue already fired at this frame's boundary.
+        // Seeking/unmuting restores a bed, never a past door or arrival bell.
+        // The caller has already installed the cinematic scene.
+        audio.play(kind,{0,1.65,-1},gain);
+        log(std::string("Ending ambience restored: ")+bed+" ("+reason+")");
+    };
+    auto startEnding=[&](const char* reason,float at=0) {
+        ending.start(at);endingActive=true;endingPaused=false;endingFinishedLogged=false;
+        endingPhase.clear();endingCueTime=at>0?at:-1;
+        endingAmbienceRestore=at>0?"seek":nullptr;
+        endingFrozenX=px;endingFrozenZ=pz;endingFrozenStamina=stamina.value;
+        endingSelection=1;motion.reset();input.pause(true);settingsOpen=false;levelMenuOpen=false;
+        showHelp=false;guidePending=false;notice.clear();
+        audio.reset(static_cast<std::uint32_t>(world.seed()));
+        AudioScene silent;silent.cinematic=true;silent.lightPower=0;audio.setScene(silent);
+        music.update(true,true,0,0);
+        log(std::string("Ending started: ")+reason);
+    };
+    if(options.endingPreview)startEnding("preview",options.endingTime);
+
     FrameQueue frameQueue;
     FramePacer framePacer;
     std::ofstream profile;
@@ -965,7 +1017,7 @@ static int run(const Options& options) {
         // Cap ordinary simulation stalls to avoid teleporting through a wall.
         // The automated walk has deterministic motion per frame, independent of
         // render speed; performance counters always use real wall-clock time.
-        const float dt = (options.levelMenuCheck || options.controlHoldCheck || options.controlPauseCheck || options.controlTapCheck || options.darknessPreview || options.autoBreakers || options.partyPreview || options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.autoJumpscare || options.autoKey || options.autoHide || options.mouseFixture || options.guideCheck || options.forcedThreat) ? 1.f / 60.f :
+        const float dt = ((options.endingPreview && options.hidden) || options.levelMenuCheck || options.controlHoldCheck || options.controlPauseCheck || options.controlTapCheck || options.darknessPreview || options.autoBreakers || options.partyPreview || options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.autoJumpscare || options.autoKey || options.autoHide || options.mouseFixture || options.guideCheck || options.forcedThreat) ? 1.f / 60.f :
                          static_cast<float>(std::min(rawDelta, .05));
         elapsed += dt;
         const double inputStart = glfwGetTime();
@@ -1039,7 +1091,112 @@ static int run(const Options& options) {
         if(options.guideCheck && (frame==5 || frame==7 || frame==9) && options.guideClick) Input::button(window,GLFW_MOUSE_BUTTON_LEFT,GLFW_PRESS,0);
         if(options.guideCheck && frame==8 && options.guideBack) simulateKey(GLFW_KEY_LEFT);
         if(options.guideCheck && frame==5 && options.guideSkip) simulateKey(GLFW_KEY_ESCAPE);
+        if(options.endingCheck) {
+            // Hidden verification begins muted; enable it before testing off/on.
+            if((options.hidden&&frame==1)||frame==18||frame==20)simulateKey(GLFW_KEY_M);
+            if(frame==5||frame==15)simulateKey(GLFW_KEY_ESCAPE);
+            if(frame==25||frame==32)simulateKey(GLFW_KEY_SPACE);
+            if(frame==27)simulateKey(GLFW_KEY_R);
+            if(frame==34)simulateKey(GLFW_KEY_ENTER);
+        }
         input.poll();
+        if(input.hit(GLFW_KEY_F9) && !endingActive && !encounter.scaring())startEnding("preview");
+        if(endingActive) {
+            int width,height;glfwGetFramebufferSize(window,&width,&height);
+            const bool focused=options.hidden||glfwGetWindowAttrib(window,GLFW_FOCUSED);
+            if(!focused&&!endingPaused&&!ending.finished()) {
+                endingPaused=true;log("Ending paused.");
+            }
+            if(input.hit(GLFW_KEY_ESCAPE)&&!ending.finished()) {
+                endingPaused=!endingPaused;log(endingPaused?"Ending paused.":"Ending resumed.");
+            }
+            if(input.hit(GLFW_KEY_M)) {
+                muted=!muted;
+                if(muted) { audio.stop();endingAmbienceRestore=nullptr; }
+                else { audio.start();endingAmbienceRestore="unmute"; }
+                log(muted?"Ending sound: off":"Ending sound: on");
+            }
+            if(input.hit(GLFW_KEY_Q)&&(endingPaused||ending.finished()))glfwSetWindowShouldClose(window,GL_TRUE);
+            if(input.hit(GLFW_KEY_SPACE)&&!ending.finished()) {
+                ending.start(EndingSequence::DURATION);endingPaused=false;audio.reset(static_cast<std::uint32_t>(world.seed()));
+                endingAmbienceRestore=nullptr;
+                log("Ending skipped.");
+            }
+            if(ending.finished()) {
+                if(input.hit(GLFW_KEY_UP)||input.hit(GLFW_KEY_DOWN))endingSelection=1-endingSelection;
+                int action=input.hit(GLFW_KEY_R)?0:input.hit(GLFW_KEY_ENTER)?endingSelection:-1;
+                if(input.clicked) {
+                    int ww,wh;glfwGetWindowSize(window,&ww,&wh);double mx,my;glfwGetCursorPos(window,&mx,&my);
+                    action=EndingButtons(width,height).at(mx*width/std::max(1,ww),my*height/std::max(1,wh));
+                }
+                if(action==0) { ++endingReplays;startEnding("replay");log("Ending replayed."); }
+                if(action==1) {
+                    endingActive=false;endingPaused=false;endingRenderer.destroy();
+                    endingAmbienceRestore=nullptr;
+                    audio.reset(static_cast<std::uint32_t>(world.seed()));audio.setScene(AudioScene{});
+                    audio.setPaused(true);audio.setVolume(settings.volume);music.update(true,muted||!settings.musicEnabled,settings.volume*settings.musicVolume,0);
+                    input.pause(true);input.pressed.fill(false);input.clicked=false;menuSelection=0;
+                    notice.clear();noticeTime=0;log("Ending returned to menu.");
+                }
+            }
+            if(endingActive) {
+                const bool suspended=endingPaused||!focused||width<=0||height<=0;
+                const float endingDelta=options.hidden?dt:float(std::min(rawDelta,.25));
+                const auto previousPose=sampleEndingPose(ending.time());
+                ending.update(endingDelta,suspended);
+                endingWorldFrozen=endingWorldFrozen&&px==endingFrozenX&&pz==endingFrozenZ&&stamina.value==endingFrozenStamina;
+                const std::string phase=EndingSequence::phaseName(ending.time());
+                if(phase!=endingPhase){
+                    endingPhase=phase;log("Ending phase: "+phase);
+                    if(phase=="City life")log("Ending city: "+std::to_string(EndingCity::pedestrianCount)+
+                        " walking pedestrians / "+std::to_string(EndingCity::carCount)+" moving cars.");
+                }
+                if(ending.finished()&&!endingFinishedLogged) {
+                    ++endingCompletions;endingFinishedLogged=true;audio.reset(static_cast<std::uint32_t>(world.seed()));
+                    endingAmbienceRestore=nullptr;
+                    log("Ending finished: You found the way out.");
+                }
+                AudioScene cinematic;cinematic.cinematic=true;cinematic.lightPower=0;
+                cinematic.listener={0,1.65,0};cinematic.forward={0,0,-1};audio.setScene(cinematic);
+                audio.setVolume(settings.volume*(1-endingEase(39,EndingSequence::DURATION,ending.time())));audio.setPaused(suspended||ending.finished());
+                auto cue=[&](float at,SoundKind kind,float gain) {
+                    if(!suspended&&endingCueTime<at&&ending.time()>=at&&!muted&&!ending.finished())audio.play(kind,{0,1.65,-1},gain);
+                };
+                if(!suspended&&endingCueTime<10&&ending.time()>=10&&!ending.finished())
+                    audio.reset(static_cast<std::uint32_t>(world.seed())); // End even a recently restored motor before the arrival cues.
+                if(!suspended&&endingCueTime<23&&ending.time()>=23&&!ending.finished())
+                    audio.reset(static_cast<std::uint32_t>(world.seed())); // Replace the muffled lobby bed with full street ambience outside.
+                cue(0,SoundKind::ElevatorDoor,.7f);cue(3,SoundKind::ElevatorMotor,.7f);
+                cue(10,SoundKind::ElevatorBell,.55f);cue(10,SoundKind::ElevatorDoor,.65f);
+                cue(13,SoundKind::SurfaceAmbience,.6f);cue(20,SoundKind::Door,.5f);
+                cue(23,SoundKind::CityAmbience,.70f);
+                if(endingAmbienceRestore&&!suspended) {
+                    restoreEndingAmbience(endingAmbienceRestore);endingAmbienceRestore=nullptr;
+                }
+                if(!suspended)endingCueTime=ending.time();
+                const auto currentPose=sampleEndingPose(ending.time());
+                const float cinematicTravel=std::hypot(currentPose.eye.x-previousPose.eye.x,currentPose.eye.z-previousPose.eye.z);
+                audio.update(endingDelta,cinematicTravel,false,false,Surface::HardFloor,suspended||ending.finished());
+                music.update(true,true,0,dt);
+                if(width<=0||height<=0){glfwWaitEventsTimeout(.03);continue;}
+                endingRenderer.draw(ending,width,height,settings.brightness);
+                drawEndingUI(ui,width,height,ending,suspended,endingSelection);ui.render(width,height);
+                const bool lastFrame=options.frames>0&&frame+1>=options.frames;
+                if(lastFrame&&!options.capture.empty())screenshot(options.capture,width,height);
+                if(input.hit(GLFW_KEY_F12))screenshot(fs::path("captures")/"ending.bmp",width,height);
+                const auto error=glGetError();if(error!=GL_NO_ERROR)throw std::runtime_error("Ending OpenGL error "+std::to_string(error));
+                if(!options.unboundedQueue)frameQueue.submit();
+                glfwSwapBuffers(window);
+                int cap=options.fpsLimit>=0?options.fpsLimit:options.hidden?0:settings.maxFps;
+                if(!options.hidden&&(suspended||ending.finished()))cap=cap>0?std::min(cap,30):30;
+                if(cap>0)framePacer.wait(1.0/cap-(glfwGetTime()-frameStart));
+                ++frame;const double seconds=glfwGetTime()-frameStart;
+                maxFrameMs=std::max(maxFrameMs,seconds*1000);
+                fpsTime+=seconds;++fpsFrames;if(fpsTime>=.5){fps=float(fpsFrames/fpsTime);fpsTime=0;fpsFrames=0;}
+                if(lastFrame)break;
+                continue; // Freeze streaming, AI, doors and ordinary game audio during the film.
+            }
+        }
         const double inputMs = (glfwGetTime() - inputStart) * 1000;
         const double moveStart = glfwGetTime();
 
@@ -1332,6 +1489,8 @@ static int run(const Options& options) {
             else {
                 escaped=true;exitUsed=true;exitArmed=false;motion.reset();input.pause(true);menuSelection=0;
                 notice.clear();log("Parking completed. All three circuits restored; service exit reached.");
+                startEnding("parking exit");
+                continue;
             }
         }
         float doorNoise=0;
@@ -2309,7 +2468,7 @@ static int run(const Options& options) {
                     ui.text(left+50,y+14,labels[i],1.7f,selected?Color{.055f,.065f,.035f,1}:paper);
                 }
                 ui.text(left+32,top+472,encounter.gameOver()?"CLICK RESTART OR PRESS ENTER   O SETTINGS   Q QUIT":"CLICK OR UP/DOWN + ENTER   O SETTINGS   ESC RESUME",1.2f,dim);
-                ui.text(left+32,top+boxH-27,"CHOOSE A LEVEL TO START AT ITS ENTRANCE    CTRL / CROUCH",1.1f,dim);
+                ui.text(left+32,top+boxH-27,"F9 / PREVIEW ENDING    CTRL / CROUCH",1.1f,dim);
             }
         }
         if(showHelp) drawControlsGuide(ui,width,height,guidePage,world.isFun(),world.isParking());
@@ -2413,6 +2572,10 @@ static int run(const Options& options) {
         ", synchronous fallback chunks " + std::to_string(world.streamFallbacks()) + ".");
 
     // Delete GL objects while their context is still current.
+    log("Ending time: "+std::to_string(ending.time())+" / active "+(endingActive?"yes":"no")+
+        " / completed "+std::to_string(endingCompletions)+" / replayed "+std::to_string(endingReplays));
+    log(std::string("Ending gameplay frozen: ")+(endingWorldFrozen?"yes":"no"));
+    endingRenderer.destroy();
     frameQueue.destroy();
     log("Lamp shadow cache updates: "+std::to_string(lampShadowUpdates));
     audio.stop();

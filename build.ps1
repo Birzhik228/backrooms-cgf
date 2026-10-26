@@ -36,6 +36,15 @@ Write-Host "Building Backrooms with $taskCompiler"
 if ($LASTEXITCODE -ne 0) { throw "Build failed ($LASTEXITCODE)." }
 Write-Host 'Built Backrooms.exe. Start with Run.cmd.'
 if ($Test) {
+    & $taskCompiler @taskFlags 'tests\ending_tests.cpp' '-o' 'tests\ending_tests.exe' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Ending test compilation failed.' }
+    & '.\tests\ending_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Ending tests failed.' }
+    & $taskCompiler @taskFlags 'common\audio.cpp' 'tests\ending_audio_tests.cpp' '-o' 'tests\ending_audio_tests.exe' '-lwinmm' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Ending audio compilation failed.' }
+    & '.\tests\ending_audio_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Ending audio tests failed.' }
+
     & $taskCompiler @taskFlags 'world.cpp' 'tests\atmosphere_tests.cpp' '-o' 'tests\atmosphere_tests.exe' '-static'
     if ($LASTEXITCODE -ne 0) { throw 'Atmosphere test compilation failed.' }
     & '.\tests\atmosphere_tests.exe'
@@ -100,4 +109,8 @@ if ($GraphicsTest) {
     if ($LASTEXITCODE -ne 0) { throw 'Lens noise test compilation failed.' }
     & '.\tests\lens_noise_tests.exe'
     if ($LASTEXITCODE -ne 0) { throw 'Lens noise tests failed.' }
+    & $taskCompiler @taskFlags 'tests\ending_lighting_tests.cpp' 'common\Shader.cpp' 'common\glad.c' '-o' 'tests\ending_lighting_tests.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-static'
+    if ($LASTEXITCODE -ne 0) { throw 'Ending sunlight test compilation failed.' }
+    & '.\tests\ending_lighting_tests.exe'
+    if ($LASTEXITCODE -ne 0) { throw 'Ending sunlight tests failed.' }
 }

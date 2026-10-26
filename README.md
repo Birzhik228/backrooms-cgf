@@ -1,6 +1,6 @@
 # BACKROOMS / Threshold v0.12 — Three-stage exploration
 
-A first-person horror exploration game in **C++17 and OpenGL 3.3 core** for the Computer Graphics Fundamentals project. Explore three connected stages: worn yellow rooms, a deceptively cheerful party maze and a dark underground garage. Smooth first-person controls, stamina, interactive doors and spatial sound support a different objective and threat in each stage. Listen carefully, manage your surroundings and find the next exit.
+A first-person horror exploration game in **C++17 and OpenGL 3.3 core** for the Computer Graphics Fundamentals project. Explore three connected stages: worn yellow rooms, a deceptively cheerful party maze and a dark underground garage. Smooth first-person controls, stamina, interactive doors and spatial sound support a different objective and threat in each stage. Listen carefully, manage your surroundings and reach the elevator that leads to the surface.
 
 ![Aranea Membri in-game](assets/preview.png)
 
@@ -8,7 +8,7 @@ A first-person horror exploration game in **C++17 and OpenGL 3.3 core** for the 
 
 ## Levels
 
-The normal route is **Yellow Rooms (Level 0) -> Level Fun -> Underground Parking**.
+The normal route is **Yellow Rooms (Level 0) -> Level Fun -> Underground Parking -> City ending**.
 You can also start any stage through **Escape -> Choose a Level**. Selecting a
 stage starts it with fresh progress while keeping the seed and settings.
 Checkpoints last for the current session and are not saved after closing the game.
@@ -63,11 +63,45 @@ Game Over; restarting returns to the Parking entrance with fresh circuits.
 Use the **CIRCUIT SIGNAL** and **Tab** map to find electrical cabinets **A, B and C**.
 Approach each cabinet from the front and press **E** to restore its sector's
 lights and make that sector safe. After all three circuits are online, follow
-the exit signal, open the service door with **E** and walk through it. Completing
-the stage also lets you continue exploring the garage.
+the exit signal, open the service door with **E** and walk through it. Crossing
+the powered exit starts the elevator and city ending described below.
 
 Direct launch: `Backrooms.exe --demo --parking`.
 See [Parking mechanics and flashlight rules](docs/parking.md).
+
+## Ending — Elevator to the surface
+
+Restore all three Parking circuits, open the powered service exit with **E**,
+and walk through it to start a **42-second cinematic**. The lift closes, rises
+to a bright lobby, and opens the way to a daylight city street. The camera walks
+outside and looks along the street before the **You found the way out** screen.
+
+![The city ending with pedestrians, traffic, sunlight and cast shadows](assets/preview-city-ending.png)
+
+*Actual in-game capture: the final street shot, with sunlight and moving traffic.*
+
+- Twelve pedestrians walk with articulated arms and legs; six cars travel in two
+  lanes with rotating wheels. Buildings, shops, trees and street furniture line
+  the road.
+- A visible sun casts shadows from buildings, trees, doors, people and cars.
+  Static shadow maps are cached; animated shadows follow the models and freeze
+  when the cinematic is paused.
+- Lift sounds, an arrival chime, footsteps and generated city ambience accompany
+  the sequence. **M** toggles sound; master volume applies.
+
+This is an animated ending with an automatic camera. Preview it using **F9**
+outside a jumpscare, or run:
+
+```powershell
+.\Backrooms.exe --ending-preview
+```
+
+During the film, **Esc** pauses/resumes and **Space** skips to the result.
+At the result, **R** replays and **Enter** selects the highlighted button
+(**Back to menu** by default). The buttons also support mouse clicks.
+Returning to the menu preserves the current level and progress for this session.
+The city uses generated geometry and sounds; it requires no additional library
+or downloaded assets. See [sequence, controls and tests](docs/ending-elevator.md).
 
 ## Level selection and shorter first stage — 26 October 2026
 
@@ -134,10 +168,13 @@ The GitHub repository contains source code and assets; the build produces `Backr
 | F1 | Show performance and world diagnostics |
 | F2 | Show wireframe geometry |
 | F3 | Enable/disable changes to distant unseen rooms |
-| R | Return to the first room, keeping the seed |
+| R, during exploration | Return to the first room, keeping the seed |
 | N, while paused | Start a different seeded building |
 | F12 | Save a BMP screenshot to `captures/` |
 | J | Trigger the debug jumpscare |
+| F9 | Preview the elevator and city ending |
+| Space, during the ending | Skip to the result screen |
+| R, at the ending result | Replay the ending |
 | Escape | Pause / resume; choose **Choose a Level** in the menu to start any of the three levels |
 | Q, while paused | Quit |
 
@@ -172,7 +209,7 @@ Mouse look is smoothly eased, and restrained head bob follows actual movement. T
 
 The clickable main and pause menus provide play/resume, settings, level selection, a new seed, a return to the entrance and quit. **Choose Level** is also available on Game Over. Escape or Back in the selector returns to the menu and keeps the game paused. Settings include **mouse sensitivity, master volume, music on/off, music volume, brightness, field of view, head bob, camera softness and VSync**, plus **Contact Shading** (0–100%, default 65%) and a reset-defaults option. Music volume defaults to **35%**, multiplied by master volume. Changes are saved to `settings.cfg` beside the executable. Head bob and camera softness can be set to zero. Press Escape in settings to return to the menu.
 
-The yellow wallpaper and acoustic-ceiling style continues through classic rooms, repeating corridors, open halls, pillar halls, dead ends and occasional odd rooms with hard tiled floors. Layouts vary across **7.5, 15 and 22.5 metre** footprints under a uniform 3.2 metre ceiling. Procedural wall scars, peeling patches and damp marks combine with normal-mapped wallpaper, dry/damp carpet, ceiling tiles and hard flooring. The connected world continues generating as you walk. The older photo Nextbots and separate themed districts remain removed. Seeded recesses carved into existing yellow walls provide hiding places; **H** marks them on the minimap. Approach and press **E** to hide or leave. Break the creature's line of sight before entering. Hiding stops movement, lowers the camera, and suppresses the flashlight while allowing you to look out.
+The yellow wallpaper and acoustic-ceiling style continues through classic rooms, repeating corridors, open halls, pillar halls, dead ends and occasional odd rooms with hard tiled floors. Layouts vary across **7.5, 15 and 22.5 metre** footprints under a uniform 3.2 metre ceiling. Procedural wall scars, peeling patches and damp marks combine with normal-mapped wallpaper, dry/damp carpet, ceiling tiles and hard flooring. The connected world continues generating as you walk. The older photo Nextbots and separate themed districts remain removed. Seeded recesses carved into existing yellow walls provide hiding places; the letter **H** marks them on the minimap (the **H** key opens help). Approach and press **E** to hide or leave. Break the creature's line of sight before entering. Hiding stops movement, lowers the camera, and suppresses the flashlight while allowing you to look out.
 
 The Aranea animation update replaces the humanoid with the supplied four-legged creature. A staggered walking gait lifts one leg at a time while three support the body; running uses faster diagonal pairs. The body turns before moving, the head stays centered during locomotion and tracks independently while idle, the jaw moves, and step sounds follow all four foot contacts. The legs fold inward for doorways. See [Aranea animation and validation notes](docs/aranea-motion.md). The [earlier Smiler animation results](docs/smiler-motion.md) are historical and do not validate this replacement.
 
@@ -196,6 +233,8 @@ To see the first clue, stand in the starting room, face its first north doorway,
 
 ## Features in version 0.12
 
+- Three connected stages: Yellow Rooms with Aranea, Level Fun with Partygoers, and Parking with flashlight-sensitive eyes and three power circuits.
+- A 42-second elevator-to-city ending with walking pedestrians, moving cars, a visible sun, cast shadows and generated street ambience.
 - Seeded, connected yellow rooms, corridors, halls, pillars, dead ends and occasional tiled rooms.
 - Smooth mouse look, gradual acceleration/braking, adjustable head bob, crouching, stamina and collision sliding.
 - Animated hinged doors, a seeded wall-integrated exit and nearby key, and flashlight-revealed clues.
@@ -268,6 +307,11 @@ Backrooms CGF Project/
   common/player_state.h     Stamina and smooth mouse-look state
   common/threat.h / .cpp    Single-creature sensing, navigation and behavior
   common/threat_model.h/.cpp Converted Aranea mesh, four-leg clips and capture pose
+  common/ending.h           Cinematic timeline and automatic camera
+  common/ending_city.h      Deterministic pedestrian and traffic motion
+  common/ending_renderer.h  City, lift, articulated models and shadow passes
+  common/ending_sun.h       Fixed near/far sunlight projections
+  common/ending_ui.h        Cinematic captions, pause and result buttons
   common/settings.h         Validated persistent user settings
   common/audio.h / .cpp     Recorded steps, cached spatial mixer and Windows playback
   common/music.h / .cpp     Supplied soundtrack playback through Windows MCI
@@ -293,6 +337,19 @@ Backrooms CGF Project/
 ```
 
 ## Verification and demonstration
+
+After building, verify the ending and its lighting with:
+
+```powershell
+.\tools\verify-ending.ps1
+.\tools\verify-ending-lighting.ps1
+```
+
+The first script checks 13 runtime cases, including the complete film,
+pause/replay, sound toggling and the powered Parking exit. The second
+compares shadowed and unshadowed captures and checks shadow caching,
+moving objects, pause and resource cleanup. Evidence stays in the ignored
+`tests/artifacts/` folder.
 
 Read [verification.md](docs/verification.md) for executed checks and their limits. Automated captures can run without taking over the desktop:
 
@@ -326,7 +383,7 @@ The 12-second stereo sound preview demonstrates carpet walking, damp-carpet crou
 
 ## Scope and remaining work
 
-This version combines exploration with one simple threat. It has no photo sprites, separate themed districts, furniture, weapons, network play or saved gameplay sessions. The creature uses bounded local pathfinding and a short memory, without complex tactics or a general-purpose navigation system. Settings persist, but world progress does not. Direct lamp and flashlight lighting use shadow maps; small ambient fill remains, without full global illumination. Audible spatial playback uses stereo panning and distance attenuation plus direct-ray wall attenuation for creature sounds, without HRTF filtering or acoustic propagation; the creature's hearing uses a separate obstruction-based detection rule. Normal maps change shading, not geometry. The exit presents an ending screen. Initial loading and cache misses remain synchronous, and procedural architectural motifs repeat.
+This version has three playable stages with distinct threats and a separate animated city ending. The city is a finite cinematic scene, not a fourth exploration level. There are no weapons, network play or saved gameplay sessions. Aranea uses bounded local pathfinding and a short memory, without complex tactics or a general-purpose navigation system. Settings persist, but world progress does not. Direct lamp, flashlight and city sunlight use shadow maps; small ambient fill remains, without full global illumination. Audible spatial playback uses stereo panning and distance attenuation plus direct-ray wall attenuation for creature sounds, without HRTF filtering or acoustic propagation; the creature's hearing uses a separate obstruction-based detection rule. Normal maps change shading, not geometry. The final powered exit starts the elevator-to-city cinematic and its replay/menu screen. Initial loading and cache misses remain synchronous, and procedural architectural motifs repeat.
 
 This educational prototype includes substantial Codex assistance. Review and adapt the implementation, record student contributions and be able to explain it. The supplied syllabus's restrictions and disclosure requirements still apply. Team details, the official report template, defence date and final instructor rubric remain to be confirmed before an assessed submission. Nothing has been submitted to Moodle.
 
