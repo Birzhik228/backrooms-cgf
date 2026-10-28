@@ -9,6 +9,18 @@ int main(){try {
     Partygoers group;auto& actor=group.actors[0];
     actor.active=true;actor.x=3.75;actor.z=.75;actor.yaw=PI;
     const Vec3 toward{0,0,-1},away{0,0,1};
+    Partygoers cadence;cadence.actors[0]=actor;
+    float previousPhase=0;int footfalls=0;double distance=0;
+    for(int i=0;i<60;++i) {
+        const auto before=cadence.actors[0];
+        cadence.update(world,3.75,3.75,1.65f,away,78,1.6f,1.f/60,false);
+        const auto& after=cadence.actors[0];
+        distance+=std::hypot(after.x-before.x,after.z-before.z);
+        if(after.phase>previousPhase && (previousPhase==0 || int(after.phase/PI)>int(previousPhase/PI)))++footfalls;
+        previousPhase=after.phase;
+    }
+    check(distance>1 && footfalls>=1 && footfalls<=3,"one moving Partygoer produces separate strides rather than crowd-like rapid taps");
+
     check(Partygoers::seen(world,actor,3.75,3.75,1.65f,toward,78,1.6f),"head in view freezes");
     check(!Partygoers::seen(world,actor,3.75,3.75,1.65f,away,78,1.6f),"behind camera is not seen");
     check(!Partygoers::seen(world,actor,3.75,3.75,1.65f,{0,-.999f,-.04f},78,1.6f),"vertical field of view matters");

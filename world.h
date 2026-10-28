@@ -144,6 +144,7 @@ public:
     PresentResult openPresent(std::uint64_t id,double x,double z);
     int presentsOpened() const { return int(openedPresents_.size()); }
     const std::vector<WorldPoint>& verityDrops() const { return verityDrops_; }
+    bool nearestVerity(double x,double z,double range,WorldPoint& result) const;
     bool collectVerity(double x,double z);
     bool infiniteStamina() const { return isFun() && verityCollected_; }
     std::vector<Vertex> verityVertices(double originX,double originZ,double playerX,double playerZ,float time) const;

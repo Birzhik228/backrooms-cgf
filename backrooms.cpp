@@ -842,6 +842,8 @@ static int run(const Options& options) {
     float threatBodyYaw=threat.yaw();
     ThreatFootContacts lastThreatContact{};
     bool threatRunningSteps=false;
+    int partyFootfalls=0;
+    float veritySongTime=0,partyStepDuckTime=0;
     int threatFootfalls=0,threatWalkFootfalls=0,threatRunFootfalls=0;
     int threatNotices=0,threatRoars=0;
     bool lastScareMesh=false, scriptedRestarted=false;
@@ -914,7 +916,7 @@ static int run(const Options& options) {
         audio.reset(static_cast<uint32_t>(world.seed()));
         threat.reset(world.seed()); threat.setEnraged(world.keyCollected()); encounter.reset();
         mouse.reset(world.seed());mouseSqueaks=0;presentMouseTime=0;
-        partygoers.reset();release(partyGpu);lastPartyPose={};
+        partygoers.reset();veritySongTime=partyStepDuckTime=0;release(partyGpu);lastPartyPose={};
         darkness.reset();release(darknessGpu);
         hiding=false; threatVocals.reset(); occlusionClock=0; threatTransmission=1;
         atmosphere.reset(world.seed());
@@ -1514,7 +1516,7 @@ static int run(const Options& options) {
             const auto exit=world.exitLocation();px=exit.x;pz=exit.z;world.update(px,pz);motion.reset();input.setLook(-90,0);forward=input.forward();
         }
         if(options.autoBreakers && options.autoExit && world.isParking() && frame==21)simulateKey(GLFW_KEY_E);
-        if(options.funPreview && options.autoKey && world.isFun() && !world.keyCollected() && frame>0 && frame<65 && frame%4==1) {
+        if(options.funPreview && options.autoKey && world.isFun() && !world.keyCollected() && !(options.autoVerity && (!world.verityDrops().empty() || world.infiniteStamina())) && frame>0 && frame<65 && frame%4==1) {
             double nearest=1e30;Present selected{};
             for(const auto& entry:world.chunks())for(const auto& gift:entry.second.presents)if(!gift.opened) {
                 const double distance=std::hypot(gift.x-px,gift.z-pz);
@@ -1569,7 +1571,7 @@ static int run(const Options& options) {
                 audio.play(SoundKind::PresentOpen,{nearbyPresent.x,.4,nearbyPresent.z},1.f);
                 nearPresent=false;
                 notice=result==PresentResult::Key?"KEY FOUND / EXIT UNLOCKED":
-                    world.keyCollected()?"EMPTY PRESENT / KEEP SEARCHING FOR VERITY":
+                    world.keyCollected()?"EMPTY PRESENT":
                     "EMPTY PRESENT / NEXT CHANCE "+std::to_string(World::presentKeyChance(world.presentsOpened()))+"%";
                 if(result==PresentResult::Mouse) {
                     mouse.releaseFromPresent(nearbyPresent.x,nearbyPresent.z);presentMouseTime=8;
@@ -1581,7 +1583,6 @@ static int run(const Options& options) {
                 if(!world.verityDrops().empty() && !world.infiniteStamina()) {
                     const auto& drop=world.verityDrops().back();
                     if(std::hypot(drop.x-nearbyPresent.x,drop.z-nearbyPresent.z)<.1) {
-                        notice+=" / VERITY! WALK UP TO COLLECT";
                         log("Verity dropped from present.");
                     }
                 }
@@ -1590,9 +1591,22 @@ static int run(const Options& options) {
             }
         }
         if(options.autoVerity && frame==3 && !world.verityDrops().empty()) {
-            const auto drop=world.verityDrops().front();px=drop.x+.5;pz=drop.z;motion.reset();
+            const auto drop=world.verityDrops().front();px=drop.x+.5;pz=drop.z;motion.reset();input.setLook(180,-71);forward=input.forward();
         }
-        if(!input.paused && encounter.alive() && world.collectVerity(px,pz)) {
+        if(options.autoVerity && frame==5)simulateKey(GLFW_KEY_E);
+        WorldPoint nearbyVerity{};
+        bool nearVerity=world.nearestVerity(px,pz,1.2,nearbyVerity);
+        if(nearVerity) {
+            const Vec3 direction{float(nearbyVerity.x-px),.18f-eyeHeight,float(nearbyVerity.z-pz)};
+            nearVerity=dot(normalize(direction),forward)>.75f;
+        }
+        const bool verityInteraction=nearVerity && !presentInteraction && !breakerInteraction &&
+            !input.paused && encounter.alive() && input.hit(GLFW_KEY_E);
+        if(verityInteraction && world.collectVerity(px,pz)) {
+            audio.play(SoundKind::VerityPickup,{px,eyeHeight,pz},1.f);
+            veritySongTime=2.f;
+            log("Verity pickup song triggered.");
+            nearVerity=false;
             stamina.reset();notice="VERITY / INFINITE STAMINA FOR THIS LEVEL";noticeTime=5;
             log("Verity collected. Infinite stamina enabled for Level Fun.");
         }
@@ -1602,7 +1616,7 @@ static int run(const Options& options) {
             nearHide=Threat::visibleSegment(world,px,pz,nearbyHide.approach.x,nearbyHide.approach.z);
         }
         bool hideInteraction=false;
-        if(!input.paused && encounter.alive() && input.hit(GLFW_KEY_E) && (hiding || nearHide)) {
+        if(!verityInteraction && !input.paused && encounter.alive() && input.hit(GLFW_KEY_E) && (hiding || nearHide)) {
             hideInteraction=true;
             if(hiding) {
                 if(!world.blocked(hidingSpot.approach.x,hidingSpot.approach.z,.23) &&
@@ -1633,7 +1647,7 @@ static int run(const Options& options) {
                 if(world.blocked(px+dx*along/distance,pz+dz*along/distance,.23,nearbyDoor.id)) nearDoor=false;
             }
         }
-        if (!input.paused && !hiding && !hideInteraction && !presentInteraction && !breakerInteraction && (input.hit(GLFW_KEY_E) || (options.autoExit && frame == (options.autoKey ? (options.funPreview?81:21) : options.menuCheck ? 8 : 2)) ||
+        if (!input.paused && !hiding && !hideInteraction && !presentInteraction && !breakerInteraction && !verityInteraction && (input.hit(GLFW_KEY_E) || (options.autoExit && frame == (options.autoKey ? (options.funPreview?81:21) : options.menuCheck ? 8 : 2)) ||
             (options.autoDoor && frame==2) || (options.autoCloseDoor && frame==options.doorCloseFrame))) {
             if (nearDoor) {
                 if (world.toggleDoor(nearbyDoor.id, px, pz)) {
@@ -1689,14 +1703,21 @@ static int run(const Options& options) {
             auto& a=partygoers.actors[0];a.active=true;a.x=px;a.z=pz+.4;
         }
         int gazeWidth=0,gazeHeight=0;glfwGetFramebufferSize(window,&gazeWidth,&gazeHeight);
+        std::array<float,Partygoers::COUNT> partyPhaseBefore{};
+        for(int i=0;i<Partygoers::COUNT;++i)partyPhaseBefore[i]=partygoers.actors[i].phase;
         partygoers.update(world,px,pz,eyeHeight+bobOffset,forward,fieldOfView,
             float(std::max(1,gazeWidth))/std::max(1,gazeHeight),dt,
             input.paused || !encounter.alive() || options.noThreat);
-        if(!input.paused && !options.noThreat && encounter.alive() && partygoers.touchingPlayer(world,px,pz) && encounter.defeatImmediately()) {
+        if(!input.paused && !options.noThreat && encounter.alive() && partygoers.touchingPlayer(world,px,pz) && (encounter.catchPlayer() || encounter.defeatImmediately())) {
             ++catches;motion.reset();moving=false;frameDistance=0;
             input.pause(true);settingsOpen=false;menuSelection=0;notice.clear();noticeTime=0;
             audio.reset(static_cast<std::uint32_t>(world.seed()));music.update(true,true,0,0);
-            log("Partygoer contact: game over. Restart at Level Fun checkpoint.");
+            scareYaw=scareTargetYaw=input.yaw;scarePitch=scareTargetPitch=input.pitch;scareApproach=forward;
+            if(scareConfig.audio && encounter.presenting()) {
+                audio.play(SoundKind::PartygoerJumpscare,{px,eyeHeight,pz},1.f);
+                log("Partygoer sound: supplied jumpscare.");
+            }
+            log(encounter.presenting()?"Partygoer contact: jumpscare started.":"Partygoer contact: game over. Restart at Level Fun checkpoint.");
         }
         if(options.darknessPreview && frame==0 && world.isParking() && !options.noThreat) {
             auto& eyes=darkness.eyes[0];eyes.active=true;eyes.x=px;eyes.z=pz-8;
@@ -1876,6 +1897,19 @@ static int run(const Options& options) {
             atmosphereState.threatDanger||atmosphereState.threatVisible||
             (atmosphereState.threatActive&&hintDistance<10);
         audio.setScene(soundScene);
+        if(world.isFun() && !input.paused && encounter.alive() && !options.noThreat) {
+            for(int i=0;i<Partygoers::COUNT;++i) {
+                const auto& actor=partygoers.actors[i];
+                // Animation advances only for real travel; gaze freezes are silent.
+                if(actor.active && actor.phase>partyPhaseBefore[i] &&
+                   (partyPhaseBefore[i]==0 || int(actor.phase/PI)>int(partyPhaseBefore[i]/PI))) {
+                    ++partyFootfalls;
+                    if(std::hypot(actor.x-px,actor.z-pz)<24)partyStepDuckTime=.5f;
+                    audio.play(SoundKind::PartygoerStep,{actor.x,.12,actor.z},1.f,
+                        world.soundTransmission(px,pz,actor.x,actor.z));
+                }
+            }
+        }
         if(const auto cue=atmosphere.update(world,atmosphereState,dt)) {
             audio.play(cue->kind,cue->position,cue->gain,cue->transmission);
             const bool steps=cue->kind==SoundKind::DistantFootsteps;
@@ -1895,7 +1929,8 @@ static int run(const Options& options) {
             const float targetFov = settings.fov + (sprinting && moving ? 4.f : 0.f);
             fieldOfView += (targetFov - fieldOfView) * (1.f - std::exp(-10.f * dt));
         }
-        music.update(input.paused,muted || options.hidden || !settings.musicEnabled,settings.volume*settings.musicVolume,dt);
+        if(!input.paused){veritySongTime=std::max(0.f,veritySongTime-dt);partyStepDuckTime=std::max(0.f,partyStepDuckTime-dt);}
+        music.update(input.paused || veritySongTime>0,muted || options.hidden || !settings.musicEnabled,settings.volume*settings.musicVolume*(partyStepDuckTime>0?.25f:1.f),dt);
         if(!musicErrorReported && !music.error().empty()) {
             log("Background music unavailable: "+music.error()); musicErrorReported=true;
         }
@@ -2228,6 +2263,19 @@ static int run(const Options& options) {
             glDrawArrays(GL_TRIANGLES,0,doorGpu.count);
             drawnTriangles+=doorGpu.count/3;
         }
+        if(world.isFun() && encounter.presenting()) {
+            Partygoers closeup;
+            auto& actor=closeup.actors[0];actor.active=true;
+            const float distance=1.4f-.85f*encounter.lunge();
+            actor.x=eye.x+cameraForward.x*distance;
+            actor.z=eye.z+cameraForward.z*distance;
+            actor.yaw=std::atan2(-cameraForward.x,cameraForward.z);
+            auto vertices=partygoerVertices(closeup,0,0);
+            for(auto& vertex:vertices)vertex.y+=eye.y+cameraForward.y*distance-1.99f;
+            uploadVertices(partyGpu,vertices,GL_DYNAMIC_DRAW);
+            glClear(GL_DEPTH_BUFFER_BIT);glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+            scene.set("uFlashlight",1);
+        }
         if(partyGpu.count && world.isFun()) {
             scene.set("uModel",Mat4::identity());glBindVertexArray(partyGpu.vao);
             glDrawArrays(GL_TRIANGLES,0,partyGpu.count);drawnTriangles+=partyGpu.count/3;
@@ -2386,7 +2434,8 @@ static int run(const Options& options) {
             }
             if(world.isParking())ui.text(28,float(height)-128,Darkness::safe(world,px,pz)?"IN THE LIGHT / SAFE":"DARKNESS / AIM YOUR FLASHLIGHT AT THE EYES",1.15f*scale,Darkness::safe(world,px,pz)?Color{.47f,.88f,.68f,1}:gold);
             if(nearBreaker)ui.text(width*.5f-170,height*.5f+58,"E / RESTORE CIRCUIT "+std::string(1,char('A'+nearbyBreaker)),1.3f*scale,paper);
-            if(nearPresent) ui.text(width*.5f-160,height*.5f+58,
+            if(nearVerity)ui.text(width*.5f-110,height*.5f+58,"E / PICK UP",1.3f*scale,paper);
+            if(nearPresent && !nearVerity) ui.text(width*.5f-160,height*.5f+58,
                 nearbyPresent.opened?"PRESENT ALREADY SEARCHED":"E / OPEN PRESENT",1.3f*scale,paper);
             if(hiding || nearHide) ui.text(width*.5f-170,height*.5f+58,
                 hiding?"HIDDEN / E TO LEAVE":"E / HIDE IN WALL RECESS",1.3f*scale,paper);
@@ -2579,6 +2628,7 @@ static int run(const Options& options) {
     frameQueue.destroy();
     log("Lamp shadow cache updates: "+std::to_string(lampShadowUpdates));
     audio.stop();
+    log("Partygoer footsteps: "+std::to_string(partyFootfalls));
     log("Partygoers: "+std::to_string(partygoers.activeCount())+" / frozen frames "+std::to_string(partygoers.frozenFrames)+" / travelled "+std::to_string(partygoers.travelled));
     log("Darkness eyes: "+std::to_string(darkness.activeCount())+" / dispersed "+std::to_string(darkness.dispelled)+" / spawned "+std::to_string(darkness.spawned));
     release(darknessGpu);
@@ -2619,6 +2669,8 @@ int main(int argc, char** argv) {
         logFile.open("backrooms.log", std::ios::trunc);
         const Options options = parseOptions(argc, argv);
         log(loadMonsterFootsteps()?"Loaded supplied heavy footsteps.":"Heavy footsteps missing; using fallback.");
+        log(loadVerityPickupSample()?"Loaded Verity pickup song.":"Verity pickup song missing.");
+        log(loadPartygoerJumpscareSample()?"Loaded Partygoer jumpscare.":"Partygoer jumpscare missing; using fallback.");
         log(loadJumpscareSample()?"Loaded supplied jumpscare roar.":"Jumpscare roar unavailable; using synthesized fallback.");
         log(loadAraneaSamples()?"Loaded Aranea audio: 16 walk, run, visual notice and roar samples.":
             "Aranea audio bank missing or invalid; using legacy creature sounds.");

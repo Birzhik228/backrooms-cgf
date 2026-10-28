@@ -863,15 +863,22 @@ PresentResult World::openPresent(std::uint64_t id,double x,double z) {
     return PresentResult::Invalid;
 }
 
-bool World::collectVerity(double x,double z) {
+bool World::nearestVerity(double x,double z,double range,WorldPoint& result) const {
     if(!isFun() || verityCollected_ || !std::isfinite(x) || !std::isfinite(z))return false;
+    bool found=false;
     for(const auto& drop:verityDrops_) {
-        if(std::hypot(x-drop.x,z-drop.z)>.75)continue;
+        const double distance=std::hypot(x-drop.x,z-drop.z);
+        if(distance>range)continue;
         bool clear=true;
         for(int i=0;i<=12;++i)if(blocked(x+(drop.x-x)*i/12,z+(drop.z-z)*i/12,.05))clear=false;
-        if(clear){verityCollected_=true;verityDrops_.clear();return true;}
+        if(clear){result=drop;range=distance;found=true;}
     }
-    return false;
+    return found;
+}
+bool World::collectVerity(double x,double z) {
+    WorldPoint drop{};
+    if(!nearestVerity(x,z,1.2,drop))return false;
+    verityCollected_=true;verityDrops_.clear();return true;
 }
 
 std::vector<Vertex> World::verityVertices(double originX,double originZ,double playerX,double playerZ,float time) const {
@@ -880,7 +887,7 @@ std::vector<Vertex> World::verityVertices(double originX,double originZ,double p
     for(const auto& drop:verityDrops_) {
         if(std::hypot(drop.x-playerX,drop.z-playerZ)>40 || !chunks_.count(chunkAt(drop.x,drop.z)))continue;
         const auto begin=mesh.vertices.size();
-        const float y=.72f+.05f*std::sin(time*2.5f);
+        const float y=.18f+.008f*std::sin(time*2.5f);
         funOrb(mesh,0,y,0,.34f,.34f,.34f,59,10,16);
         for(float x:{-.115f,.115f})funOrb(mesh,x,y+.10f,-.310f,.040f,.065f,.025f,60,5,8);
         auto smilePoint=[&](float a,float edge) {
@@ -898,7 +905,9 @@ std::vector<Vertex> World::verityVertices(double originX,double originZ,double p
             auto& v=mesh.vertices[i];
             const float x=v.x,z=(v.y-y)*sp+v.z*cp,nx=v.nx,nz=v.ny*sp+v.nz*cp;
             v.y=y+(v.y-y)*cp-v.z*sp;v.ny=v.ny*cp-v.nz*sp;
-            v.x=float(drop.x-originX)+x*c-z*s;v.z=float(drop.z-originZ)+x*s+z*c;
+            constexpr float pickupScale=.38f; // 26 cm across, comparable to the mouse.
+            v.y=y+(v.y-y)*pickupScale;
+            v.x=float(drop.x-originX)+(x*c-z*s)*pickupScale;v.z=float(drop.z-originZ)+(x*s+z*c)*pickupScale;
             v.nx=nx*c-nz*s;v.nz=nx*s+nz*c;
         }
     }

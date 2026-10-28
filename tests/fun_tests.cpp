@@ -133,6 +133,11 @@ int main() {try {
     const auto model=bonus.verityVertices(0,0,1.85,5.9,0);
     check(!model.empty() && model.size()<5000,"bounded procedural Verity model");
     for(const auto& v:model)check(std::isfinite(v.x) && (v.material==59 || v.material==60),"yellow sphere and dark smile materials");
+    float minY=100,maxY=-100;
+    for(const auto& v:model){minY=std::min(minY,v.y);maxY=std::max(maxY,v.y);}
+    check(maxY-minY<.30f && minY>0 && maxY<.4f,"Verity is mouse-sized and rests near the floor");
+    br::WorldPoint pickup{};
+    check(bonus.nearestVerity(1.3,5.9,1.2,pickup) && !bonus.infiniteStamina(),"querying nearby pickup never collects it");
     check(!bonus.collectVerity(3.75,3.75),"remote Verity collection rejected");
     bonus.update(6000,6000,0);bonus.update(.8,5.9,0);
     check(bonus.verityDrops().size()==1 && bonus.collectVerity(1.3,5.9),"drop survives streaming and can be collected");

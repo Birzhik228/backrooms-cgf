@@ -794,6 +794,60 @@ void writeLevel0MixerPreview(const std::filesystem::path& directory) {
     }
     std::cout<<"Level0 mixer previews saved to "<<directory.string()<<".\n";
 }
+void partygoerAndVerityAudio() {
+    using namespace br;
+    check(loadFootstepSamples(),"recorded shoe samples load for Partygoer steps");
+    const auto tap=synthesizeSound({SoundKind::PartygoerStep});
+    check(tap.size()==std::size_t(.22*AUDIO_SAMPLE_RATE),"Partygoer uses a short recorded shoe contact");
+    check(tap.front()==0 && tap.back()==0 && energy(tap)>7000,"natural step retains loudness and click-free edges");
+    double differences=0;
+    for(std::size_t i=1;i<tap.size();++i)differences+=std::pow(double(tap[i])-tap[i-1],2);
+    check(std::sqrt(differences/tap.size())<2500,"carpet filtering removes harsh ringing transients");
+    check(loadVerityPickupSample(),"Verity song excerpt loads");
+    const auto song=synthesizeSound({SoundKind::VerityPickup});
+    check(song.size()==2*AUDIO_SAMPLE_RATE && energy(song)>1000,"pickup song is two audible seconds");
+    check(song.front()==0 && song.back()==0,"pickup song has click-free fades");
+    AudioScene scene;scene.listener={0,1.65,0};scene.forward={0,0,-1};
+    scene.lightPower=0;scene.level0Atmosphere=true;scene.threatTransmission=.01f;
+    AudioMixer mixer;mixer.setScene(scene);mixer.setVolume(.75f);
+    mixer.play(SoundKind::PartygoerStep,{12,.12,0},1.3f,1);
+    auto open=render(mixer,AUDIO_SAMPLE_RATE/2);
+    check(energy(open)>500,"Partygoer step remains audible at 12m with master .75");
+    check(channelEnergy(open,1)>channelEnergy(open,0)*2,"Partygoer steps pan to their own position");
+    mixer.reset(1);mixer.play(SoundKind::PartygoerStep,{12,.12,0},1.3f,.38f);
+    auto wall=render(mixer,AUDIO_SAMPLE_RATE/2);
+    check(energy(wall)<energy(open)*.8 && energy(wall)>500,"wall muffles rather than erases Partygoer steps");
+    mixer.reset(1);mixer.play(SoundKind::PartygoerStep,{12,.12,0},1.f,std::pow(.38f,4));
+    auto maze=render(mixer,AUDIO_SAMPLE_RATE/2);
+    check(energy(maze)>400,"Partygoer remains audible through four maze walls at 12m");
+    mixer.reset(1);mixer.play(SoundKind::PartygoerStep,{24,.12,0},1.f,std::pow(.38f,4));
+    auto distant=render(mixer,AUDIO_SAMPLE_RATE/2);
+    check(energy(distant)>180 && energy(distant)<energy(maze),"hidden steps remain audible at 24m and decay with distance");
+    std::cout<<"Partygoer four-wall RMS at 12m/24m: "<<energy(maze)<<" / "<<energy(distant)<<"\n";
+    mixer.reset(1);
+    std::vector<std::int16_t> preview;
+    for(int step=0;step<18;++step) {
+        const double distance=24-step*1.1;
+        mixer.play(SoundKind::PartygoerStep,{distance*.4,.12,-distance*.9165},1.f,std::pow(.38f,4));
+        auto block=render(mixer,AUDIO_SAMPLE_RATE/3);
+        preview.insert(preview.end(),block.begin(),block.end());
+    }
+    std::filesystem::create_directories("tests/artifacts");
+    std::ofstream file("tests/artifacts/partygoer-steps-maze.wav",std::ios::binary);
+    auto u16=[&](std::uint16_t v){file.put(char(v));file.put(char(v>>8));};
+    auto u32=[&](std::uint32_t v){u16(std::uint16_t(v));u16(std::uint16_t(v>>16));};
+    const auto bytes=std::uint32_t(preview.size()*2);
+    file.write("RIFF",4);u32(36+bytes);file.write("WAVEfmt ",8);u32(16);u16(1);u16(2);
+    u32(AUDIO_SAMPLE_RATE);u32(AUDIO_SAMPLE_RATE*4);u16(4);u16(16);file.write("data",4);u32(bytes);
+    for(auto value:preview)u16(std::uint16_t(value));
+    check(bool(file),"four-wall approach exported from actual mixer without normalization");
+    mixer.reset(1);mixer.play(SoundKind::VerityPickup,{100,0,100},1);
+    auto pickup=render(mixer,AUDIO_SAMPLE_RATE/2);
+    check(energy(pickup)>500,"pickup song plays centered even when source is distant");
+    mixer.setVolume(0);render(mixer,AUDIO_SAMPLE_RATE/2);
+    check(energy(render(mixer,AUDIO_SAMPLE_RATE/4))==0,"mute also silences pickup song");
+    std::cout<<"Partygoer and Verity audio passed: audible 12m steps, panning, walls, two-second pickup and mute.\n";
+}
 int main(int argc,char** argv) {
     const auto opening=br::synthesizeSound({br::SoundKind::PresentOpen});
     check(opening.size()==std::size_t(.58*br::AUDIO_SAMPLE_RATE) && energy(opening)>500,"present opening is a short audible paper sound");
@@ -808,7 +862,7 @@ int main(int argc,char** argv) {
         if(argc==3&&std::string(argv[1])=="--aranea-preview")writeAraneaMixerPreview(argv[2]);
         std::cout<<"Aranea audio passed: atomic banks, soil walk/run variants, queued and sustained visual calls, 14-22m audibility, voice priority, wall attenuation, paired-contact headroom, first-frame resume cues, pause/mute/reset and unchanged player/capture audio.\n"; }
     catch(const std::exception& error) { std::cerr<<"Aranea audio tests failed: "<<error.what()<<'\n';return 1; }
-    try { level0AtmosphereAudio();
+    try { level0AtmosphereAudio();partygoerAndVerityAudio();
         if(argc==3&&std::string(argv[1])=="--level0-preview")writeLevel0MixerPreview(argv[2]); }
     catch(const std::exception& error) { std::cerr<<"Level0 atmosphere audio tests failed: "<<error.what()<<'\n';return 1; }
 }

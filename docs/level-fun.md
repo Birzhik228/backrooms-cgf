@@ -5,8 +5,8 @@ entrance with the same seed; presents, key, doors and Partygoers reset. It does
 not return to Level 0. Checkpoints are not saved across application launches.
 
 Partygoers still freeze while visible, but contact within 0.65 m is now lethal.
-Walls, closed doors and furniture block contact. Death cuts to black and Game
-Over without a jumpscare; choose Restart Checkpoint.
+Walls, closed doors and furniture block contact. Contact triggers a lunging 3D Partygoer close-up with the supplied jumpscare sound,
+then Game Over; choose Restart Checkpoint. Pause/focus and audio settings apply.
 
 Face a nearby present and press E. Searched boxes disappear completely,
 including collision, in both mesh detail levels. A dedicated paper tear and
@@ -191,7 +191,10 @@ freezes the timer, and speed returns to normal when the alarm expires.
 
 Each searched present also rolls an independent 5% Verity bonus. It can appear
 alongside the key or mouse and never consumes either outcome or key pity.
-Walk within 0.75 m with a clear path to collect the floating yellow smiley.
+The yellow smiley is mouse-sized (about 26 cm across), close to the floor.
+Look at it within 1.2 m and press E to pick it up with a clear path.
+Proximity alone never collects it. A two-second song excerpt plays on pickup,
+and the ordinary soundtrack pauses during the excerpt. No search hint reveals the Easter egg.
 It restores stamina immediately and prevents sprint drain on the current Level
 Fun run. The HUD reads VERITY / INFINITE. Death/checkpoint restart, a new seed,
 or changing levels clears the bonus; returning within the same level retains it.
@@ -204,3 +207,13 @@ Presents remain searchable after acquiring the key. Further searches keep the
 key, never award duplicate keys, and retain the 20% mouse and independent 5%
 Verity chances. Both Partygoer speeds were multiplied by 2.5; gaze freeze and
 the six-second alarm duration are unchanged.
+
+Partygoer footfalls keep a diffuse contribution behind maze walls (40% floor
+before distance attenuation), with a 12 m reference distance. Nearby moving
+Partygoers briefly reduce background music to 25% of its configured level.
+The four-wall mixer regression checks audibility at 12 m and 24 m and exports
+`tests/artifacts/partygoer-steps-maze.wav` without normalization.
+
+Partygoer footsteps use recorded shoes with a softened attack and carpet-like
+high-frequency absorption, without synthesized ringing tones. Contact cadence is about 3.1 steps/s normally and 4.8 steps/s during alarm,
+with a 40% reduction in footfall gain. Movement speeds remain 4.875 m/s normally and 7.5 m/s during the six-second alarm.

@@ -122,7 +122,7 @@ public:
             double step=std::min(double((alarmRemaining>0?ALARM_SPEED:SPEED)*dt),d),nx=a.x+dx/d*step,nz=a.z+dz/d*step;
             bool crowded=false;for(const auto& other:actors)if(&other!=&a && other.active && std::hypot(other.x-nx,other.z-nz)<.72)crowded=true;
             if(crowded || !walkable(world,a.x,a.z,nx,nz))continue;
-            a.x=nx;a.z=nz;a.phase+=float(step)*5;travelled+=step;
+            a.x=nx;a.z=nz;a.phase+=float(step)*2;travelled+=step;
         }
     }
     int activeCount()const {int n=0;for(const auto& a:actors)n+=a.active;return n;}

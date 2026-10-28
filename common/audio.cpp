@@ -24,12 +24,12 @@ bool cinematicSound(SoundKind kind) {
     return kind>=SoundKind::ElevatorDoor && kind<=SoundKind::CityAmbience;
 }
 bool captureSound(SoundKind kind) {
-    return kind==SoundKind::Jumpscare || kind==SoundKind::DarknessJumpscare;
+    return kind==SoundKind::Jumpscare || kind==SoundKind::DarknessJumpscare || kind==SoundKind::PartygoerJumpscare;
 }
 std::array<std::vector<std::int16_t>,FOOTSTEP_COUNT> recordedSteps;
 std::size_t loadedSteps=0;
 std::array<std::vector<std::int16_t>,4> monsterSteps;
-std::vector<std::int16_t> recordedScream;
+std::vector<std::int16_t> recordedScream, partygoerScream, verityPickup;
 struct AraneaSamples {
     std::array<std::vector<std::int16_t>,4> walk,run,notice,roar;
 };
@@ -392,6 +392,12 @@ bool loadAraneaSamples(const std::string& directory) {
     }
     araneaSamples=std::move(pending);return true;
 }
+bool loadVerityPickupSample(const std::string& path) {
+    verityPickup=readFootstepWav(path);return !verityPickup.empty();
+}
+bool loadPartygoerJumpscareSample(const std::string& path) {
+    partygoerScream=readFootstepWav(path);return !partygoerScream.empty();
+}
 bool loadJumpscareSample(const std::string& path) {
     recordedScream=readFootstepWav(path); return !recordedScream.empty();
 }
@@ -435,18 +441,17 @@ std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
         clip.front()=clip.back()=0;return clip;
     }
     if(event.kind==SoundKind::PresentOpen) {
-        // Paper crackle, a short tear, and a soft cardboard release.
+        // Low-pass paper rustle and a padded cardboard lid, without sharp hiss.
         std::vector<std::int16_t> clip(std::size_t(.58*AUDIO_SAMPLE_RATE));
         std::uint32_t state=event.variation*747796405u+2891336453u;
-        double low=0;
+        double low=0,soft=0;
         for(std::size_t i=0;i<clip.size();++i) {
-            const double t=double(i)/AUDIO_SAMPLE_RATE,n=noise(state);
-            low+=.15*(n-low);
-            const double tear=std::exp(-std::pow((t-.13)/.09,2));
-            const double crinkle=std::exp(-std::pow((t-.32)/.14,2))*(.3+.7*std::pow(std::sin(t*105),6));
-            const double thump=.10*std::sin(2*PI*110*t)*std::exp(-std::pow((t-.36)/.05,2));
-            const double edge=std::min({1.,t/.008,(.58-t)/.025});
-            clip[i]=pcm((.32*(n-low)*(tear+crinkle)+thump)*edge);
+            const double t=double(i)/AUDIO_SAMPLE_RATE;
+            low+=.06*(noise(state)-low);soft+=.09*(low-soft);
+            const double paper=std::exp(-std::pow((t-.20)/.14,2));
+            const double lid=.08*std::sin(2*PI*125*t)*std::exp(-std::pow((t-.33)/.07,2));
+            const double edge=std::min({1.,t/.025,(.58-t)/.05});
+            clip[i]=pcm((.65*soft*paper+lid)*edge);
         }
         clip.front()=clip.back()=0;return clip;
     }
@@ -475,6 +480,40 @@ std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
             phase+=2*PI*frequency/AUDIO_SAMPLE_RATE;
             clip[i]=pcm(.35*envelope*(std::sin(phase)+.18*std::sin(phase*2)));
         }
+        clip.front()=clip.back()=0;return clip;
+    }
+    if(event.kind==SoundKind::VerityPickup)return verityPickup;
+    if(event.kind==SoundKind::PartygoerJumpscare) {
+        if(!partygoerScream.empty())return partygoerScream;
+        return threatSound({SoundKind::Jumpscare});
+    }
+    if(event.kind==SoundKind::PartygoerStep) {
+        // Recorded shoes with a softened attack and carpet-like high-frequency
+        // absorption. No pitched oscillators: these must read as footsteps.
+        constexpr double duration=.22;
+        std::vector<std::int16_t> clip(std::size_t(duration*AUDIO_SAMPLE_RATE));
+        const auto& source=recordedSteps[event.variation%FOOTSTEP_COUNT];
+        std::size_t onset=0;
+        if(!source.empty()) {
+            int peak=0;for(auto sample:source)peak=std::max(peak,std::abs(int(sample)));
+            while(onset<source.size() && std::abs(int(source[onset]))<peak*.035)++onset;
+            onset=onset>44?onset-44:0;
+        }
+        std::uint32_t state=event.variation*747796405u+2891336453u;
+        double squareSum=0,soft=0,body=0;
+        for(std::size_t i=0;i<clip.size();++i) {
+            const double t=double(i)/AUDIO_SAMPLE_RATE;
+            const double input=source.empty()?noise(state)*std::exp(-t*22):
+                onset+i<source.size()?source[onset+i]/32768.:0;
+            soft+=.22*(input-soft);body+=.045*(soft-body);
+            const double fade=std::min({1.,t/.006,(duration-t)/.04});
+            clip[i]=pcm((soft*.8+body*.2)*fade);
+            squareSum+=double(clip[i])*clip[i];
+        }
+        // Match loudness across variants while retaining mixer headroom.
+        const double rms=std::sqrt(squareSum/clip.size());
+        const double gain=rms>0?8500/rms:1;
+        for(auto& value:clip)value=pcm(std::clamp(value*gain/32768.,-.9,.9));
         clip.front()=clip.back()=0;return clip;
     }
     if(event.kind==SoundKind::Footstep) event.surface=Surface::Carpet;
@@ -704,14 +743,20 @@ struct AudioMixer::Impl {
         // on top of twelve existing sources. It belongs at the camera.
         if(captureOnly && !capture) return;
         if (capture) { voices={}; captureOnly=true; humLeft=humRight=currentTension=0; currentVolume=volume; }
-        const bool monsterStep=kind==SoundKind::ThreatStep||kind==SoundKind::ThreatRunStep;
+        const bool partyStep=kind==SoundKind::PartygoerStep;
+        // Partygoers usually approach out of sight, behind several maze walls.
+        // A direct ray can fall to .38^4: retain a diffuse footfall contribution
+        // so the threat can be heard while hidden, with distance and panning intact.
+        if(partyStep){transmission=.4f+.6f*std::clamp(transmission,0.f,1.f);gain*=.6f;}
+        const bool pickup=kind==SoundKind::VerityPickup;
+        const bool monsterStep=kind==SoundKind::ThreatStep||kind==SoundKind::ThreatRunStep||kind==SoundKind::PartygoerStep;
         const bool vocal=kind==SoundKind::ThreatRoar||kind==SoundKind::ThreatNotice;
         const bool distant=kind==SoundKind::VentRattle||kind==SoundKind::DistantFootsteps||kind==SoundKind::ThreatRustle;
         const bool atmosphere=distant||(scene.level0Atmosphere&&(kind==SoundKind::AmbientCreak||kind==SoundKind::WaterDrip));
         const std::size_t variant=capture?std::min(std::size_t(randomUnit()*4),std::size_t(3)):
             monsterStep?monsterVariation[kind==SoundKind::ThreatRunStep?1:0]++%4:variation++%4;
-        add(ambience[std::size_t(index)][variant],position,!capture&&!cinematicSound(kind),gain,
-            monsterStep||vocal,vocal?7.f:(distant?6.f:3.f),cinematicSound(kind)?2u:(vocal?1u:0u),transmission,atmosphere);
+        add(ambience[std::size_t(index)][variant],position,!capture&&!cinematicSound(kind)&&!pickup,gain,
+            (monsterStep&&!partyStep)||vocal,partyStep?12.f:vocal?7.f:(distant?6.f:3.f),cinematicSound(kind)||pickup?2u:(vocal||partyStep?1u:0u),transmission,atmosphere);
     }
     void schedule() {
         if(captureOnly||scene.cinematic||scene.level0Atmosphere) return;
