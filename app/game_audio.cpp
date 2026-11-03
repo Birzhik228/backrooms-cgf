@@ -5,18 +5,18 @@ namespace fs = std::filesystem;
 
 void Game::updateAudio() {
     const double audioStart = glfwGetTime();
-    currentRoom = roomInfo(int64_t(std::floor(px / CELL)), int64_t(std::floor(pz / CELL)), world.seed(),world.level());
-    const auto floorSurface = world.isParking()?FloorSurface::Tile:world.isFun()?FloorSurface::Carpet:floorSurfaceAt(px, pz, world.seed());
+    currentRoom = roomInfo(int64_t(std::floor(player.x / CELL)), int64_t(std::floor(player.z / CELL)), world.seed(),world.level());
+    const auto floorSurface = world.isParking()?FloorSurface::Tile:world.isFun()?FloorSurface::Carpet:floorSurfaceAt(player.x, player.z, world.seed());
     const Surface surface = floorSurface==FloorSurface::Tile ? Surface::HardFloor :
         floorSurface==FloorSurface::DampCarpet ? Surface::DampCarpet : Surface::Carpet;
     AudioScene soundScene;
-    soundScene.listener={px,eyeHeight,pz};
+    soundScene.listener={player.x,player.eyeHeight,player.z};
     soundScene.forward={forward.x,forward.y,forward.z};
     double nearestSoundLight=1e30;
     float localIllumination=0, localInstability=0;
     for(const auto& [coord,chunk] : world.chunks()) for(const auto& lamp : chunk.lamps) {
         const double lx=coord.x*CHUNK_SIZE+lamp.x, lz=coord.z*CHUNK_SIZE+lamp.z;
-        const double distance=(lx-px)*(lx-px)+(lz-pz)*(lz-pz)+(lamp.y-eyeHeight)*(lamp.y-eyeHeight);
+        const double distance=(lx-player.x)*(lx-player.x)+(lz-player.z)*(lz-player.z)+(lamp.y-player.eyeHeight)*(lamp.y-player.eyeHeight);
         if(distance<100) {
             const float envelope=lampEnvelope(lamp.state,lamp.phase,float(elapsed));
             localIllumination+=lamp.power*envelope/float(1+distance*.22);
@@ -36,7 +36,7 @@ void Game::updateAudio() {
     if(!input.paused) tension+=(danger-tension)*(1.f-std::exp(-dt*.6f));
     occlusionClock-=dt;
     if(occlusionClock<=0) {
-        threatTransmission=threat.active()?world.soundTransmission(px,pz,threat.x(),threat.z()):1;
+        threatTransmission=threat.active()?world.soundTransmission(player.x,player.z,threat.x(),threat.z()):1;
         occlusionClock=.1f;
     }
     soundScene.threatTransmission=threatTransmission;
@@ -47,19 +47,19 @@ void Game::updateAudio() {
     atmosphereState.listener=soundScene.listener;
     atmosphereState.paused=input.paused||options.threatPreview;
     atmosphereState.alive=encounter.alive();
-    atmosphereState.hidden=hiding;
+    atmosphereState.hidden=player.hiding;
     atmosphereState.threatActive=world.level()==Level::Zero&&threat.active()&&!options.noThreat;
     atmosphereState.threat={threat.x(),1.35,threat.z()};
     atmosphereState.threatDanger=threat.state()==ThreatState::Chase||threat.state()==ThreatState::Search;
-    const double hintDistance=std::hypot(threat.x()-px,threat.z()-pz);
+    const double hintDistance=std::hypot(threat.x()-player.x,threat.z()-player.z);
     // Visibility here is the player's view, not the creature's sight cone.
     atmosphereState.threatVisible=atmosphereState.threatActive&&threatTransmission>.99f&&
-        ((threat.x()-px)*forward.x+(threat.z()-pz)*forward.z)>.15*hintDistance;
+        ((threat.x()-player.x)*forward.x+(threat.z()-player.z)*forward.z)>.15*hintDistance;
     PresenceContext presenceState;
-    presenceState.listener={px,pz};presenceState.threat={threat.x(),threat.z()};
+    presenceState.listener={player.x,player.z};presenceState.threat={threat.x(),threat.z()};
     presenceState.forwardX=forward.x;presenceState.forwardZ=forward.z;
     presenceState.paused=input.paused||(options.threatPreview&&!options.presencePreview);
-    presenceState.alive=encounter.alive();presenceState.hidden=hiding;
+    presenceState.alive=encounter.alive();presenceState.hidden=player.hiding;
     presenceState.threatActive=atmosphereState.threatActive;
     presenceState.threatWandering=threat.state()==ThreatState::Wander && std::abs(input.pitch)<40;
     const auto previousRattle=presence.doorId();
@@ -145,11 +145,11 @@ void Game::updateAudio() {
         std::ostringstream event;
         event << "Level 0 atmosphere: " << (steps?"distant steps":hint?"Aranea rustle":"room ambience")
               << " / distance " << std::fixed << std::setprecision(2)
-              << std::hypot(cue->position.x-px,cue->position.z-pz)
+              << std::hypot(cue->position.x-player.x,cue->position.z-player.z)
               << " m / transmission " << cue->transmission;
         log(event.str());
     }
-    audio.update(dt, float(frameDistance), crouched, sprinting && moving, surface, input.paused && (!encounter.presenting() || scareSuspended || !scareConfig.audio));
+    audio.update(dt, float(frameDistance), player.crouched, sprinting && moving, surface, input.paused && (!encounter.presenting() || scareSuspended || !scareConfig.audio));
     if (!input.paused) {
         // Widen only for real sprint travel, not for Shift held at a wall.
         // Exponential easing has the same response at different frame rates.
@@ -160,7 +160,7 @@ void Game::updateAudio() {
     if(!musicErrorReported && !music.error().empty()) {
         log("Background music unavailable: "+music.error()); musicErrorReported=true;
     }
-    audioMs = (glfwGetTime() - audioStart) * 1000;
+    timing.audioMs = (glfwGetTime() - audioStart) * 1000;
 }
 
 } // namespace br::app

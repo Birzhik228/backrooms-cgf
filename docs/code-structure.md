@@ -12,7 +12,8 @@ and controls remain unchanged; these upgrades add no runtime library.
 | --- | --- |
 | `backrooms.cpp` | Select the asset directory, parse options, validate/freeze balance before constructing gameplay, load sound banks, handle audio export, call `run()` and report startup errors. |
 | `app/game.h` | Small public application boundary: `run(const Options&)`. |
-| `app/game_internal.h` | Internal `Game` coordinator, its private session state and phase methods. It is not a public interface for `world` or `common` modules. |
+| `app/game_internal.h` | Internal `Game` coordinator, its private state and named phase methods. It is not a public interface for `world` or `common` modules. |
+| `app/game_state.h` | Plain `PlayerState` and `FrameTimings` data shared by the coordinator's phases; reset policy remains in the session lifecycle. |
 | `app/game.cpp` | Keep `WindowContext` alive around `Game`, initialize settings/input/previews, and audit resources after `Game` destruction. |
 | `app/gl_context.h` | Own GLFW initialization and the window/context, including partial initialization failures. |
 | `common/gl_resource.h` | Move-only buffer, VAO, texture, framebuffer, program, shader and sync owners with acquisition/release counters. |
@@ -22,13 +23,14 @@ and controls remain unchanged; these upgrades add no runtime library.
 | `app/input.h/.cpp` | Latch key and mouse-button presses, read held keys, smooth mouse look, and control cursor capture. Callbacks collect input rather than selecting game screens. |
 | `app/flow.h` | Represent the single current application screen and the run metadata used by the menu. |
 | `app/game_menu.cpp` | Handle menus, settings, the controls guide and level-selection commands. |
-| `app/game_play.cpp` | Update player motion, interactions, progression, enemies, capture and creature animation. Existing behavior remains in the corresponding `common/` classes. |
+| `app/game_play.cpp` | Order gameplay phases, with separate helpers for movement, streaming, exit progression, creatures, capture and animation. Existing algorithms remain in the corresponding `common/` classes. |
+| `app/game_interactions.cpp` | Handle key/Verity pickup, breakers, presents, hiding places, observations and doors in the existing order; return pickup/noise events to creature perception. |
 | `app/game_audio.cpp` | Feed the audio scene and level sound directors, schedule ambience and footsteps, and update music. |
-| `app/game_render.cpp` | Maintain streamed GPU meshes, select lights, render shadow/world passes and apply the lens postprocess. |
+| `app/game_render.cpp` | Order mesh, camera, light, shadow, scene and lens helpers using a local `RenderFrame` for values shared by one rendered frame. |
 | `app/game_hud.cpp` | Draw gameplay information, prompts and application overlays. |
 | `app/game_session.cpp` | Centralize screen selection, player reset and world replacement for restarts and level changes. |
 | `app/game_ending.cpp` | Run the cinematic timeline, its input/audio handling, replay and return to the menu. |
-| `app/game_scenarios.cpp` | Inject scripted verification input and opt-in stress transitions through the existing input/level lifecycle. |
+| `app/game_scenarios.cpp` | Inject scripted input/stress transitions, hold the fixed-timestep predicate and provide fixture hooks at the gameplay phase they prepare or observe. |
 | `app/render_resources.h/.cpp` | Mesh upload/release, render targets, frame-queue pacing and screenshot helpers extracted from the former main file. |
 | `app/minimap.h/.cpp` | Draw the minimap from world and player information. |
 | `app/diagnostics.h/.cpp` | Open the application log, write messages and report GLFW errors. |
@@ -44,6 +46,36 @@ The ordinary frame path is input/scenarios, menus, gameplay, audio, world render
 HUD and frame completion. The ending uses its separate cinematic path and keeps
 the ordinary gameplay state suspended. Shared values needed across phases belong
 to the private `Game` instance rather than a collection of application globals.
+
+## Smaller gameplay and rendering phases
+
+`updateGameplay()` exposes the execution order: door animation/collision, player
+movement, world streaming, level-exit handling, interactions, creatures, encounter
+state and creature animation. Each helper retains one part of that sequence.
+`updateInteractions()` lives in `game_interactions.cpp`; its named helpers keep
+object-specific rules readable and return the key-pickup and door-noise events
+used by creature perception.
+
+Fixture hooks stay beside the phase they prepare. For example, the original
+threat-position snapshot still precedes movement and shifting, while the
+perceived-player snapshot precedes later mouse/actor fixtures. Moving all fixture
+mutations to frame start would change those observations. Normal and scripted
+input retain their existing short-circuit conditions; `usesFixedTimeStep()` names
+the existing fixed-step predicate rather than introducing a new time policy.
+
+`PlayerState` groups position, motion, stamina, hiding, crouching, camera height,
+head-bob displacement and travel counters. `FrameTimings` groups wall-clock phase
+measurements separately from simulation `dt`. They are data structures, not new
+subsystems. `resetPlayer()` remains explicit: returning to an entrance and
+starting a new level intentionally retain different session values.
+
+`renderWorld()` orders mesh updates, target setup, camera/lights, shadows, scene
+geometry/actors and the lens pass. Its local `RenderFrame` carries the shared
+origin, camera matrices, eyes, flashlight and selected lights between helpers.
+It owns no persistent GPU resources and expires after the frame. Origin
+subtraction retains double precision, while camera/light calculations retain
+their original float types. The refactor is intended to preserve render-call and
+calculation order; visual and movement comparisons are recorded below.
 
 ## Screen state and encounter state
 
@@ -133,6 +165,34 @@ Use `balance.cfg` for supported tuning; add new typed keys and validation in
 `common/` or `world` modules.
 
 ## Verification — 3 November 2026
+
+### Smaller gameplay/render phases
+
+Compared with checkpoint `47c2d87` (`checkpoint-2026-11-03`), the gameplay
+coordinator is 16 lines instead of 441, and the rendering coordinator is 35
+instead of 434. Their work now lives in named helpers; these figures describe
+coordinator size, not a reduction in total functionality or total source lines.
+
+The Release build passed with GCC C++17, `-O2 -Wall -Wextra`, without warnings.
+Seven native suites passed (flow, movement, progression, world, streaming, threat
+and encounter), along with all four real-OpenGL checks. All 114 runtime cases
+passed: 23 menus, 16 Fun, 14 Parking, 15 ending, 17 Aranea, six forward/scare,
+ten progression/hiding and 13 exploration/note/presence cases. Every runtime log
+reported zero GL errors and zero owned GL resources after Game destruction.
+
+Eleven before/after comparisons produced identical pixel content and identical
+non-timing CSV data: the seven saved checkpoint cases, plus opening a door, a
+live chase, a close-up jumpscare and the Level 0-to-Fun transition. This includes
+player position, camera values and creature motion where those CSV fields apply.
+Assets, shaders, balance files and the existing checkpoint references were not
+modified. Comparisons used the same local Windows/Intel UHD environment; this is
+not a claim of compatibility with another computer or an FPS improvement.
+
+Evidence is retained in the working folder's
+`simplification-validation/candidate-results.json` and `runtime-results.json`.
+The build/native logs are in `code-simplification/`; capture commands remain in
+`tests/reference/checkpoint-2026-11-03/manifest.json`. The sections below record
+earlier upgrades and are separate from these current checks.
 
 ### Resource, tuning and diagnostics upgrade
 

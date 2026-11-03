@@ -12,22 +12,22 @@ void Game::setScreen(Screen screen) {
 void Game::resetPlayer() {
     // A return to the entrance resets actors and transient audio, while keeping
     // the current world's collected items, opened doors and powered circuits.
-    px = pz = CELL*.5;
+    player.x = player.z = CELL*.5;
     input.setLook(-90, -3);
-    world.update(px, pz);
+    world.update(player.x, player.z);
     flow.escaped = false; exitArmed=true; doorVisualDirty=true;
-    motion.reset();
-    bobOffset = 0;
-    crouched = false;
-    eyeHeight = 1.65f;
+    player.motion.reset();
+    player.bobOffset = 0;
+    player.crouched = false;
+    player.eyeHeight = 1.65f;
     fieldOfView = settings.fov;
-    stamina.reset(); tension = 0;
+    player.stamina.reset(); tension = 0;
     audio.reset(static_cast<uint32_t>(world.seed()));
     threat.reset(world.seed()); threat.setEnraged(world.keyCollected()); encounter.reset();
     mouse.reset(world.seed());mouseSqueaks=0;presentMouseTime=0;
     partygoers.reset();release(partyGpu);lastPartyPose={};
     darkness.reset();release(darknessGpu);
-    hiding=false; threatVocals.reset(); occlusionClock=0; threatTransmission=1;
+    player.hiding=false; threatVocals.reset(); occlusionClock=0; threatTransmission=1;
     atmosphere.reset(world.seed());
     funAudio.reset(world.seed());
     parkingAudio.reset(world.seed());
@@ -37,7 +37,7 @@ void Game::resetPlayer() {
     threatGaitPhase=threatVisualSpeed=threatHeadYaw=threatHeadPitch=threatTurnWeight=0; lastThreatContact={};
     threatFootPlanting.reset();
     threatBodyYaw=threat.yaw();
-    travel = walk = shiftClock = 0;
+    player.travelDistance = player.walkDistance = shiftClock = 0;
     audio.update(0, 0, false, false, Surface::Carpet, true);
     notice = "RETURNED TO THE FIRST ROOM";
     noticeTime = 3;
@@ -62,7 +62,7 @@ void Game::replaceWorld(uint64_t seed, Level level) {
 void Game::freshRun(uint64_t seed) {
     guidePage=0;flow.guidePending=(!options.hidden && !options.tour) || options.guideCheck;
     replaceWorld(seed,world.level());
-    exitUsed=false; doorsUsed=0; minimumStamina=100;
+    exitUsed=false; doorsUsed=0; player.minimumStamina=100;
     notice.clear(); noticeTime=0; menuSelection=0;
     setScreen(Screen::Gameplay); flow.entered=true;
 }
@@ -76,7 +76,7 @@ void Game::enterLevel(Level next,bool selected) {
     flow.guidePending=false;flow.entered=true;
     setScreen(Screen::Gameplay);
     if(selected) {
-        flashlight=true;showMap=false;doorsUsed=0;minimumStamina=100;
+        flashlight=true;showMap=false;doorsUsed=0;player.minimumStamina=100;
         ++levelMenuTravel;
         log(std::string("Level selected: ")+levelName(next)+" / fresh entrance / seed "+std::to_string(world.seed()));
     }

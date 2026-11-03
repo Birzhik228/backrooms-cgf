@@ -119,7 +119,7 @@ void Game::handleMenus() {
                 if(menuSelection==1) setScreen(Screen::Settings);
                 if(menuSelection==2) {
                     setScreen(Screen::LevelSelect);levelMenuSelection=int(world.level());
-                    flow.guidePending=false;motion.reset();++levelMenuVisits;
+                    flow.guidePending=false;player.motion.reset();++levelMenuVisits;
                     log("Level menu opened from pause menu.");
                     input.pressed.fill(false);input.clicked=false;escapeHandled=true;
                 }
@@ -163,7 +163,7 @@ void Game::handleMenus() {
         showMap = !showMap;
     }
     if (input.hit(GLFW_KEY_H) && !input.paused && encounter.alive()) {
-        setScreen(Screen::Controls);guidePage=0;motion.reset();
+        setScreen(Screen::Controls);guidePage=0;player.motion.reset();
     }
     if (input.hit(GLFW_KEY_V)) {
         cameraView = !cameraView;
@@ -200,7 +200,7 @@ void Game::handleMenus() {
         notice="NEW SEED / NEW BUILDING"; noticeTime=3;
     }
     if(flow.guidePending && flow.entered && !input.paused && encounter.alive() && !flow.is(Screen::LevelSelect)) {
-        flow.guidePending=false;setScreen(Screen::Controls);guidePage=0;motion.reset();
+        flow.guidePending=false;setScreen(Screen::Controls);guidePage=0;player.motion.reset();
         log("Controls popup opened.");
     }
     // Resume the mixer before any door, mouse, vocal or foot-contact event
@@ -208,7 +208,7 @@ void Game::handleMenus() {
     scareSuspended=!options.hidden && !glfwGetWindowAttrib(window,GLFW_FOCUSED);
     audio.setPaused(input.paused && (!encounter.presenting() || scareSuspended || !scareConfig.audio));
     input.smooth(dt);
-    if (options.tour && encounter.alive() && !input.paused && !hiding) {
+    if (options.tour && encounter.alive() && !input.paused && !player.hiding) {
         input.setLook(options.yaw + std::sin(elapsed * .38) * 40, -3 + std::sin(elapsed * .2) * 4);
     }
 }

@@ -7,24 +7,24 @@ int Game::execute() {
     initialize();
     while (!glfwWindowShouldClose(window)) {
         if(options.runSeconds>0 && glfwGetTime()-runStart>=options.runSeconds)break;
-        frameStart = glfwGetTime();
+        timing.frameStart = glfwGetTime();
         if (!options.unboundedQueue) frameQueue.wait();
-        queueWaitMs = (glfwGetTime() - frameStart) * 1000;
-        rawDelta = std::max(0.0, frameStart - lastTime);
-        lastTime = frameStart;
+        timing.queueWaitMs = (glfwGetTime() - timing.frameStart) * 1000;
+        timing.rawDelta = std::max(0.0, timing.frameStart - lastTime);
+        lastTime = timing.frameStart;
         // Cap ordinary simulation stalls to avoid teleporting through a wall.
         // The automated walk has deterministic motion per frame, independent of
         // render speed; performance counters always use real wall-clock time.
-        dt = (options.stressCycles || (options.endingPreview && options.hidden) || options.levelMenuCheck || options.controlHoldCheck || options.controlPauseCheck || options.controlTapCheck || options.autoReadObservation || options.darknessPreview || options.autoBreakers || options.partyPreview || options.autoWalk || options.autoCrouch || options.autoDoor || options.autoExit || options.autoCatch || options.autoJumpscare || options.autoKey || options.autoHide || options.mouseFixture || options.guideCheck || options.forcedThreat) ? 1.f / 60.f :
-                         static_cast<float>(std::min(rawDelta, .05));
+        dt = usesFixedTimeStep() ? 1.f / 60.f :
+                         static_cast<float>(std::min(timing.rawDelta, .05));
         elapsed += dt;
-        inputStart = glfwGetTime();
+        timing.inputStart = glfwGetTime();
         glfwPollEvents();
         applyScenarioInput();
         if(input.hit(GLFW_KEY_F9) && !flow.cinematic() && !encounter.scaring())startEnding("preview");
         if(flow.cinematic() && renderEnding())continue;
-        inputMs = (glfwGetTime() - inputStart) * 1000;
-        moveStart = glfwGetTime();
+        timing.inputMs = (glfwGetTime() - timing.inputStart) * 1000;
+        timing.moveStart = glfwGetTime();
         handleMenus();
         if(!updateGameplay())continue;
         updateAudio();
@@ -54,7 +54,7 @@ bool Game::finishFrame() {
         throw std::runtime_error("OpenGL error " + std::to_string(error) +
                                  " at frame " + std::to_string(frame));
     }
-    const double uiMs = (glfwGetTime() - uiStart) * 1000;
+    const double uiMs = (glfwGetTime() - timing.uiStart) * 1000;
     if (!options.unboundedQueue) frameQueue.submit();
     const double swapStart = glfwGetTime();
     glfwSwapBuffers(window);
@@ -62,23 +62,23 @@ bool Game::finishFrame() {
     int cap = options.fpsLimit >= 0 ? options.fpsLimit : options.hidden ? 0 : settings.maxFps;
     if (!options.hidden && (input.paused || !glfwGetWindowAttrib(window, GLFW_FOCUSED)))
         cap = cap > 0 ? std::min(cap, 30) : 30;
-    const double workMs=(glfwGetTime()-frameStart)*1000;
+    const double workMs=(glfwGetTime()-timing.frameStart)*1000;
     // Sleep only the remaining frame budget: no busy-wait and no catch-up burst.
     // Swap/vsync and GPU queue waits already count towards this budget.
     if (cap > 0) {
-        const double remaining = 1.0 / cap - (glfwGetTime() - frameStart);
+        const double remaining = 1.0 / cap - (glfwGetTime() - timing.frameStart);
         framePacer.wait(remaining);
     }
     ++frame;
 
     // Measure complete rendered frames, including swap/vsync. These real
     // durations are never clamped to the physics time-step limit.
-    const double frameSeconds = glfwGetTime() - frameStart;
+    const double frameSeconds = glfwGetTime() - timing.frameStart;
     maxFrameMs = std::max(maxFrameMs, frameSeconds * 1000);
     performance.record(frame,frameSeconds*1000,workMs,cap>0?1000.0/cap:0,
         int(world.level()),false,world.chunks().size(),world.preparedChunks().size(),gpu.size());
-    if (profile) profile << frame << "," << px << "," << pz << "," << origin.x << "," << origin.z << ","
-                         << worldMs << "," << uploadMs << "," << frameSeconds * 1000 << "," << uploads << "," << lightCount << "," << sceneMs << "," << lensMs << "," << uiMs << "," << swapMs << "," << inputMs << "," << moveMs << "," << audioMs << "," << setupMs << "," << queueWaitMs << "," << residentTriangles << "," << drawnTriangles
+    if (profile) profile << frame << "," << player.x << "," << player.z << "," << origin.x << "," << origin.z << ","
+                         << timing.worldMs << "," << timing.uploadMs << "," << frameSeconds * 1000 << "," << uploads << "," << lightCount << "," << timing.sceneMs << "," << timing.lensMs << "," << uiMs << "," << swapMs << "," << timing.inputMs << "," << timing.moveMs << "," << timing.audioMs << "," << timing.setupMs << "," << timing.queueWaitMs << "," << residentTriangles << "," << drawnTriangles
         << "," << encounter.elapsed() << "," << encounter.cameraTurn()
         << "," << (1.65f+(scareConfig.faceDistance-1.65f)*(scareConfig.lunge?encounter.lunge():0))
         << "," << renderFov << "," << scareShake.x << "," << scareShake.y << "," << scareShake.z << "," << shakeRoll
@@ -108,18 +108,18 @@ void Game::reportAndShutdown() {
     summary << std::fixed << std::setprecision(2)
             << "Completed " << frame << " frames. Max resident chunks: " << maxChunks
             << ". Average FPS: " << averageFps << ". Last FPS: " << fps
-            << ". Max frame ms: " << maxFrameMs << ". Position: " << px << ", " << pz
-            << ". Shifts: " << world.shifts() << ". Room: " << roomName(roomInfo(int64_t(std::floor(px/CELL)),int64_t(std::floor(pz/CELL)),world.seed(),world.level()).kind)
+            << ". Max frame ms: " << maxFrameMs << ". Position: " << player.x << ", " << player.z
+            << ". Shifts: " << world.shifts() << ". Room: " << roomName(roomInfo(int64_t(std::floor(player.x/CELL)),int64_t(std::floor(player.z/CELL)),world.seed(),world.level()).kind)
             << ". Exit used: " << (exitUsed ? "yes" : "no")
             << ". Escaped: " << (flow.escaped ? "yes" : "no")
             << ". Circuits: " << world.breakersPowered() << "/3"
             << ". Circuit states: " << (world.isParking()?
                 std::string("A ")+(world.breakerPowered(0)?"ON":"OFF")+" / B "+(world.breakerPowered(1)?"ON":"OFF")+" / C "+(world.breakerPowered(2)?"ON":"OFF"):"inactive")
-            << ". Circuit target: " << (parkingCircuitTarget(world,px,pz)>=0?std::string(1,char('A'+parkingCircuitTarget(world,px,pz))):"none")
+            << ". Circuit target: " << (parkingCircuitTarget(world,player.x,player.z)>=0?std::string(1,char('A'+parkingCircuitTarget(world,player.x,player.z))):"none")
             << ". Level: " << levelName(world.level()) << ". Mouse active: " << (mouse.active?"yes":"no")
-            << ". Eye height: " << eyeHeight << ". Crouched: " << (crouched ? "yes" : "no")
-            << ". FOV: " << fieldOfView << ". Velocity: " << motion.speed()
-            << ". Verity: " << (world.infiniteStamina()?"active":"inactive") << ". Stamina: " << stamina.value << ". Minimum stamina: " << minimumStamina
+            << ". Eye height: " << player.eyeHeight << ". Crouched: " << (player.crouched ? "yes" : "no")
+            << ". FOV: " << fieldOfView << ". Velocity: " << player.motion.speed()
+            << ". Verity: " << (world.infiniteStamina()?"active":"inactive") << ". Stamina: " << player.stamina.value << ". Minimum stamina: " << player.minimumStamina
             << ". Doors used: " << doorsUsed << ". Tension: " << tension
             << ". Creature footfalls: " << threatFootfalls
             << ". Creature walk/run footfalls: " << threatWalkFootfalls << "/" << threatRunFootfalls
@@ -135,8 +135,8 @@ void Game::reportAndShutdown() {
             << ". Mouse squeaks: " << mouseSqueaks << ". Guide: " << (flow.is(Screen::Controls)?"open":"closed")
             << ". Guide page: " << guidePage+1
             << ". Level menu: " << (flow.is(Screen::LevelSelect)?"open":"closed") << ". Level menu opens/travels: " << levelMenuVisits << "/" << levelMenuTravel
-            << ". Presents opened: " << world.presentsOpened() << ". Key: " << (world.keyCollected()?"collected":"missing") << ". Hiding: " << (hiding?"yes":"no")
-            << ". Present clue: " << (funPresentClue(world,px,pz,clues)&&!input.paused&&!cameraView?"visible":"off")
+            << ". Presents opened: " << world.presentsOpened() << ". Key: " << (world.keyCollected()?"collected":"missing") << ". Hiding: " << (player.hiding?"yes":"no")
+            << ". Present clue: " << (funPresentClue(world,player.x,player.z,clues)&&!input.paused&&!cameraView?"visible":"off")
             << ". Encounter: " << (encounter.scaring()?"jumpscare":encounter.gameOver()?"game-over":"exploring")
             << ". Music loaded: " << (musicLoaded ? "yes" : "no")
             << ". Music enabled: " << (settings.musicEnabled ? "yes" : "no")

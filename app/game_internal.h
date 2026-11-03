@@ -57,7 +57,6 @@
 #include "../common/threat_model.h"
 #include "../common/encounter.h"
 
-
 #include "options.h"
 #include "input.h"
 #include "diagnostics.h"
@@ -65,6 +64,7 @@
 #include "minimap.h"
 #include "flow.h"
 #include "performance.h"
+#include "game_state.h"
 
 namespace br::app {
 // Internal application coordinator. Public entry point is game.h.
@@ -96,6 +96,59 @@ private:
     void reportAndShutdown();
     Vec3 headCenter(const std::vector<Vertex>& vertices);
 
+    // Gameplay phases: kept in frame order by updateGameplay().
+    struct InteractionResult { bool pickedUpKey; float doorNoise; };
+    void updatePlayerMovement();
+    void updateWorldStreaming(const std::optional<WorldPoint>& threatPosition);
+    bool updateLevelExit();
+    InteractionResult updateInteractions();
+    bool collectLevelKey();
+    bool interactWithBreaker();
+    bool interactWithPresent();
+    void collectVerity();
+    bool interactWithHidingPlace();
+    void updateNearbyDoor();
+    bool readObservation();
+    float interactWithDoor(bool otherInteraction);
+    void updateCreatures(const InteractionResult& interactions);
+    void updateMouse(const ThreatPlayer& perceivedPlayer);
+    void updatePartygoers();
+    void updateDarkness();
+    void updateAranea(const ThreatPlayer& perceivedPlayer,ThreatState previousThreatState);
+    void updateEncounter();
+    void updateThreatAnimation();
+
+    // Verification hooks preserve their original phase-local ordering.
+    bool usesFixedTimeStep() const;
+    void applyMovementScenario();
+    bool scenarioCrouchHeld() const;
+    bool scenarioSprintHeld() const;
+    float forwardMovementInput() const;
+    void applyInteractionScenario();
+    void applyVerityScenario();
+    bool doorInteractionRequested() const;
+    void applyAraneaContactScenario();
+    void applyMouseContactScenario(ThreatPlayer& perceivedPlayer);
+    void applyMousePreviewScenario();
+    void applyPartygoerScenario();
+    void applyDarknessScenario();
+
+    // World rendering: local RenderFrame values flow through ordered passes.
+    struct RenderFrame;
+    void uploadWorldMeshes();
+    void updateThreatMesh();
+    bool beginWorldTarget();
+    void updateLocalMeshes(const RenderFrame& render);
+    void updateRenderCamera(RenderFrame& render);
+    void collectRenderLights(RenderFrame& render);
+    void drawShadowGeometry(const RenderFrame& render, const Mat4& lightVP, bool actor);
+    void renderShadows(const RenderFrame& render);
+    void configureWorldShader(const RenderFrame& render);
+    void drawRoomGeometry(const RenderFrame& render);
+    void drawWorldObjects(const RenderFrame& render);
+    void drawThreatModel(const RenderFrame& render);
+    void renderLens(const Mat4& projection);
+
     // This member is destroyed last, after every GL resource below it.
     PerformanceMonitor performance{options.performanceReport,options.slowFrameMs};
     int stressTransitions=0,lastStressTransitionFrame=-1,lastStressSampleFrame=-1;
@@ -117,12 +170,12 @@ private:
     std::uint64_t lampShadowUpdates=0;
     gl::VertexArray emptyVao;
     World world{options.seed,options.parkingPreview?Level::Parking:options.funPreview?Level::Fun:Level::Zero};
-    double px = options.spawnX, pz = options.spawnZ;
+    PlayerState player{options.spawnX, options.spawnZ};
     Threat threat{world.seed()};
     Mouse mouse;
     JumpscareManager encounter{loadJumpscareConfig(options.jumpscareConfigFile)};
     const JumpscareConfig& scareConfig=encounter.config();
-    bool hiding=false;
+
     ThreatVocalCadence threatVocals;
     Level0Atmosphere atmosphere{world.seed()};
     Level0Presence presence{world.seed()};
@@ -133,7 +186,7 @@ private:
     int atmosphereAmbient=0,atmosphereSteps=0,atmosphereHints=0;
     int presenceEvents=0,observationsRead=0,observationKind=-1;
     float observationTime=0;
-    HidingSpot hidingSpot{};
+
     float occlusionClock=0,threatTransmission=1;
     float scareYaw=0, scarePitch=0, scareTargetYaw=0, scareTargetPitch=0;
     Vec3 scareApproach{0,0,-1};
@@ -176,21 +229,18 @@ private:
     std::string endingPhase;
     float endingCueTime=-1;
     const char* endingAmbienceRestore=nullptr;
-    double endingFrozenX=px,endingFrozenZ=pz;
+    double endingFrozenX=player.x,endingFrozenZ=player.z;
     float endingFrozenStamina=100;
     bool endingWorldFrozen=true;
-    PlayerMotion motion;
-    Stamina stamina;
+
     int levelMenuSelection=0,levelMenuVisits=0,levelMenuTravel=0;
     int scriptedSelectorOpened=-1;
     int menuSelection = 0, settingSelection = 0, doorsUsed = 0;
-    float tension = 0, minimumStamina = 100;
-    float bobOffset = 0;
-    bool crouched = false, cameraView = options.cameraView;
-    float eyeHeight = 1.65f;
+    float tension = 0;
+    bool cameraView = options.cameraView;
     float fieldOfView = settings.fov;
     double runStart = 0;
-    double lastTime = 0, elapsed = 0, walk = 0, travel = 0;
+    double lastTime = 0, elapsed = 0;
     double shiftClock = 0, fpsTime = 0, maxFrameMs = 0;
     int frame = 0, fpsFrames = 0;
     float fps = 0, noticeTime = 0;
@@ -201,7 +251,7 @@ private:
     std::ofstream profile;
 
     // Scratch values shared by the ordered phases of one frame.
-    double frameStart=0,queueWaitMs=0,rawDelta=0,inputStart=0,inputMs=0,moveStart=0,moveMs=0,worldMs=0,audioMs=0,uploadMs=0,setupMs=0,sceneMs=0,lensMs=0,uiStart=0;
+    FrameTimings timing;
     float dt=0;
     std::optional<std::array<double,2>> scriptedMenuClick;
     bool scareSuspended=false,moving=false,sprinting=false;

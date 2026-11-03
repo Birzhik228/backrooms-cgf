@@ -30,10 +30,10 @@ void Game::initialize() {
     scene.use();scene.set("uFlashShadow",8);scene.set("uLampShadows",9);
     ao.use();ao.set("uDepth",0);
 
-    if(options.exitPreview){auto p=world.exitLocation();px=p.x;pz=p.z+.8;}
-    if(options.keyPreview){auto p=world.keyLocation();px=p.x;pz=p.z+2.5;}
-    world.update(px, pz);
-    if (world.blocked(px, pz, .23)) {
+    if(options.exitPreview){auto p=world.exitLocation();player.x=p.x;player.z=p.z+.8;}
+    if(options.keyPreview){auto p=world.keyLocation();player.x=p.x;player.z=p.z+2.5;}
+    world.update(player.x, player.z);
+    if (world.blocked(player.x, player.z, .23)) {
         throw std::runtime_error("Requested spawn intersects a wall.");
     }
 
@@ -55,7 +55,7 @@ void Game::initialize() {
         const auto& note=notes[std::min(std::size_t(options.observationPreview),notes.size()-1)];
         const double x=note.position.x-1.0,z=note.position.z-1.0;
         if(world.blocked(x,z,.23))throw std::runtime_error("Observation preview approach is blocked.");
-        px=x;pz=z;world.update(px,pz);
+        player.x=x;player.z=z;world.update(player.x,player.z);
         input.setLook(45,options.explicitPitch?options.pitch:-46);
         log("Observation preview: kind "+std::to_string(note.kind)+" / "+std::to_string(note.position.x)+", "+std::to_string(note.position.z));
     }

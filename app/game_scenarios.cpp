@@ -98,4 +98,145 @@ void Game::applyScenarioInput() {
     input.poll();
 }
 
+// Gameplay fixtures run at the phase they observe or prepare. Moving all of
+// them to frame start would change collision, perception and interaction order.
+void Game::applyMovementScenario() {
+    if(options.partyCheck && frame==60)input.setLook(90,0);
+    if(options.partyCheck && frame==120)input.setLook(-90,0);
+}
+
+bool Game::scenarioCrouchHeld() const {
+    return (options.controlHoldCheck && frame>=2 && frame<32) ||
+        (options.autoCrouch && !(options.autoStand && frame >= options.frames / 2));
+}
+
+bool Game::scenarioSprintHeld() const {
+    return options.autoSprint && !(options.autoReleaseSprint && frame >= options.frames / 2);
+}
+
+float Game::forwardMovementInput() const {
+    return options.autoWalk ? ((options.autoStop && frame >= options.frames / 2) ? 0.f : 1.f) :
+        (input.down(GLFW_KEY_W) ? 1.f : 0.f) - (input.down(GLFW_KEY_S) ? 1.f : 0.f);
+}
+
+void Game::applyInteractionScenario() {
+    if(options.hideFixture && frame==1) {
+        const br::HidingSpot* selected=nullptr;
+        for(const auto& entry:world.chunks()) for(const auto& spot:entry.second.hidingSpots)
+            if(!selected || spot.id<selected->id) selected=&spot;
+        if(selected) {
+            player.x=selected->approach.x;player.z=selected->approach.z;
+            input.setLook(float(std::atan2(selected->inside.z-player.z,selected->inside.x-player.x)*180/3.141592653589793),-12);
+            log("Hiding fixture: "+std::to_string(player.x)+", "+std::to_string(player.z));
+        }
+    }
+    // Scripted fixtures use the same E interaction and present rolls as play.
+    if(options.autoBreakers && world.isParking() && frame>=1 && frame<=9 && frame%4==1) {
+        const auto panel=world.breakerLocation((frame-1)/4);
+        player.x=panel.x;player.z=panel.z+1;world.update(player.x,player.z);player.motion.reset();input.setLook(-90,0);forward=input.forward();
+        simulateKey(GLFW_KEY_E);
+    }
+    if(options.autoBreakers && options.autoExit && world.isParking() && frame==20) {
+        const auto exit=world.exitLocation();player.x=exit.x;player.z=exit.z;world.update(player.x,player.z);player.motion.reset();input.setLook(-90,0);forward=input.forward();
+    }
+    if(options.autoBreakers && options.autoExit && world.isParking() && frame==21)simulateKey(GLFW_KEY_E);
+    if(options.funPreview && options.autoKey && world.isFun() && !world.keyCollected() && frame>0 && frame<65 && frame%4==1) {
+        double nearest=1e30;Present selected{};
+        for(const auto& entry:world.chunks())for(const auto& gift:entry.second.presents)if(!gift.opened) {
+            const double distance=std::hypot(gift.x-player.x,gift.z-player.z);
+            if(distance<nearest){nearest=distance;selected=gift;}
+        }
+        if(nearest<1e30){player.x=selected.x+1.05;player.z=selected.z;input.setLook(180,-35);}
+        world.update(player.x,player.z);forward=input.forward();
+        simulateKey(GLFW_KEY_E);
+    }
+    if(options.funPreview && options.autoKey && options.autoExit && world.keyCollected() && frame==80) {
+        const auto exit=world.exitLocation();player.x=exit.x;player.z=exit.z;world.update(player.x,player.z);player.motion.reset();input.setLook(-90,0);
+        forward=input.forward();
+    }
+    if(options.autoKey && frame==1 && world.level()==Level::Zero) {
+        const auto key=world.keyLocation(); player.x=key.x;player.z=key.z+1;world.update(player.x,player.z);
+    }
+    if(options.autoKey && options.autoExit && frame==20 && world.level()==Level::Zero) {
+        const auto exit=world.exitLocation();player.x=exit.x;player.z=exit.z;world.update(player.x,player.z);
+    }
+}
+
+void Game::applyVerityScenario() {
+    if(options.autoVerity && frame==3 && !world.verityDrops().empty()) {
+        const auto drop=world.verityDrops().front();player.x=drop.x+.5;player.z=drop.z;player.motion.reset();
+    }
+}
+
+bool Game::doorInteractionRequested() const {
+    return input.hit(GLFW_KEY_E) ||
+        (options.autoExit && frame == (options.autoKey ? (options.funPreview?81:21) : options.menuCheck ? 8 : 2)) ||
+        (options.autoDoor && frame==2) || (options.autoCloseDoor && frame==options.doorCloseFrame);
+}
+
+void Game::applyAraneaContactScenario() {
+    if(options.autoCatch && frame==2 && encounter.alive() && world.level()==Level::Zero) {
+        const Vec3 front=normalize(Vec3{forward.x,0,forward.z});
+        double tx=player.x+front.x*1.35,tz=player.z+front.z*1.35;
+        if(world.blocked(tx,tz,Threat::RADIUS)) { tx=player.x; tz=player.z; }
+        threat.resetAt(tx,tz,std::atan2(-front.x,front.z));
+    }
+}
+
+void Game::applyMouseContactScenario(ThreatPlayer& perceivedPlayer) {
+    if(options.mouseFixture && frame==2 && mouse.active) {
+        player.x=mouse.x;player.z=mouse.z;perceivedPlayer.x=player.x;perceivedPlayer.z=player.z;
+    }
+}
+
+void Game::applyMousePreviewScenario() {
+    if(options.mousePreview && frame==1 && mouse.active) {
+        player.x=mouse.x+1;player.z=mouse.z+1;
+        input.setLook(-135,-48);player.eyeHeight=1.08f;
+    }
+}
+
+void Game::applyPartygoerScenario() {
+    if(options.partyPreview && frame==0 && world.isFun() && !options.noThreat) {
+        auto& a=partygoers.actors[0];a.active=true;a.x=player.x;a.z=player.z-3;a.yaw=PI;
+    }
+    if(options.autoCatch && frame==2 && world.isFun() && !options.noThreat) {
+        auto& a=partygoers.actors[0];a.active=true;a.x=player.x;a.z=player.z+.4;
+    }
+}
+
+void Game::applyDarknessScenario() {
+    if(options.darknessPreview && frame==0 && world.isParking() && !options.noThreat) {
+        auto& eyes=darkness.eyes[0];eyes.active=true;eyes.x=player.x;eyes.z=player.z-8;
+    }
+    if(options.autoCatch && frame==2 && world.isParking() && !options.noThreat) {
+        player.x=3.75;player.z=-3.75;world.update(player.x,player.z);
+        auto& eyes=darkness.eyes[0];eyes.active=true;eyes.x=player.x;eyes.z=player.z+.4;
+    }
+}
+
+bool Game::usesFixedTimeStep() const {
+    return options.stressCycles ||
+           (options.endingPreview && options.hidden) ||
+           options.levelMenuCheck ||
+           options.controlHoldCheck ||
+           options.controlPauseCheck ||
+           options.controlTapCheck ||
+           options.autoReadObservation ||
+           options.darknessPreview ||
+           options.autoBreakers ||
+           options.partyPreview ||
+           options.autoWalk ||
+           options.autoCrouch ||
+           options.autoDoor ||
+           options.autoExit ||
+           options.autoCatch ||
+           options.autoJumpscare ||
+           options.autoKey ||
+           options.autoHide ||
+           options.mouseFixture ||
+           options.guideCheck ||
+           options.forcedThreat;
+}
+
 } // namespace br::app

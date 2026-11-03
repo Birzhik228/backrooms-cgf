@@ -22,8 +22,8 @@ void Game::startEnding(const char* reason,float at) {
     ending.start(at);endingPaused=false;endingFinishedLogged=false;
     endingPhase.clear();endingCueTime=at>0?at:-1;
     endingAmbienceRestore=at>0?"seek":nullptr;
-    endingFrozenX=px;endingFrozenZ=pz;endingFrozenStamina=stamina.value;
-    endingSelection=1;motion.reset();setScreen(Screen::Ending);
+    endingFrozenX=player.x;endingFrozenZ=player.z;endingFrozenStamina=player.stamina.value;
+    endingSelection=1;player.motion.reset();setScreen(Screen::Ending);
     flow.guidePending=false;notice.clear();
     audio.reset(static_cast<std::uint32_t>(world.seed()));
     AudioScene silent;silent.cinematic=true;silent.lightPower=0;audio.setScene(silent);
@@ -72,10 +72,10 @@ bool Game::renderEnding() {
         }
         if(flow.cinematic()) {
             const bool suspended=endingPaused||!focused||width<=0||height<=0;
-            const float endingDelta=options.hidden?dt:float(std::min(rawDelta,.25));
+            const float endingDelta=options.hidden?dt:float(std::min(timing.rawDelta,.25));
             const auto previousPose=sampleEndingPose(ending.time());
             ending.update(endingDelta,suspended);
-            endingWorldFrozen=endingWorldFrozen&&px==endingFrozenX&&pz==endingFrozenZ&&stamina.value==endingFrozenStamina;
+            endingWorldFrozen=endingWorldFrozen&&player.x==endingFrozenX&&player.z==endingFrozenZ&&player.stamina.value==endingFrozenStamina;
             const std::string phase=EndingSequence::phaseName(ending.time());
             if(phase!=endingPhase){
                 endingPhase=phase;log("Ending phase: "+phase);
@@ -120,9 +120,9 @@ bool Game::renderEnding() {
             glfwSwapBuffers(window);
             int cap=options.fpsLimit>=0?options.fpsLimit:options.hidden?0:settings.maxFps;
             if(!options.hidden&&(suspended||ending.finished()))cap=cap>0?std::min(cap,30):30;
-            const double workMs=(glfwGetTime()-frameStart)*1000;
-            if(cap>0)framePacer.wait(1.0/cap-(glfwGetTime()-frameStart));
-            ++frame;const double seconds=glfwGetTime()-frameStart;
+            const double workMs=(glfwGetTime()-timing.frameStart)*1000;
+            if(cap>0)framePacer.wait(1.0/cap-(glfwGetTime()-timing.frameStart));
+            ++frame;const double seconds=glfwGetTime()-timing.frameStart;
             maxFrameMs=std::max(maxFrameMs,seconds*1000);
             performance.record(frame,seconds*1000,workMs,cap>0?1000.0/cap:0,
                 int(world.level()),true,world.chunks().size(),world.preparedChunks().size(),gpu.size());

@@ -20,7 +20,7 @@ void Game::drawHud() {
         ui.rect(18, 18, 330 * scale, 50, {.015f, .020f, .015f, .70f});
         ui.rect(22, 24, 3, 38, gold);
         ui.text(36, 25, "BACKROOMS", 2 * scale, paper);
-        ui.text(36, 47, world.isParking()?std::string("STAGE 3 / PARKING / SECTOR ")+char('A'+parkingSector(int64_t(std::floor(px/CELL)),int64_t(std::floor(pz/CELL)))):world.isFun()?std::string("LEVEL FUN / PARTY ROOMS"):std::string("LEVEL 0 / ")+roomName(currentRoom.kind), 1.15f * scale, dim);
+        ui.text(36, 47, world.isParking()?std::string("STAGE 3 / PARKING / SECTOR ")+char('A'+parkingSector(int64_t(std::floor(player.x/CELL)),int64_t(std::floor(player.z/CELL)))):world.isFun()?std::string("LEVEL FUN / PARTY ROOMS"):std::string("LEVEL 0 / ")+roomName(currentRoom.kind), 1.15f * scale, dim);
         const std::string seedText = "SEED " + std::to_string(world.seed());
         ui.text(float(width) - UI::textWidth(seedText, 1.25f * scale) - 26,
                 28, seedText, 1.25f * scale, paper);
@@ -28,12 +28,12 @@ void Game::drawHud() {
         if (!input.paused) {
             ui.rect(width * .5f - 1, height * .5f - 1, 2, 2, {.95f, .94f, .81f, .65f});
             ui.text(28, float(height) - 55,
-                    "FLASHLIGHT " + std::string(flashlight && !hiding ? "ON" : "OFF") +
+                    "FLASHLIGHT " + std::string(flashlight && !player.hiding ? "ON" : "OFF") +
                     (world.isParking()?std::string(""):std::string("   CLUES ") + (clues ? "ON" : "OFF")) +
-                    (crouched ? "   CROUCHING" : ""), 1.2f * scale, paper);
+                    (player.crouched ? "   CROUCHING" : ""), 1.2f * scale, paper);
             {
                 const auto door = world.exitLocation();
-                const double dx = door.x - px, dz = door.z - pz;
+                const double dx = door.x - player.x, dz = door.z - player.z;
                 const double distance = std::hypot(dx, dz);
                 const double ahead = dx * forward.x + dz * forward.z;
                 const double side = -dx * forward.z + dz * forward.x;
@@ -44,7 +44,7 @@ void Game::drawHud() {
                 auto key=world.keyLocation();
                 int signalCircuit=-1;
                 if(world.isParking()) {
-                    signalCircuit=parkingCircuitTarget(world,px,pz);
+                    signalCircuit=parkingCircuitTarget(world,player.x,player.z);
                     if(signalCircuit>=0)key=world.breakerLocation(signalCircuit);
                     for(int i=0;i<3;++i) {
                         const float bx=28+i*84*scale,by=float(height)-160;
@@ -54,7 +54,7 @@ void Game::drawHud() {
                         ui.text(bx+7*scale,by+8,std::string(1,char('A'+i))+(world.breakerPowered(i)?" ON":" OFF"),1.15f*scale,state);
                     }
                 }
-                const double kx=key.x-px,kz=key.z-pz,kd=std::hypot(kx,kz);
+                const double kx=key.x-player.x,kz=key.z-player.z,kd=std::hypot(kx,kz);
                 const double ka=kx*forward.x+kz*forward.z,ks=-kx*forward.z+kz*forward.x;
                 const double headingScale=world.isParking()?std::hypot(forward.x,forward.z):1.;
                 const std::string kb=ka>kd*headingScale*.75?"AHEAD":ka<-kd*headingScale*.75?"BEHIND":ks>0?"RIGHT":"LEFT";
@@ -65,12 +65,12 @@ void Game::drawHud() {
                     world.isFun()?"SEARCH PRESENTS / OPENED "+std::to_string(world.presentsOpened())+" / NEXT "+std::to_string(World::presentKeyChance(world.presentsOpened()))+"%":
                     "KEY SIGNAL "+std::to_string(int(kd))+" M / "+kb,1.25f*scale,gold);
             }
-            if(world.isParking())ui.text(28,float(height)-128,Darkness::safe(world,px,pz)?"IN THE LIGHT / SAFE":"DARKNESS / AIM YOUR FLASHLIGHT AT THE EYES",1.15f*scale,Darkness::safe(world,px,pz)?Color{.47f,.88f,.68f,1}:gold);
+            if(world.isParking())ui.text(28,float(height)-128,Darkness::safe(world,player.x,player.z)?"IN THE LIGHT / SAFE":"DARKNESS / AIM YOUR FLASHLIGHT AT THE EYES",1.15f*scale,Darkness::safe(world,player.x,player.z)?Color{.47f,.88f,.68f,1}:gold);
             if(world.isFun() && clues && !world.keyCollected()) {
-                const auto gift=funPresentClue(world,px,pz,true);
+                const auto gift=funPresentClue(world,player.x,player.z,true);
                 std::string signal="PRESENT SIGNAL / EXPLORE NEARBY ROOMS";
                 if(gift) {
-                    const double dx=gift->x-px,dz=gift->z-pz,d=std::hypot(dx,dz);
+                    const double dx=gift->x-player.x,dz=gift->z-player.z,d=std::hypot(dx,dz);
                     const double ahead=dx*forward.x+dz*forward.z,side=-dx*forward.z+dz*forward.x;
                     const double heading=std::hypot(forward.x,forward.z);
                     const char* bearing=ahead>d*heading*.75?"AHEAD":ahead<-d*heading*.75?"BEHIND":side>0?"RIGHT":"LEFT";
@@ -83,11 +83,11 @@ void Game::drawHud() {
                 nearbyPresent.opened?"PRESENT ALREADY SEARCHED":"E / OPEN PRESENT",1.3f*scale,paper);
             if(nearObservation && observationTime<=0)ui.text(width*.5f-100,height*.5f+58,
                 "E / READ NOTE",1.3f*scale,paper);
-            if(hiding || nearHide) ui.text(width*.5f-170,height*.5f+58,
-                hiding?"HIDDEN / E TO LEAVE":"E / HIDE IN WALL RECESS",1.3f*scale,paper);
-            ui.text(float(width)-212, float(height)-70, world.infiniteStamina()?"VERITY / INFINITE":stamina.exhausted ? "CATCH YOUR BREATH" : "STAMINA", 1.15f*scale, stamina.exhausted ? gold : dim);
+            if(player.hiding || nearHide) ui.text(width*.5f-170,height*.5f+58,
+                player.hiding?"HIDDEN / E TO LEAVE":"E / HIDE IN WALL RECESS",1.3f*scale,paper);
+            ui.text(float(width)-212, float(height)-70, world.infiniteStamina()?"VERITY / INFINITE":player.stamina.exhausted ? "CATCH YOUR BREATH" : "STAMINA", 1.15f*scale, player.stamina.exhausted ? gold : dim);
             ui.rect(float(width)-212, float(height)-49, 180, 5, {.08f,.09f,.06f,.9f});
-            ui.rect(float(width)-212, float(height)-49, 180*stamina.value/100.f, 5, gold);
+            ui.rect(float(width)-212, float(height)-49, 180*player.stamina.value/100.f, 5, gold);
             if (nearDoor) {
                 const std::string prompt = nearbyDoor.isExit && !world.exitUnlocked()?(world.isParking()?"EXIT LOCKED / RESTORE POWER":"EXIT LOCKED / FIND KEY") : nearbyDoor.isExit && nearbyDoor.openness>.92f ? "WALK THROUGH TO EXIT / E CLOSE" : nearbyDoor.open ? "E / CLOSE DOOR" : nearbyDoor.isExit ? "E / OPEN EXIT DOOR" : "E / OPEN DOOR";
                 const float promptW = UI::textWidth(prompt, 1.8f * scale);
@@ -99,7 +99,7 @@ void Game::drawHud() {
     if(observationTime>0 && !input.paused && encounter.alive() && !cameraView)
         drawObservation(ui,width,height,observationKind);
     if (showMap && !input.paused) {
-        minimap(ui, world, px, pz, forward, width, clues);
+        minimap(ui, world, player.x, player.z, forward, width, clues);
     }
     if(settings.showFPS && !input.paused) {
         const std::string rate="FPS "+std::to_string(int(fps));
@@ -112,12 +112,12 @@ void Game::drawHud() {
         text << "FPS " << int(fps)
              << "\nRESIDENT TRIANGLES " << residentTriangles << " / DRAWN " << drawnTriangles
              << "\nCHUNKS " << world.chunks().size() << " / DRAWN " << drawn
-             << "\nCELL " << int64_t(std::floor(px / CELL)) << ", " << int64_t(std::floor(pz / CELL))
-             << "\nDISTANCE " << int(travel) << " M / SHIFTS " << world.shifts()
-             << "\nLIGHTS " << lightCount << " / SPEED " << std::fixed << std::setprecision(2) << motion.speed()
+             << "\nCELL " << int64_t(std::floor(player.x / CELL)) << ", " << int64_t(std::floor(player.z / CELL))
+             << "\nDISTANCE " << int(player.travelDistance) << " M / SHIFTS " << world.shifts()
+             << "\nLIGHTS " << lightCount << " / SPEED " << std::fixed << std::setprecision(2) << player.motion.speed()
              << "\nROOM " << currentRoom.widthCells * CELL << " X " << currentRoom.depthCells * CELL
              << " M / CEILING " << currentRoom.height << " M"
-             << "\nEYE " << std::fixed << std::setprecision(2) << eyeHeight << " M / " << (crouched ? "CROUCH" : "STAND")
+             << "\nEYE " << std::fixed << std::setprecision(2) << player.eyeHeight << " M / " << (player.crouched ? "CROUCH" : "STAND")
              << "\nTHREAT " << threatStateName(threat.state()) << " / PATH NODES " << threat.pathNodesVisited();
         text << "\nPROCESS RAM " << (performance.memory().residentKnown?
                     std::to_string(performance.memory().resident/1048576)+" MIB":std::string("N/A"))

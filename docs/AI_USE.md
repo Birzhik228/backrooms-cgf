@@ -164,3 +164,21 @@ cleanup. Detailed timing/memory results and coverage limits are in `performance.
 Hosted CI has not run as part of this local change; it becomes available after
 the workflow is committed and pushed. This work does not claim an FPS gain or
 complete coverage of every allocation, driver resource or gameplay scenario.
+
+
+## Gameplay and rendering readability — 3 November 2026
+
+At the user's request, Codex assisted with breaking long gameplay/render methods
+into ordered helpers, extracting object interactions to `game_interactions.cpp`,
+and placing automated fixture hooks at their original gameplay phases. The change
+also groups player data and frame timings in `game_state.h`; rendering shares
+local frame data through `RenderFrame`. It adds no runtime dependency or asset.
+The explicit goal is to simplify reading the code while retaining existing
+visuals, movement, arithmetic and execution order.
+
+Validation against checkpoint `47c2d87` passed seven native suites, four
+real-OpenGL checks and 114 runtime scenarios. Eleven reference comparisons had
+identical pixels and non-timing profiles. These current checks and their local
+platform limits are recorded in `code-structure.md`, separately from earlier
+verification. Assets, shaders, balance and saved checkpoint references remain
+unchanged. No new runtime library, game feature or performance claim is added.
