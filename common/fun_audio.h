@@ -55,11 +55,12 @@ public:
             }
             movingMask_|=std::uint8_t(1u<<i);
             distance_[i]+=moved;
-            if(distance_[i]<1.65)continue;
-            distance_[i]=std::fmod(distance_[i],1.65);
+            // Phase advances by two radians per metre; each half-cycle lands a foot.
+            constexpr double contactDistance=double(PI)*.5;
+            if(distance_[i]<contactDistance)continue;
+            distance_[i]=std::fmod(distance_[i],contactDistance);
             if(range>26||world.blocked(actor.x,actor.z,.12))continue;
             const float transmission=world.soundTransmission(context.listener.x,context.listener.z,actor.x,actor.z);
-            if(transmission<.12f)continue;
             cues.push_back({SoundKind::PartyFootstep,position,.82f,transmission,i});
         }
         quiet_=danger;

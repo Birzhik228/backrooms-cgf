@@ -8,11 +8,11 @@ Game::InteractionResult Game::updateInteractions() {
     const bool breakerInteraction=interactWithBreaker();
     const bool presentInteraction=interactWithPresent();
     applyVerityScenario();
-    collectVerity();
-    const bool hideInteraction=interactWithHidingPlace();
+    const bool verityInteraction=collectVerity(presentInteraction || breakerInteraction);
+    const bool hideInteraction=interactWithHidingPlace(verityInteraction);
     updateNearbyDoor();
     const bool observationInteraction=readObservation();
-    const bool otherInteraction=hideInteraction || observationInteraction || presentInteraction || breakerInteraction;
+    const bool otherInteraction=hideInteraction || observationInteraction || presentInteraction || breakerInteraction || verityInteraction;
     const float doorNoise=interactWithDoor(otherInteraction);
     return {pickedUpKey,doorNoise};
 }
@@ -59,7 +59,7 @@ bool Game::interactWithPresent() {
             audio.play(SoundKind::PresentOpen,{nearbyPresent.x,.4,nearbyPresent.z},1.f);
             nearPresent=false;
             notice=result==PresentResult::Key?"KEY FOUND / EXIT UNLOCKED":
-                world.keyCollected()?"EMPTY PRESENT / KEEP SEARCHING FOR VERITY":
+                world.keyCollected()?"EMPTY PRESENT":
                 "EMPTY PRESENT / NEXT CHANCE "+std::to_string(World::presentKeyChance(world.presentsOpened()))+"%";
             if(result==PresentResult::Mouse) {
                 mouse.releaseFromPresent(nearbyPresent.x,nearbyPresent.z);presentMouseTime=8;
@@ -71,7 +71,6 @@ bool Game::interactWithPresent() {
             if(!world.verityDrops().empty() && !world.infiniteStamina()) {
                 const auto& drop=world.verityDrops().back();
                 if(std::hypot(drop.x-nearbyPresent.x,drop.z-nearbyPresent.z)<.1) {
-                    notice+=" / VERITY! WALK UP TO COLLECT";
                     log("Verity dropped from present.");
                 }
             }
@@ -82,21 +81,34 @@ bool Game::interactWithPresent() {
     return presentInteraction;
 }
 
-void Game::collectVerity() {
-    if(!input.paused && encounter.alive() && world.collectVerity(player.x,player.z)) {
+bool Game::collectVerity(bool otherInteraction) {
+    WorldPoint nearbyVerity{};
+    nearVerity=world.nearestVerity(player.x,player.z,1.2,nearbyVerity);
+    if(nearVerity) {
+        const Vec3 direction{float(nearbyVerity.x-player.x),.18f-player.eyeHeight,float(nearbyVerity.z-player.z)};
+        nearVerity=dot(normalize(direction),forward)>.75f;
+    }
+    const bool verityInteraction=nearVerity && !otherInteraction &&
+        !input.paused && encounter.alive() && input.hit(GLFW_KEY_E);
+    if(verityInteraction && world.collectVerity(player.x,player.z)) {
+        audio.play(SoundKind::VerityPickup,{player.x,player.eyeHeight,player.z},1.f);
+        veritySongTime=2.f;
+        log("Verity pickup song triggered.");
+        nearVerity=false;
         player.stamina.reset();notice="VERITY / INFINITE STAMINA FOR THIS LEVEL";noticeTime=5;
         log("Verity collected. Infinite stamina enabled for Level Fun.");
     }
+    return verityInteraction;
 }
 
-bool Game::interactWithHidingPlace() {
+bool Game::interactWithHidingPlace(bool otherInteraction) {
     HidingSpot nearbyHide{};
     nearHide=world.nearestHidingSpot(player.x,player.z,1.3,nearbyHide);
     if(nearHide) {
         nearHide=Threat::visibleSegment(world,player.x,player.z,nearbyHide.approach.x,nearbyHide.approach.z);
     }
     bool hideInteraction=false;
-    if(!input.paused && encounter.alive() && input.hit(GLFW_KEY_E) && (player.hiding || nearHide)) {
+    if(!otherInteraction && !input.paused && encounter.alive() && input.hit(GLFW_KEY_E) && (player.hiding || nearHide)) {
         hideInteraction=true;
         if(player.hiding) {
             if(!world.blocked(player.hidingSpot.approach.x,player.hidingSpot.approach.z,.23) &&

@@ -105,8 +105,8 @@ private:
     bool collectLevelKey();
     bool interactWithBreaker();
     bool interactWithPresent();
-    void collectVerity();
-    bool interactWithHidingPlace();
+    bool collectVerity(bool otherInteraction);
+    bool interactWithHidingPlace(bool otherInteraction);
     void updateNearbyDoor();
     bool readObservation();
     float interactWithDoor(bool otherInteraction);
@@ -183,6 +183,7 @@ private:
     ParkingAudioDirector parkingAudio{world.seed()};
     int parkingPipeEvents=0,parkingDripEvents=0,parkingVentEvents=0,parkingRelayEvents=0;
     int partyStepEvents=0,partyFrozenSteps=0,funBalloonEvents=0,funMelodyEvents=0;
+    float veritySongTime=0,partyStepDuckTime=0;
     int atmosphereAmbient=0,atmosphereSteps=0,atmosphereHints=0;
     int presenceEvents=0,observationsRead=0,observationKind=-1;
     float observationTime=0;
@@ -257,7 +258,7 @@ private:
     bool scareSuspended=false,moving=false,sprinting=false;
     Vec3 forward{};
     double frameDistance=0,oldThreatX=0,oldThreatZ=0;
-    bool nearDoor=false,nearPresent=false,nearHide=false,nearBreaker=false,nearObservation=false;
+    bool nearDoor=false,nearPresent=false,nearHide=false,nearBreaker=false,nearObservation=false,nearVerity=false;
     DoorInfo nearbyDoor{};
     Present nearbyPresent{};
     int nearbyBreaker=-1;

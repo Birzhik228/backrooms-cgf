@@ -140,7 +140,9 @@ void Game::applyInteractionScenario() {
         const auto exit=world.exitLocation();player.x=exit.x;player.z=exit.z;world.update(player.x,player.z);player.motion.reset();input.setLook(-90,0);forward=input.forward();
     }
     if(options.autoBreakers && options.autoExit && world.isParking() && frame==21)simulateKey(GLFW_KEY_E);
-    if(options.funPreview && options.autoKey && world.isFun() && !world.keyCollected() && frame>0 && frame<65 && frame%4==1) {
+    if(options.funPreview && options.autoKey && world.isFun() && !world.keyCollected() &&
+       !(options.autoVerity && (!world.verityDrops().empty() || world.infiniteStamina())) &&
+       frame>0 && frame<65 && frame%4==1) {
         double nearest=1e30;Present selected{};
         for(const auto& entry:world.chunks())for(const auto& gift:entry.second.presents)if(!gift.opened) {
             const double distance=std::hypot(gift.x-player.x,gift.z-player.z);
@@ -165,7 +167,9 @@ void Game::applyInteractionScenario() {
 void Game::applyVerityScenario() {
     if(options.autoVerity && frame==3 && !world.verityDrops().empty()) {
         const auto drop=world.verityDrops().front();player.x=drop.x+.5;player.z=drop.z;player.motion.reset();
+        input.setLook(180,-71);forward=input.forward();
     }
+    if(options.autoVerity && frame==5)simulateKey(GLFW_KEY_E);
 }
 
 bool Game::doorInteractionRequested() const {

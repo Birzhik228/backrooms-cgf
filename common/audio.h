@@ -12,6 +12,7 @@ enum class SoundKind {
     ThreatNotice, ThreatStep, ThreatRunStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient, PresentOpen,
     DarknessJumpscare, VentRattle, DistantFootsteps, ThreatRustle,
     PartyFootstep, BalloonRub, PartyMelody, PipeTick, ParkingVent, PowerRelay,
+    PartygoerStep, PartygoerJumpscare, VerityPickup,
     ElevatorDoor, ElevatorMotor, ElevatorBell, SurfaceAmbience, CityAmbience
 };
 struct SoundEvent {
@@ -30,6 +31,8 @@ bool loadMonsterFootsteps(const std::string& directory="assets/audio/footsteps-m
 bool loadAraneaSamples(const std::string& directory="assets/audio/aranea");
 std::size_t recordedFootstepCount();
 // Preload user-supplied roar before constructing the mixer.
+bool loadVerityPickupSample(const std::string& path="assets/audio/verity/pickup.wav");
+bool loadPartygoerJumpscareSample(const std::string& path="assets/audio/partygoer/jumpscare.wav");
 bool loadJumpscareSample(const std::string& path="assets/audio/jumpscare/scream.wav");
 // Strict bounded PCM WAV reader, also used by the CPU validation tests.
 std::vector<std::int16_t> readFootstepWav(const std::string& path);

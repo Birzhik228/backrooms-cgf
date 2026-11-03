@@ -48,6 +48,8 @@ int main(int argc, char** argv) {
         log(tuning.loaded?"Balance configuration loaded.":"Using built-in balance defaults.");
         for(const auto& diagnostic:tuning.diagnostics)log("Balance: "+diagnostic);
         log(loadMonsterFootsteps()?"Loaded supplied heavy footsteps.":"Heavy footsteps missing; using fallback.");
+        log(loadVerityPickupSample()?"Loaded Verity pickup song.":"Verity pickup song missing.");
+        log(loadPartygoerJumpscareSample()?"Loaded Partygoer jumpscare.":"Partygoer jumpscare missing; using fallback.");
         log(loadJumpscareSample()?"Loaded supplied jumpscare roar.":"Jumpscare roar unavailable; using synthesized fallback.");
         log(loadAraneaSamples()?"Loaded Aranea audio: 16 walk, run, visual notice and roar samples.":
             "Aranea audio bank missing or invalid; using legacy creature sounds.");

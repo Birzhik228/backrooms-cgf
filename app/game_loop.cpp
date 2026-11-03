@@ -153,6 +153,7 @@ void Game::reportAndShutdown() {
     log(std::string("Ending gameplay frozen: ")+(endingWorldFrozen?"yes":"no"));
     log("Lamp shadow cache updates: "+std::to_string(lampShadowUpdates));
     audio.stop();
+    log("Partygoer footsteps: "+std::to_string(partyStepEvents));
     log("Partygoers: "+std::to_string(partygoers.activeCount())+" / frozen frames "+std::to_string(partygoers.frozenFrames)+" / travelled "+std::to_string(partygoers.travelled));
     log("Darkness eyes: "+std::to_string(darkness.activeCount())+" / dispersed "+std::to_string(darkness.dispelled)+" / spawned "+std::to_string(darkness.spawned));
     music.stop();

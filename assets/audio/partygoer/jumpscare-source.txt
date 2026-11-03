@@ -1,0 +1,2 @@
+User-provided: freesound_community-jumpscare_sound-39630.mp3
+Converted to 22050 Hz mono PCM16; first two seconds, matching the jumpscare duration.

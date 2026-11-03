@@ -402,6 +402,19 @@ void Game::drawWorldObjects(const RenderFrame& render) {
         glDrawArrays(GL_TRIANGLES,0,doorGpu.count);
         drawnTriangles+=doorGpu.count/3;
     }
+    if(world.isFun() && encounter.presenting()) {
+        Partygoers closeup;
+        auto& actor=closeup.actors[0];actor.active=true;
+        const float distance=1.4f-.85f*encounter.lunge();
+        actor.x=render.eye.x+cameraForward.x*distance;
+        actor.z=render.eye.z+cameraForward.z*distance;
+        actor.yaw=std::atan2(-cameraForward.x,cameraForward.z);
+        auto vertices=partygoerVertices(closeup,0,0);
+        for(auto& vertex:vertices)vertex.y+=render.eye.y+cameraForward.y*distance-1.99f;
+        uploadVertices(partyGpu,vertices,GL_DYNAMIC_DRAW);
+        glClear(GL_DEPTH_BUFFER_BIT);glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
+        scene.set("uFlashlight",1);
+    }
     if(partyGpu.count && world.isFun()) {
         scene.set("uModel",Mat4::identity());glBindVertexArray(partyGpu.vao);
         glDrawArrays(GL_TRIANGLES,0,partyGpu.count);drawnTriangles+=partyGpu.count/3;

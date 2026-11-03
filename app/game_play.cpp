@@ -145,11 +145,17 @@ void Game::updatePartygoers() {
     partygoers.update(world,player.x,player.z,player.eyeHeight+player.bobOffset,forward,fieldOfView,
         float(std::max(1,gazeWidth))/std::max(1,gazeHeight),dt,
         input.paused || !encounter.alive() || options.noThreat);
-    if(!input.paused && !options.noThreat && encounter.alive() && partygoers.touchingPlayer(world,player.x,player.z) && encounter.defeatImmediately()) {
+    if(!input.paused && !options.noThreat && encounter.alive() && partygoers.touchingPlayer(world,player.x,player.z) &&
+       (encounter.catchPlayer() || encounter.defeatImmediately())) {
         ++catches;player.motion.reset();moving=false;frameDistance=0;
         setScreen(Screen::Menu);menuSelection=0;notice.clear();noticeTime=0;
         audio.reset(static_cast<std::uint32_t>(world.seed()));music.update(true,true,0,0);
-        log("Partygoer contact: game over. Restart at Level Fun checkpoint.");
+        scareYaw=scareTargetYaw=input.yaw;scarePitch=scareTargetPitch=input.pitch;scareApproach=forward;
+        if(scareConfig.audio && encounter.presenting()) {
+            audio.play(SoundKind::PartygoerJumpscare,{player.x,player.eyeHeight,player.z},1.f);
+            log("Partygoer sound: supplied jumpscare.");
+        }
+        log(encounter.presenting()?"Partygoer contact: jumpscare started.":"Partygoer contact: game over. Restart at Level Fun checkpoint.");
     }
 }
 

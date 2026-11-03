@@ -129,6 +129,7 @@ void Game::updateAudio() {
     for(const auto& cue:funCues) {
         if(cue.actor>=0) {
             audio.playPartyStep(cue.actor,cue.position,cue.gain,cue.transmission);
+            if(std::hypot(cue.position.x-player.x,cue.position.z-player.z)<24)partyStepDuckTime=.5f;
             ++partyStepEvents;
             if(partygoers.actors[cue.actor].observed)++partyFrozenSteps;
         } else {
@@ -156,7 +157,12 @@ void Game::updateAudio() {
         const float targetFov = settings.fov + (sprinting && moving ? 4.f : 0.f);
         fieldOfView += (targetFov - fieldOfView) * (1.f - std::exp(-10.f * dt));
     }
-    music.update(input.paused,muted || options.hidden || !settings.musicEnabled,settings.volume*settings.musicVolume,dt);
+    if(!input.paused) {
+        veritySongTime=std::max(0.f,veritySongTime-dt);
+        partyStepDuckTime=std::max(0.f,partyStepDuckTime-dt);
+    }
+    music.update(input.paused || veritySongTime>0,muted || options.hidden || !settings.musicEnabled,
+        settings.volume*settings.musicVolume*(partyStepDuckTime>0?.25f:1.f),dt);
     if(!musicErrorReported && !music.error().empty()) {
         log("Background music unavailable: "+music.error()); musicErrorReported=true;
     }

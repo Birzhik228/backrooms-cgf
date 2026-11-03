@@ -79,7 +79,8 @@ void Game::drawHud() {
                 ui.text(28,float(height)-128,signal,1.15f*scale,{.94f,.56f,.72f,1});
             }
             if(nearBreaker)ui.text(width*.5f-170,height*.5f+58,"E / RESTORE CIRCUIT "+std::string(1,char('A'+nearbyBreaker)),1.3f*scale,paper);
-            if(nearPresent) ui.text(width*.5f-160,height*.5f+58,
+            if(nearVerity)ui.text(width*.5f-110,height*.5f+58,"E / PICK UP",1.3f*scale,paper);
+            if(nearPresent && !nearVerity) ui.text(width*.5f-160,height*.5f+58,
                 nearbyPresent.opened?"PRESENT ALREADY SEARCHED":"E / OPEN PRESENT",1.3f*scale,paper);
             if(nearObservation && observationTime<=0)ui.text(width*.5f-100,height*.5f+58,
                 "E / READ NOTE",1.3f*scale,paper);

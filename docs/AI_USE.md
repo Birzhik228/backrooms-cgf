@@ -182,3 +182,20 @@ identical pixels and non-timing profiles. These current checks and their local
 platform limits are recorded in `code-structure.md`, separately from earlier
 verification. Assets, shaders, balance and saved checkpoint references remain
 unchanged. No new runtime library, game feature or performance claim is added.
+
+## Integrating collaborator changes — 3 November 2026
+
+The user approved merging the collaborator's `partygoers` commit into the
+refactored application. Codex ported its E-only Verity pickup, pickup music,
+Partygoer capture animation/sound and revised gait into the existing modules.
+The existing Fun audio director now plays the recorded Partygoer contacts,
+retaining actor-owned sound cancellation while adding the collaborator's wall
+attenuation and music ducking. There is only one gameplay footstep schedule.
+The shortened README and all four original screenshots are retained.
+
+The merged Release build passed 28 native tests, four OpenGL tests and 50
+runtime scenarios covering Fun, Partygoers, progression and Aranea movement/
+capture. Nine unchanged-scene comparisons matched checkpoint pixels and
+non-timing profiles exactly. Runtime logs reported no OpenGL errors or owned
+graphics resources remaining after shutdown. These checks ran locally on
+Windows/Intel UHD; they do not establish results on another computer or CI.

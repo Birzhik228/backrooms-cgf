@@ -20,7 +20,7 @@ Find the brass key and reach the exit while avoiding **Aranea Membri**, a four-l
 
 ### Level Fun
 
-Search presents for the exit key. **Partygoers** freeze when visible and chase when you look away.
+Search presents for the exit key. **Partygoers** freeze when visible and chase when you look away; contact triggers a jumpscare. Look at a dropped **Verity** and press E for unlimited stamina on this level.
 
 ![A Partygoer in Level Fun, surrounded by party tables, cakes and balloons](assets/preview-level-fun.png)
 
@@ -44,7 +44,7 @@ All screenshots are captured in-game. **Escape → Choose a Level** starts any s
 | --- | --- |
 | WASD + mouse | Move and look |
 | Hold Shift / Ctrl | Sprint / crouch |
-| E | Interact with doors, hiding places, presents, notes and cabinets |
+| E | Interact with doors, hiding places, presents, Verity, notes and cabinets |
 | F | Toggle flashlight |
 | C / Tab | Toggle clues / map |
 | Escape | Pause, settings and level selection |

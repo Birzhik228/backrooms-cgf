@@ -25,7 +25,7 @@ void Game::resetPlayer() {
     audio.reset(static_cast<uint32_t>(world.seed()));
     threat.reset(world.seed()); threat.setEnraged(world.keyCollected()); encounter.reset();
     mouse.reset(world.seed());mouseSqueaks=0;presentMouseTime=0;
-    partygoers.reset();release(partyGpu);lastPartyPose={};
+    partygoers.reset();veritySongTime=partyStepDuckTime=0;release(partyGpu);lastPartyPose={};
     darkness.reset();release(darknessGpu);
     player.hiding=false; threatVocals.reset(); occlusionClock=0; threatTransmission=1;
     atmosphere.reset(world.seed());
