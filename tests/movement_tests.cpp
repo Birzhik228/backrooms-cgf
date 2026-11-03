@@ -44,10 +44,12 @@ int main() {
     check(motion.advance({},.05f).x==0,"Stationary input produces no travel");
     Stamina stamina;
     stamina.update(3, true, false);
-    check(std::abs(stamina.value-46)<.001f, "Actual sprint travel consumes stamina");
+    check(std::abs(stamina.value-64)<.001f, "Actual sprint travel consumes stamina");
     stamina.update(20,true,true);
-    check(std::abs(stamina.value-46)<.001f, "Pause freezes stamina");
-    stamina.update(3,true,false);
+    check(std::abs(stamina.value-64)<.001f, "Pause freezes stamina");
+    stamina.update(5,true,false);
+    check(stamina.canSprint() && std::abs(stamina.value-4)<.001f,"Full stamina supports eight seconds of continuous sprinting");
+    stamina.update(.5f,true,false);
     check(!stamina.canSprint() && stamina.value==0,"Exhaustion caps at zero and stops sprinting");
     stamina.update(1.5f,false,false);
     check(stamina.value==0,"Recovery waits after sprinting");

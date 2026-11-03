@@ -1,6 +1,7 @@
 #pragma once
 #include "ending.h"
 #include "ending_city.h"
+#include "ending_city_feet.h"
 #include "ending_sun.h"
 #include "Shader.h"
 #include <array>
@@ -13,16 +14,19 @@ namespace br {
 // model transforms; no geometry is rebuilt while the film plays.
 class EndingRenderer {
     struct V {float x,y,z,nx,ny,nz,u,v,r,g,b,m;};
-    struct Mesh {GLuint vao=0,vbo=0;GLsizei count=0;};
+    struct Mesh {gl::VertexArray vao;gl::Buffer vbo;GLsizei count=0;};
     Shader shader_,sunDepth_;
-    GLuint sunFbo_=0;
-    std::array<GLuint,2> staticSun_{},movingSun_{};
+    gl::Framebuffer sunFbo_;
+    std::array<gl::Texture,2> staticSun_{},movingSun_{};
     bool shadowPass_=false,staticSunReady_=false;
     float shadowTime_=-1;
     unsigned staticSunUpdates_=0,movingSunUpdates_=0;
     Mesh cabin_,garage_,lobby_,city_,sky_,leftDoor_,rightDoor_,exitDoor_;
-    Mesh torso_,hips_,head_,hair_,face_,upperArm_,lowerArm_,hand_,thigh_,shin_,shoe_;
-    Mesh carPaint_,carDetails_,wheel_;
+    Mesh torso_,hips_,head_,face_,upperArm_,lowerArm_,hand_,thigh_,shin_,shoe_;
+    Mesh jacket_,backpack_,bag_,cap_,wheel_,brakeLights_,signalLens_;
+    std::array<Mesh,3> hair_{},carPaint_{},carDetails_{};
+    std::array<CityFeetPose,EndingCity::pedestrianCount> cityFeet_{};
+    float actorTime_=-1;
     std::array<Mesh,4> indicators_{};
     bool ready_=false;
     using Vertices=std::vector<V>;
@@ -42,12 +46,25 @@ class EndingRenderer {
     }
     static Mat4 rotateY(float a){auto m=Mat4::identity();m.m[0]=m.m[10]=std::cos(a);m.m[8]=std::sin(a);m.m[2]=-std::sin(a);return m;}
     static Mat4 rotateX(float a){auto m=Mat4::identity();m.m[5]=m.m[10]=std::cos(a);m.m[9]=-std::sin(a);m.m[6]=std::sin(a);return m;}
+    static Mat4 rotateZ(float a){auto m=Mat4::identity();m.m[0]=m.m[5]=std::cos(a);m.m[4]=-std::sin(a);m.m[1]=std::sin(a);return m;}
     static Mat4 scale(float x,float y,float z){auto m=Mat4::identity();m.m[0]=x;m.m[5]=y;m.m[10]=z;return m;}
+    // Eight-sided tapered volumes soften silhouettes without subdividing flat
+    // surfaces or introducing texture/model dependencies.
+    static void tapered(Vertices& v,float bottom,float top,Vec3 lower,Vec3 upper,Vec3 color,float material) {
+        for(int i=0;i<8;++i) {
+            const float a=2*PI*i/8,b=2*PI*(i+1)/8;
+            const Vec3 p{lower.x*std::cos(a),bottom,lower.z*std::sin(a)},q{lower.x*std::cos(b),bottom,lower.z*std::sin(b)},
+                       r{upper.x*std::cos(b),top,upper.z*std::sin(b)},s{upper.x*std::cos(a),top,upper.z*std::sin(a)};
+            quad(v,p,q,r,s,normalize(cross(s-p,q-p)),color,material,1,top-bottom);
+            quad(v,{0,bottom,0},q,p,{0,bottom,0},{0,-1,0},color,material);
+            quad(v,{0,top,0},s,r,{0,top,0},{0,1,0},color,material);
+        }
+    }
     static void ellipsoid(Vertices& v,Vec3 c,Vec3 h,Vec3 color,float m,int bands=6,int sides=10) {
         auto point=[&](float a,float b){return Vec3{c.x+h.x*std::sin(a)*std::cos(b),c.y+h.y*std::cos(a),c.z+h.z*std::sin(a)*std::sin(b)};};
         for(int row=0;row<bands;++row)for(int col=0;col<sides;++col) {
             const float a=row*PI/bands,b=(row+1)*PI/bands,t=col*2*PI/sides,u=(col+1)*2*PI/sides;
-            const Vec3 n=normalize(Vec3{std::sin((a+b)*.5f)*std::cos((t+u)*.5f),std::cos((a+b)*.5f),std::sin((a+b)*.5f)*std::sin((t+u)*.5f)});
+            const Vec3 n=normalize(Vec3{std::sin((a+b)*.5f)*std::cos((t+u)*.5f)/h.x,std::cos((a+b)*.5f)/h.y,std::sin((a+b)*.5f)*std::sin((t+u)*.5f)/h.z});
             quad(v,point(a,t),point(a,u),point(b,u),point(b,t),n,color,m);
         }
     }
@@ -64,6 +81,75 @@ class EndingRenderer {
         ellipsoid(v,{x,3.3f*size,z},{1.35f*size,1.65f*size,1.3f*size},{.29f,.42f,.19f},14,6,9);
         ellipsoid(v,{x-.7f*size,3.2f*size,z+.15f},{.95f*size,1.15f*size,.95f*size},{.36f,.48f,.23f},14,5,8);
         box(v,{x-.75f,-.01f,z-.75f},{x+.75f,.03f,z+.75f},{.23f,.25f,.19f},0);
+    }
+    static void storefront(Vertices& out,float x,float z,float width,int kind,bool front=true) {
+        Vertices v;kind%=6;
+        const std::array<Vec3,6> paints={Vec3{.14f,.28f,.24f},Vec3{.19f,.25f,.34f},Vec3{.52f,.29f,.18f},Vec3{.34f,.40f,.29f},Vec3{.37f,.23f,.33f},Vec3{.28f,.34f,.38f}};
+        const Vec3 paint=paints[kind],ivory{.83f,.79f,.66f};
+        const char* labels[]={"CAFE","BOOKS","BAKERY","MARKET","FLOWERS","CORNER"};
+        box(v,{.08f,.04f,0},{width-.08f,.40f,.12f},paint,19);
+        box(v,{.08f,3.12f,0},{width-.08f,3.78f,.20f},paint,19);
+        box(v,{.04f,3.78f,-.02f},{width-.04f,3.88f,.25f},ivory,19);
+        const float bay=(width-.5f)/3;
+        for(int i=0;i<3;++i) {
+            const float a=.25f+i*bay,b=a+bay-.14f;
+            const Vec3 glass=i==1?Vec3{.16f,.24f,.26f}:Vec3{.21f,.30f,.31f};
+            quad(v,{a,.42f,.02f},{b,.42f,.02f},{b,3.1f,.02f},{a,3.1f,.02f},{0,0,1},glass,13,b-a,2.7f);
+            for(float side:{a-.06f,b})box(v,{side,.35f,0},{side+.06f,3.16f,.16f},ivory,19);
+            box(v,{a,2.63f,.07f},{b,2.70f,.16f},ivory,19);
+            if(i==1) {
+                box(v,{b-.19f,1.05f,.15f},{b-.14f,1.39f,.21f},{.55f,.48f,.29f},1);
+                box(v,{a+.25f,1.8f,.055f},{b-.25f,2.12f,.07f},paint,0);
+                words(v,"OPEN",a+(b-a)*.5f-.24f,1.87f,.08f,.020f,ivory,0);
+                continue;
+            }
+            if(kind==1) { // Books: differently sized spines and shelf rails.
+                for(int row=0;row<3;++row) {
+                    const float y=.64f+row*.58f;
+                    box(v,{a+.10f,y,.08f},{b-.10f,y+.055f,.20f},{.36f,.23f,.14f},2);
+                    for(int book=0;book<10;++book) {
+                        const float xx=a+.18f+book*(b-a-.38f)/10;
+                        const Vec3 c=paints[(book+row)%6];
+                        box(v,{xx,y+.06f,.09f},{xx+.16f,y+.34f+.05f*(book%3),.14f},c,19);
+                    }
+                }
+            }else if(kind==2) { // Bakery: warm display shelves and bread silhouettes.
+                for(int row=0;row<2;++row) {
+                    const float y=.70f+row*.72f;
+                    box(v,{a+.10f,y,.08f},{b-.10f,y+.07f,.21f},ivory,19);
+                    for(int bread=0;bread<5;++bread)ellipsoid(v,{a+.4f+bread*(b-a-.8f)/4,y+.15f,.15f},{.20f,.11f,.08f},{.66f,.42f,.18f},20,4,6);
+                }
+            }else if(kind==4) {
+                for(int flower=0;flower<5;++flower) {
+                    const float xx=a+.4f+flower*(b-a-.8f)/4,y=.9f+.12f*(flower%2);
+                    box(v,{xx-.10f,.56f,.10f},{xx+.10f,.84f,.25f},{.46f,.29f,.19f},19);
+                    box(v,{xx-.012f,.80f,.15f},{xx+.012f,y+.3f,.18f},{.20f,.35f,.13f},0);
+                    ellipsoid(v,{xx,y+.27f,.18f},{.15f,.15f,.08f},flower%2?Vec3{.75f,.61f,.24f}:Vec3{.63f,.28f,.32f},0,4,6);
+                }
+            }else {
+                // Menu cards / produce crate accents stay behind the outer frames.
+                box(v,{a+.25f,.72f,.08f},{b-.25f,.81f,.25f},{.33f,.24f,.15f},2);
+                for(int item=0;item<3;++item)box(v,{a+.4f+item*(b-a-.9f)/3,.82f,.09f},{a+.67f+item*(b-a-.9f)/3,1.25f+.12f*(item%2),.15f},item%2?ivory:paint,19);
+                box(v,{a+.45f,1.6f,.04f},{b-.45f,2.23f,.07f},ivory,19);
+                for(int line=0;line<4;++line)box(v,{a+.58f,1.72f+line*.10f,.075f},{b-.59f,1.735f+line*.10f,.08f},paint,0);
+            }
+        }
+        const float textSize=.060f,textWidth=float(std::char_traits<char>::length(labels[kind]))*textSize*6;
+        words(v,labels[kind],(width-textWidth)*.5f,3.22f,.21f,textSize,ivory,0);
+        // Sloped fabric and a short valance; striped cafe/bakery awnings are
+        // distinguishable from the bookshop's projecting flat canopy.
+        const float awningDepth=kind==1?.46f:.84f;
+        for(int strip=0;strip<24;++strip) {
+            const float a=.12f+(width-.24f)*strip/24,b=.12f+(width-.24f)*(strip+1)/24;
+            const Vec3 c=((kind==0||kind==2)&&strip%2)?ivory:paint;
+            quad(v,{a,3.11f,.17f},{b,3.11f,.17f},{b,2.88f,awningDepth},{a,2.88f,awningDepth},{0,.96f,.28f},c,20,b-a,awningDepth);
+            box(v,{a,2.76f,awningDepth-.02f},{b,2.88f,awningDepth+.02f},c,20);
+        }
+        const float sign=front?1.f:-1.f;
+        for(auto q:v) {
+            q.x=front?x+q.x:x+width-q.x;q.z=z+q.z*sign;
+            q.nx*=sign;q.nz*=sign;out.push_back(q);
+        }
     }
     void buildCity() {
         Vertices v;const Vec3 pavement{.66f,.65f,.60f},curb{.64f,.65f,.63f},asphalt{.20f,.22f,.24f};
@@ -83,24 +169,23 @@ class EndingRenderer {
         for(int k=0;k<13;++k) {
             const float x=-78.f+k*12.5f,w=11.8f,height=12.f+float((k*7)%5)*3.f;
             const Vec3 color=facades[k%6];
-            box(v,{x,0,-45},{x+w,height,-32},color,10);
+            box(v,{x,0,-45},{x+w,height,-32},color,k%3==1?19:10);
             box(v,{x-.13f,height,-45.1f},{x+w+.13f,height+.26f,-31.85f},{.46f,.47f,.43f},0);
             box(v,{x+.7f,height+.25f,-40},{x+3.2f,height+1.1f,-37.5f},{.35f,.40f,.39f},1);
             for(float y=4.2f;y<height-1.6f;y+=3.3f) {
                 box(v,{x-.06f,y-.43f,-32.05f},{x+w+.06f,y-.25f,-31.86f},{.72f,.71f,.65f},0);
                 for(int col=0;col<4;++col)window(v,x+.8f+col*2.7f,y,-31.94f,1.65f,1.95f);
             }
-            // Four storefront bays, contrasting awning, painted signboard.
-            for(int col=0;col<4;++col) {
-                const float xx=x+.35f+col*2.85f;
-                window(v,xx,.45f,-31.92f,2.48f,2.65f);
-                box(v,{xx+1.14f,.55f,-31.84f},{xx+1.20f,2.8f,-31.79f},{.11f,.16f,.17f},1);
+            storefront(v,x+.15f,-31.90f,w-.3f,k%6);
+            // Selective balconies and pilasters break the repeated window grid.
+            if(k%3==1)for(float y=7.5f;y<height-2;y+=6.6f)for(int col=0;col<2;++col) {
+                const float bx=x+1.f+col*5.5f;
+                box(v,{bx-.2f,y-.28f,-32.15f},{bx+3.5f,y-.12f,-31.05f},{.55f,.53f,.48f},19);
+                box(v,{bx-.15f,y+.76f,-31.12f},{bx+3.45f,y+.82f,-31.04f},{.18f,.22f,.23f},1);
+                for(int rail=0;rail<9;++rail)box(v,{bx+rail*.4f,y-.1f,-31.1f},{bx+.035f+rail*.4f,y+.8f,-31.06f},{.18f,.22f,.23f},1);
             }
-            const Vec3 awning=k%3==0?Vec3{.17f,.33f,.29f}:k%3==1?Vec3{.42f,.20f,.13f}:Vec3{.21f,.29f,.40f};
-            box(v,{x+.15f,3.25f,-32},{x+w-.15f,3.82f,-31.74f},awning,0);
-            const char* name=k%3==0?"CAFE":k%3==1?"MARKET":"CITY STORE";
-            words(v,name,x+w*.5f-float(std::char_traits<char>::length(name))*.09f,3.41f,-31.72f,.03f,{.94f,.91f,.78f},7);
-            quad(v,{x+.15f,3.25f,-31.75f},{x+w-.15f,3.25f,-31.75f},{x+w-.15f,2.95f,-30.95f},{x+.15f,2.95f,-30.95f},{0,.8f,.6f},awning,0,w,.8f);
+            if(k%3==2)for(float px:{x+.1f,x+w-.35f})box(v,{px,.1f,-32.03f},{px+.24f,height,-31.81f},{.72f,.69f,.60f},19);
+
         }
         // Towers beyond the street row form a layered skyline.
         for(int k=0;k<9;++k) {
@@ -119,6 +204,7 @@ class EndingRenderer {
             const float x=side>0?12.2f+k*14.f:-26.1f-k*14.f,h=14.f+(k%3)*5.f;
             box(v,{x,0,-10.8f},{x+13.9f,h,3},facades[(k+side+6)%6],10);
             for(float y=4;y<h-1;y+=3.3f)for(int col=0;col<4;++col)window(v,x+.9f+col*3.2f,y,-10.86f,1.9f,2.f,false);
+            storefront(v,x+.25f,-10.87f,13.4f,(k+side+7)%6,false);
         }
         // Trees, streetlamps, bollards, bins and benches, outside walking lanes.
         for(int k=0;k<8;++k) {
@@ -137,47 +223,108 @@ class EndingRenderer {
         for(float z:{-16.8f,-27.45f}){
             box(v,{20.8f,0,z-.07f},{20.94f,3.7f,z+.07f},{.25f,.28f,.28f},1);
             box(v,{20.65f,2.7f,z-.18f},{21.1f,3.6f,z+.18f},{.06f,.075f,.075f},0);
-            ellipsoid(v,{20.875f,3.37f,z+.19f},{.11f,.11f,.035f},{.65f,.16f,.08f},7,5,8);
-            ellipsoid(v,{20.875f,2.95f,z+.19f},{.11f,.11f,.035f},{.08f,.36f,.17f},7,5,8);
+
         }
+        // A few real kerb drains and tactile crossing pads establish street scale.
+        for(float x:{-14.f,11.f,29.f})for(float z:{-17.06f,-26.96f}) {
+            box(v,{x-.44f,-.145f,z-.22f},{x+.44f,-.136f,z+.22f},{.11f,.14f,.14f},1);
+            for(int grate=0;grate<8;++grate)box(v,{x-.38f+grate*.105f,-.135f,z-.19f},{x-.34f+grate*.105f,-.130f,z+.19f},{.31f,.34f,.33f},1);
+        }
+        for(float z:{-16.8f,-27.6f})box(v,{15.4f,.003f,z},{19.7f,.01f,z+.55f},{.63f,.55f,.34f},21);
         upload(city_,v);v.clear();
+        ellipsoid(v,{0,0,0},{.11f,.11f,.035f},{1,1,1},22,5,8);upload(signalLens_,v);v.clear();
         ellipsoid(v,{0,0,0},{180,180,180},{.54f,.72f,.87f},18,12,24);upload(sky_,v);v.clear();
-        // Reusable articulated pedestrians, all local parts centred on a joint.
-        box(v,{-.21f,.88f,-.12f},{.21f,1.38f,.13f},{1,1,1},0);upload(torso_,v);v.clear();
-        box(v,{-.18f,.73f,-.105f},{.18f,.91f,.11f},{1,1,1},0);upload(hips_,v);v.clear();
-        ellipsoid(v,{0,0,0},{.13f,.17f,.13f},{1,1,1},15,7,10);upload(head_,v);v.clear();
-        ellipsoid(v,{0,.105f,.016f},{.137f,.10f,.135f},{1,1,1},2,5,9);upload(hair_,v);v.clear();
-        for(float x:{-.046f,.046f})box(v,{x-.012f,.025f,-.132f},{x+.012f,.048f,-.125f},{.08f,.075f,.06f},0);
-        box(v,{-.02f,-.005f,-.155f},{.02f,.035f,-.125f},{.65f,.43f,.31f},15);upload(face_,v);v.clear();
-        box(v,{-.075f,-.30f,-.07f},{.075f,0,.07f},{1,1,1},0);upload(upperArm_,v);v.clear();
-        box(v,{-.06f,-.27f,-.055f},{.06f,0,.055f},{1,1,1},0);upload(lowerArm_,v);v.clear();
-        ellipsoid(v,{0,-.04f,0},{.062f,.075f,.055f},{1,1,1},15,5,8);upload(hand_,v);v.clear();
-        box(v,{-.085f,-.37f,-.08f},{.085f,0,.08f},{1,1,1},0);upload(thigh_,v);v.clear();
-        box(v,{-.075f,-.37f,-.068f},{.075f,0,.068f},{1,1,1},0);upload(shin_,v);v.clear();
-        box(v,{-.085f,-.055f,-.19f},{.085f,.04f,.075f},{.075f,.078f,.076f},0);upload(shoe_,v);v.clear();
-        // Low-poly saloon silhouette: hood, boot, roof, sloped windscreen.
-        box(v,{-.88f,.38f,-2.12f},{.88f,.79f,2.06f},{1,1,1},16);
-        box(v,{-.84f,.78f,-2.05f},{.84f,.91f,-.83f},{1,1,1},16);
-        box(v,{-.83f,.79f,1.12f},{.83f,.94f,1.99f},{1,1,1},16);
-        box(v,{-.70f,1.42f,-.40f},{.70f,1.51f,.85f},{1,1,1},16);
-        for(float x:{-.78f,.73f})box(v,{x,.82f,-.72f},{x+.05f,1.42f,1.12f},{1,1,1},16);
-        upload(carPaint_,v);v.clear();
-        const Vec3 glass{.15f,.29f,.37f},chrome{.48f,.52f,.53f};
-        quad(v,{-.72f,.92f,-.88f},{.72f,.92f,-.88f},{.67f,1.43f,-.39f},{-.67f,1.43f,-.39f},{0,.65f,-.75f},glass,13);
-        quad(v,{.72f,.94f,1.19f},{-.72f,.94f,1.19f},{-.67f,1.43f,.85f},{.67f,1.43f,.85f},{0,.6f,.8f},glass,13);
-        for(float x:{-.785f,.785f})for(int side=0;side<2;++side){
-            const float a=side==0?-.69f:.27f,b=side==0?.21f:1.06f;
-            quad(v,{x,.94f,a},{x,.94f,b},{x,1.39f,b-.13f},{x,1.39f,a+.19f},{x<0?-1.f:1.f,0,0},glass,13);
+        // Rounded, tapered body parts with distinct clothing and hair silhouettes.
+        tapered(v,.84f,1.29f,{.17f,0,.105f},{.23f,0,.135f},{1,1,1},20);
+        tapered(v,1.29f,1.40f,{.23f,0,.135f},{.14f,0,.10f},{1,1,1},20);
+        box(v,{-.025f,.89f,-.113f},{.025f,1.35f,-.109f},{.68f,.70f,.69f},20);
+        upload(torso_,v);v.clear();
+        tapered(v,.73f,.90f,{.17f,0,.105f},{.18f,0,.115f},{1,1,1},20);upload(hips_,v);v.clear();
+        ellipsoid(v,{0,0,0},{.123f,.165f,.126f},{1,1,1},15,8,12);
+        for(float x:{-.128f,.128f})ellipsoid(v,{x,0,.005f},{.026f,.048f,.030f},{1,1,1},15,4,6);
+        tapered(v,-.23f,-.10f,{.055f,0,.055f},{.058f,0,.058f},{1,1,1},15);upload(head_,v);v.clear();
+        for(int style=0;style<3;++style) {
+            ellipsoid(v,{0,.103f,.014f},{.132f,.087f,.134f},{1,1,1},2,6,10);
+            if(style==1) {
+                ellipsoid(v,{0,-.02f,.101f},{.136f,.19f,.075f},{1,1,1},2,6,8);
+                ellipsoid(v,{.03f,-.12f,.17f},{.07f,.17f,.064f},{1,1,1},2,5,8);
+            }
+            if(style==2)for(float x:{-.07f,0.f,.07f})ellipsoid(v,{x,.15f,.02f},{.068f,.065f,.10f},{1,1,1},2,5,7);
+            upload(hair_[style],v);v.clear();
         }
-        box(v,{-.87f,.40f,-2.17f},{.87f,.51f,-2.12f},chrome,1);
-        box(v,{-.87f,.40f,2.06f},{.87f,.51f,2.11f},chrome,1);
-        for(float x:{-.65f,.39f}){
-            box(v,{x,.62f,-2.135f},{x+.25f,.78f,-2.115f},{.85f,.87f,.75f},7);
-            box(v,{x,.63f,2.055f},{x+.25f,.79f,2.08f},{.52f,.06f,.025f},7);
+        for(float x:{-.044f,.044f})box(v,{x-.009f,.025f,-.127f},{x+.009f,.042f,-.122f},{.06f,.065f,.055f},0);
+        ellipsoid(v,{0,.002f,-.131f},{.021f,.037f,.028f},{.75f,.52f,.39f},15,4,6);
+        box(v,{-.029f,-.055f,-.12f},{.029f,-.047f,-.116f},{.38f,.24f,.20f},15);upload(face_,v);v.clear();
+        tapered(v,-.30f,0,{.060f,0,.059f},{.079f,0,.075f},{1,1,1},20);upload(upperArm_,v);v.clear();
+        tapered(v,-.27f,0,{.047f,0,.047f},{.061f,0,.057f},{1,1,1},20);upload(lowerArm_,v);v.clear();
+        ellipsoid(v,{0,-.04f,-.012f},{.050f,.072f,.034f},{1,1,1},15,5,8);upload(hand_,v);v.clear();
+        tapered(v,-.37f,0,{.066f,0,.066f},{.089f,0,.083f},{1,1,1},20);upload(thigh_,v);v.clear();
+        tapered(v,-.37f,0,{.056f,0,.055f},{.069f,0,.067f},{1,1,1},20);upload(shin_,v);v.clear();
+        ellipsoid(v,{0,-.008f,-.058f},{.080f,.048f,.152f},{.075f,.078f,.076f},0,4,8);
+        box(v,{-.07f,-.05f,-.18f},{.07f,-.037f,.06f},{.25f,.26f,.24f},0);upload(shoe_,v);v.clear();
+        // Coat hem, shoulder bag, backpack and cap use shared immutable meshes.
+        tapered(v,.61f,.91f,{.215f,0,.14f},{.181f,0,.12f},{1,1,1},20);upload(jacket_,v);v.clear();
+        ellipsoid(v,{0,1.12f,.22f},{.18f,.25f,.10f},{1,1,1},20,6,8);
+        for(float x:{-.13f,.10f})box(v,{x,.94f,-.151f},{x+.03f,1.39f,-.14f},{.15f,.16f,.14f},20);
+        box(v,{-.13f,.98f,.31f},{.13f,1.14f,.34f},{.23f,.25f,.22f},20);upload(backpack_,v);v.clear();
+        box(v,{-.06f,-.26f,-.11f},{.08f,-.04f,.11f},{1,1,1},20);
+        box(v,{-.05f,-.05f,-.12f},{.055f,.10f,-.10f},{.24f,.20f,.15f},2);
+        box(v,{-.05f,-.05f,.10f},{.055f,.10f,.12f},{.24f,.20f,.15f},2);upload(bag_,v);v.clear();
+        ellipsoid(v,{0,.11f,.007f},{.14f,.077f,.138f},{1,1,1},20,5,10);
+        box(v,{-.13f,.104f,-.225f},{.13f,.121f,-.065f},{1,1,1},20);upload(cap_,v);v.clear();
+        const Vec3 glass{.12f,.23f,.30f},chrome{.48f,.52f,.53f};
+        for(int kind=0;kind<3;++kind) {
+            const float length=kind==1?1.82f:kind==2?2.16f:2.12f;
+            const float rear=kind==2?1.72f:kind==1?1.42f:1.16f;
+            const float roofRear=kind==2?1.42f:kind==1?.90f:.78f;
+            const float roof=kind==2?1.65f:kind==1?1.53f:1.48f;
+            // Three bevelled body rings, with a real nose/shoulder contour.
+            for(int ring=0;ring<2;++ring) {
+                const float ya=ring==0?.36f:.60f,yb=ring==0?.60f:.87f;
+                const float wa=ring==0?.79f:.89f,wb=ring==0?.89f:.84f;
+                const float la=length-(ring==0?.12f:0),lb=length-(ring==0?0:.08f);
+                const std::array<Vec3,8> lower={Vec3{-wa+.15f,ya,-la},Vec3{wa-.15f,ya,-la},Vec3{wa,ya,-la+.24f},Vec3{wa,ya,la-.24f},Vec3{wa-.15f,ya,la},Vec3{-wa+.15f,ya,la},Vec3{-wa,ya,la-.24f},Vec3{-wa,ya,-la+.24f}};
+                const std::array<Vec3,8> upper={Vec3{-wb+.15f,yb,-lb},Vec3{wb-.15f,yb,-lb},Vec3{wb,yb,-lb+.24f},Vec3{wb,yb,lb-.24f},Vec3{wb-.15f,yb,lb},Vec3{-wb+.15f,yb,lb},Vec3{-wb,yb,lb-.24f},Vec3{-wb,yb,-lb+.24f}};
+                for(int side=0;side<8;++side) {
+                    const int next=(side+1)%8;
+                    quad(v,lower[side],lower[next],upper[next],upper[side],normalize(cross(upper[side]-lower[side],lower[next]-lower[side])),{1,1,1},16);
+                }
+            }
+            box(v,{-.82f,.84f,-length+.1f},{.82f,.89f,-.84f},{1,1,1},16);
+            box(v,{-.82f,.84f,rear},{.82f,.91f,length-.1f},{1,1,1},16);
+            box(v,{-.68f,roof-.05f,-.42f},{.68f,roof+.015f,roofRear},{1,1,1},16);
+            for(float side:{-1.f,1.f}) {
+                const float x=side*.79f;
+                box(v,{x-.025f,.86f,-.75f},{x+.025f,.98f,rear},{1,1,1},16);
+                // B pillar is solid paint, with separate side window openings.
+                box(v,{x-.035f,.94f,.19f},{x+.035f,roof-.05f,.26f},{1,1,1},16);
+                quad(v,{x,.92f,-.84f},{x+.055f*side,.92f,-.84f},{side*.70f,roof,-.42f},{side*.66f,roof,-.42f},{side,0,0},{1,1,1},16);
+            }
+            upload(carPaint_[kind],v);v.clear();
+            quad(v,{-.77f,.91f,-.85f},{.77f,.91f,-.85f},{.65f,roof-.05f,-.40f},{-.65f,roof-.05f,-.40f},{0,.6f,-.8f},glass,13);
+            quad(v,{.77f,.94f,rear},{-.77f,.94f,rear},{-.65f,roof-.05f,roofRear},{.65f,roof-.05f,roofRear},{0,.6f,.8f},glass,13);
+            for(float side:{-1.f,1.f})for(int pane=0;pane<2;++pane) {
+                const float a=pane==0?-.75f:.28f,b=pane==0?.18f:rear-.04f;
+                const float upperA=pane==0?-.39f:.28f,upperB=pane==0?.18f:roofRear-.02f;
+                quad(v,{side*.80f,.97f,a},{side*.80f,.97f,b},{side*.69f,roof-.07f,upperB},{side*.69f,roof-.07f,upperA},{side,.12f,0},glass,13);
+            }
+            for(float side:{-1.f,1.f}) {
+                box(v,{side*.86f-.015f,.55f,-length+.30f},{side*.86f+.015f,.59f,length-.25f},{.12f,.15f,.17f},0);
+                for(float door:{-.18f,.92f})box(v,{side*.845f-.022f,.80f,door},{side*.845f+.022f,.835f,door+.16f},chrome,1);
+                box(v,{side*.935f-.07f,.99f,-.76f},{side*.935f+.07f,1.10f,-.56f},{.24f,.29f,.30f},1);
+            }
+            box(v,{-.70f,.39f,-length-.012f},{.70f,.48f,-length+.045f},{.15f,.18f,.19f},0);
+            box(v,{-.70f,.39f,length-.045f},{.70f,.48f,length+.012f},chrome,1);
+            box(v,{-.32f,.51f,-length-.014f},{.32f,.65f,-length+.018f},{.07f,.09f,.10f},0);
+            box(v,{-.19f,.51f,length+.014f},{.19f,.63f,length+.030f},{.81f,.82f,.74f},0);
+            for(float x:{-.64f,.36f}) {
+                box(v,{x,.64f,-length+.01f},{x+.28f,.77f,-length+.025f},{.79f,.82f,.73f},13);
+                box(v,{x,.64f,length+.01f},{x+.28f,.77f,length+.025f},{.29f,.035f,.018f},0);
+            }
+            upload(carDetails_[kind],v);v.clear();
         }
-        box(v,{-.20f,.53f,2.075f},{.20f,.65f,2.09f},{.82f,.83f,.74f},0);
-        for(float x:{-1.f,.88f})box(v,{x,.98f,-.74f},{x+.12f,1.10f,-.53f},chrome,1);
-        upload(carDetails_,v);v.clear();
+        for(float x:{-.64f,.36f})box(v,{x,.65f,0},{x+.28f,.76f,.01f},{1,1,1},22);
+        upload(brakeLights_,v);v.clear();
         for(int i=0;i<16;++i){
             const float a=2*PI*i/16,b=2*PI*(i+1)/16;
             Vec3 aa{-.105f,.32f*std::cos(a),.32f*std::sin(a)},bb{.105f,.32f*std::cos(a),.32f*std::sin(a)},
@@ -195,7 +342,7 @@ class EndingRenderer {
         upload(wheel_,v);
     }
     static void upload(Mesh& mesh,const Vertices& v) {
-        glGenVertexArrays(1,&mesh.vao);glGenBuffers(1,&mesh.vbo);
+        mesh.vao.create();mesh.vbo.create();
         glBindVertexArray(mesh.vao);glBindBuffer(GL_ARRAY_BUFFER,mesh.vbo);
         glBufferData(GL_ARRAY_BUFFER,GLsizeiptr(v.size()*sizeof(V)),v.data(),GL_STATIC_DRAW);
         mesh.count=GLsizei(v.size());
@@ -227,6 +374,7 @@ class EndingRenderer {
         case 'T':return "11111001000010000100001000010000100";
         case 'U':return "10001100011000110001100011000101110";
         case 'X':return "10001100010101000100010101000110001";
+        case 'W':return "10001100011000110101101011101110001";
         case 'Y':return "10001100010101000100001000010000100";
         default:return "00000000000000000000000000000000000";
         }
@@ -245,7 +393,7 @@ class EndingRenderer {
 layout(location=0) in vec3 aPosition;layout(location=1) in vec3 aNormal;
 layout(location=2) in vec2 aUV;layout(location=3) in vec3 aColor;layout(location=4) in float aMaterial;
 uniform mat4 uMVP,uModel,uSunMatrix0,uSunMatrix1;out vec3 p,n,color;out vec2 uv;out vec4 sunPosition0,sunPosition1;flat out int material;
-void main(){vec4 world=uModel*vec4(aPosition,1);p=world.xyz;n=mat3(uModel)*aNormal;color=aColor;uv=aUV;material=int(aMaterial+.1);sunPosition0=uSunMatrix0*world;sunPosition1=uSunMatrix1*world;gl_Position=uMVP*world;}
+void main(){vec4 world=uModel*vec4(aPosition,1);p=world.xyz;n=transpose(inverse(mat3(uModel)))*aNormal;color=aColor;uv=aUV;material=int(aMaterial+.1);sunPosition0=uSunMatrix0*world;sunPosition1=uSunMatrix1*world;gl_Position=uMVP*world;}
 )GLSL";
         const char* fragment=R"GLSL(#version 330 core
 in vec3 p,n,color;in vec2 uv;in vec4 sunPosition0,sunPosition1;flat in int material;out vec4 frag;
@@ -290,8 +438,14 @@ void main(){
  if(material==9)base*=.72+.25*noise(uv*1.7)+.03*grain;
  if(material==10){vec2 brick=uv*vec2(2.6,4.4);brick.x+=mod(floor(brick.y),2)*.5;vec2 f=fract(brick);float joint=min(min(f.x,1-f.x),min(f.y,1-f.y));base*=mix(.78,1,smoothstep(.015,.055,joint));base*=.93+.07*noise(floor(brick));}
  if(material==11){vec2 tile=fract(uv*1.3);float edge=min(min(tile.x,1-tile.x),min(tile.y,1-tile.y));base*=mix(.7,1,smoothstep(.006,.024,edge));base*=.97+.03*grain;}
- if(material==12)base*=.82+.18*grain;
- if(material==13){base=mix(base,vec3(.62,.76,.84),.26+.26*max(normal.y,0));base*=.86+.14*noise(uv*1.2);rough=.12;}
+ if(material==12){base*=.82+.18*grain;float roadPatch=noise(p.xz*.27);base*=.91+.09*smoothstep(.3,.7,roadPatch);rough=.95;}
+ if(material==13){float fresnel=pow(1-max(0,dot(normal,normalize(uEye-p))),4);vec3 reflected=reflect(normalize(p-uEye),normal);
+  vec3 reflectedSky=mix(vec3(.29,.36,.38),vec3(.66,.78,.87),smoothstep(-.1,.55,reflected.y));
+  base=mix(base,reflectedSky,.28+.48*fresnel);base*=.95+.05*noise(uv*1.2);rough=.12;}
+ if(material==16){rough=.22;base*=.96+.04*noise(uv*60);}
+ if(material==19){base*=.93+.045*noise(uv*3)+.025*grain;rough=.87;}
+ if(material==20){base*=.96+.04*grain;rough=.96;}
+ if(material==21){vec2 cell=fract(uv*12)-.5;float stud=1-smoothstep(.13,.23,length(cell));base*=.86+.18*stud;rough=.9;}
  if(material==14)base*=.82+.18*noise(p.xz*4+p.y);
  float ambient=p.z>-1.7?.16:p.z>-10.5?(uSurface==1?.32*uLobby:.045):.20;
  vec3 light=vec3(ambient);
@@ -304,7 +458,10 @@ void main(){
  else if(uSurface==1 && p.z< -8)light+=vec3(.18,.19,.17)*smoothstep(8,10.6,-p.z);
  float contact=.70+.30*smoothstep(0,.38,p.y);if(normal.y>.5)contact=.95;
  vec3 rgb=base*light*contact;
- if(material==1||material==3||material==13||material==16){vec3 h=normalize(normalize(uEye-p)+normalize(vec3(0,2.8,-4)-p));rgb+=vec3(pow(max(dot(normal,h),0),32))*.11*(1-rough);}
+ if(material==1||material==3||material==13||material==16){bool sunlit=uSurface==1&&p.z< -10.68;vec3 lightDirection=sunlit?uSunDirection:normalize(vec3(0,2.8,-4)-p);
+  vec3 h=normalize(normalize(uEye-p)+lightDirection);float visibility=sunlit?sunlight(normal):1;
+  rgb+=(sunlit?vec3(1,.89,.72):vec3(1))*pow(max(dot(normal,h),0),mix(24,72,1-rough))*(sunlit?.29:.11)*(1-rough)*visibility;}
+ if(material==22)rgb=color*uTint;
  if(material==7)rgb=color;
  if(material==8)rgb=color*(.8+.2*noise(uv*80));
  float distance=length(uEye-p);bool outside=uSurface==1&&p.z< -10.68;
@@ -410,50 +567,90 @@ void main(){}
     }
     void tint(Vec3 color){if(!shadowPass_)shader_.set("uTint",color);}
     void drawCityActors(float time) {
-        // Every actor is deterministic in film time; pause freezes locomotion
-        // and joints together, and replay does not allocate more meshes.
-        const std::array<Vec3,6> shirts={Vec3{.22f,.39f,.51f},Vec3{.63f,.27f,.20f},Vec3{.75f,.69f,.52f},Vec3{.25f,.41f,.32f},Vec3{.38f,.29f,.48f},Vec3{.72f,.73f,.70f}};
+        // Pure clock samples also control glances, braking and the crossing.
+        // All variants reuse a bounded mesh set in colour and shadow passes.
+        if(actorTime_!=time) {
+            for(int i=0;i<EndingCity::pedestrianCount;++i)cityFeet_[i]=EndingCityFeet::sample(i,time);
+            actorTime_=time;
+        }
+        const std::array<Vec3,6> shirts={Vec3{.19f,.32f,.43f},Vec3{.53f,.25f,.19f},Vec3{.65f,.60f,.47f},Vec3{.22f,.34f,.27f},Vec3{.34f,.26f,.40f},Vec3{.66f,.67f,.64f}};
         const std::array<Vec3,4> skins={Vec3{.76f,.55f,.40f},Vec3{.49f,.32f,.21f},Vec3{.88f,.69f,.53f},Vec3{.62f,.43f,.29f}};
-        const std::array<Vec3,6> cars={Vec3{.68f,.17f,.10f},Vec3{.16f,.33f,.48f},Vec3{.78f,.77f,.70f},Vec3{.24f,.26f,.28f},Vec3{.66f,.49f,.16f},Vec3{.39f,.47f,.42f}};
+        const std::array<Vec3,6> cars={Vec3{.55f,.13f,.085f},Vec3{.13f,.27f,.40f},Vec3{.70f,.70f,.65f},Vec3{.18f,.20f,.22f},Vec3{.53f,.38f,.12f},Vec3{.30f,.39f,.34f}};
         for(int i=0;i<EndingCity::pedestrianCount;++i) {
             const auto p=EndingCity::pedestrian(i,time);
-            const float bounce=.012f*(1-std::cos(p.gait*2));
-            const Mat4 root=translate(p.position.x,p.position.y+bounce,p.position.z)*rotateY(p.yaw);
-            const Vec3 shirt=shirts[i%shirts.size()],skin=skins[i%skins.size()],pants=i%3==0?Vec3{.31f,.28f,.22f}:Vec3{.12f,.18f,.23f};
+            const float motion=std::clamp(p.speed/.8f,0.f,1.f),height=EndingCityFeet::height(i),width=EndingCityFeet::width(i);
+            const auto& feet=cityFeet_[i];
+            const float bounce=.009f*(1-std::cos(p.gait*2))*motion+(feet.pelvisHeight-p.position.y)/height;
+            const Mat4 ground=translate(p.position.x,p.position.y,p.position.z)*rotateY(p.yaw)*scale(width,height,1);
+            const Mat4 root=ground*translate(0,bounce,0)*rotateZ(.012f*std::sin(p.gait)*motion);
+            const Vec3 shirt=shirts[i%shirts.size()],skin=skins[i%skins.size()],pants=i%3==0?Vec3{.29f,.26f,.21f}:Vec3{.12f,.16f,.20f};
             tint(shirt);mesh(torso_,root);
+            if(i%4==2)mesh(jacket_,root);
             tint(pants);mesh(hips_,root);
-            const Mat4 head=root*translate(0,1.56f,0)*rotateY(.13f*std::sin(time*.6f+i));
-            tint(skin);mesh(head_,head);tint(i%3?Vec3{.15f,.10f,.065f}:Vec3{.48f,.35f,.18f});mesh(hair_,head);
+            if(i%4==0){tint(Vec3{.25f,.29f,.25f});mesh(backpack_,root);}
+            const Mat4 head=root*translate(0,1.56f,0)*rotateY(p.headYaw+.07f*std::sin(time*.6f+i));
+            tint(skin);mesh(head_,head);tint(i%3?Vec3{.13f,.085f,.055f}:Vec3{.40f,.29f,.16f});mesh(hair_[i%3],head);
             tint(Vec3{1,1,1});mesh(face_,head);
+            if(i%5==4){tint(Vec3{.28f,.34f,.37f});mesh(cap_,head);}
             for(int side:{-1,1}) {
-                const float swing=std::sin(p.gait+(side>0?PI:0));
-                const Mat4 arm=root*translate(side*.27f,1.34f,0)*rotateX(-swing*.40f);
+                const float swing=std::sin(p.gait+(side>0?PI:0))*motion;
+                const Mat4 arm=root*translate(side*.25f,1.33f,0)*rotateX(-swing*.34f)*rotateZ(side*.06f);
                 tint(shirt);mesh(upperArm_,arm);
-                const Mat4 elbow=arm*translate(0,-.30f,0)*rotateX(-.13f-.12f*std::max(0.f,-swing));
+                const Mat4 elbow=arm*translate(0,-.30f,0)*rotateX(-.12f-.11f*std::max(0.f,-swing));
                 mesh(lowerArm_,elbow);tint(skin);mesh(hand_,elbow*translate(0,-.29f,0));
-                const Mat4 leg=root*translate(side*.105f,.82f,0)*rotateX(swing*.40f);
-                const Mat4 knee=leg*translate(0,-.37f,0)*rotateX(-.32f*std::max(0.f,-swing));
-                tint(pants);mesh(thigh_,leg);mesh(shin_,knee);
-                tint(Vec3{1,1,1});mesh(shoe_,knee*translate(0,-.37f,0));
+                if(i%4==1&&side<0){tint(Vec3{.50f,.38f,.24f});mesh(bag_,elbow*translate(0,-.33f,0));}
+                // World-planted feet hold through turns; the swing/kerb
+                // trajectory is shared with CPU continuity/clearance tests.
+                const auto& foot=feet.feet[side>0?1:0];
+                const float dx=foot.position.x-p.position.x,dz=foot.position.z-p.position.z;
+                const Vec3 target{(dx*std::cos(p.yaw)-dz*std::sin(p.yaw))/width,
+                                  (foot.position.y-p.position.y)/height,dx*std::sin(p.yaw)+dz*std::cos(p.yaw)};
+                const Vec3 hip{side*.105f,.81f+bounce,0},delta=target-hip;
+                const float distance=std::sqrt(dot(delta,delta)),length=std::max(.40f,distance*.501f);
+                const Vec3 direction=normalize(delta),forward{0,0,-1};
+                const Vec3 bend=normalize(forward-direction*dot(forward,direction));
+                const Vec3 knee=hip+delta*.5f+bend*std::sqrt(std::max(0.f,length*length-distance*distance*.25f));
+                auto segment=[&](Vec3 a,Vec3 b) {
+                    const Vec3 up=normalize(a-b),right=normalize(cross(up,Vec3{0,0,1})),front=cross(right,up);
+                    Mat4 m=Mat4::identity();
+                    m.m[0]=right.x;m.m[1]=right.y;m.m[2]=right.z;
+                    m.m[4]=up.x;m.m[5]=up.y;m.m[6]=up.z;
+                    m.m[8]=front.x;m.m[9]=front.y;m.m[10]=front.z;
+                    m.m[12]=a.x;m.m[13]=a.y;m.m[14]=a.z;
+                    return ground*m*scale(1,length/.37f,1);
+                };
+                tint(pants);mesh(thigh_,segment(hip,knee));mesh(shin_,segment(knee,target));
+                tint(Vec3{1,1,1});mesh(shoe_,translate(foot.position.x,foot.position.y,foot.position.z)*rotateY(foot.yaw)*scale(width,height,1));
             }
         }
         for(int i=0;i<EndingCity::carCount;++i) {
-            const auto p=EndingCity::car(i,time);const Mat4 root=translate(p.position.x,p.position.y,p.position.z)*rotateY(p.yaw);
-            tint(cars[i%cars.size()]);mesh(carPaint_,root);
-            tint(Vec3{1,1,1});mesh(carDetails_,root);
-            for(float x:{-.90f,.90f})for(float z:{-1.35f,1.35f})mesh(wheel_,root*translate(x,.32f,z)*rotateX(-p.gait));
+            const auto p=EndingCity::car(i,time);const int kind=i%3;
+            const Mat4 root=translate(p.position.x,p.position.y,p.position.z)*rotateY(p.yaw);
+            tint(cars[i%cars.size()]);mesh(carPaint_[kind],root);
+            tint(Vec3{1,1,1});mesh(carDetails_[kind],root);
+            const float length=kind==1?1.82f:kind==2?2.16f:2.12f,wheelbase=kind==1?1.12f:1.35f;
+            tint(Vec3{.29f+.61f*p.brake,.025f+.045f*p.brake,.012f});mesh(brakeLights_,root*translate(0,0,length+.028f));
+            tint(Vec3{1,1,1});
+            for(float x:{-.87f,.87f})for(float z:{-wheelbase,wheelbase})mesh(wheel_,root*translate(x,.32f,z)*rotateX(-p.gait));
+        }
+        for(float z:{-16.8f,-27.45f}) {
+            const bool red=EndingCity::crossingActive(time),amber=EndingCity::trafficAmber(time);
+            tint(red?Vec3{.88f,.055f,.018f}:Vec3{.13f,.022f,.012f});mesh(signalLens_,translate(20.875f,3.37f,z+.19f));
+            tint(amber?Vec3{.95f,.53f,.045f}:Vec3{.12f,.07f,.015f});mesh(signalLens_,translate(20.875f,3.16f,z+.19f));
+            tint(!red&&!amber?Vec3{.065f,.65f,.19f}:Vec3{.015f,.09f,.032f});mesh(signalLens_,translate(20.875f,2.95f,z+.19f));
         }
         tint(Vec3{1,1,1});
     }
-    static void release(Mesh& m){if(m.vbo)glDeleteBuffers(1,&m.vbo);if(m.vao)glDeleteVertexArrays(1,&m.vao);m={};}
+    static void release(Mesh& m){m={};}
     void doors(const EndingPose& p) {
         mesh(leftDoor_,translate(-p.elevatorOpen*.84f,0,0));mesh(rightDoor_,translate(p.elevatorOpen*.84f,0,0));
         if(p.surface)mesh(exitDoor_,translate(-.95f,0,-10.46f)*rotateY(p.exitOpen*PI*.52f));
     }
     void initSun() {
         if(sunFbo_)return;
-        glGenFramebuffers(1,&sunFbo_);
-        glGenTextures(2,staticSun_.data());glGenTextures(2,movingSun_.data());
+        sunFbo_.create();
+        for(auto& texture:staticSun_)texture.create();
+        for(auto& texture:movingSun_)texture.create();
         glActiveTexture(GL_TEXTURE0);
         for(int cascade=0;cascade<2;++cascade)for(int moving=0;moving<2;++moving) {
             const int size=moving?EndingSun::dynamicResolution(cascade):EndingSun::staticResolution(cascade);
@@ -539,12 +736,15 @@ public:
     }
     void destroy() {
         release(cabin_);release(garage_);release(lobby_);release(city_);release(sky_);release(leftDoor_);release(rightDoor_);release(exitDoor_);
-        for(auto* mesh:{&torso_,&hips_,&head_,&hair_,&face_,&upperArm_,&lowerArm_,&hand_,&thigh_,&shin_,&shoe_,&carPaint_,&carDetails_,&wheel_})release(*mesh);
+        for(auto* mesh:{&torso_,&hips_,&head_,&face_,&upperArm_,&lowerArm_,&hand_,&thigh_,&shin_,&shoe_,&jacket_,&backpack_,&bag_,&cap_,&wheel_,&brakeLights_,&signalLens_})release(*mesh);
+        for(auto& m:hair_)release(m);
+        for(auto& m:carPaint_)release(m);
+        for(auto& m:carDetails_)release(m);
         for(auto& m:indicators_)release(m);
-        glDeleteTextures(2,staticSun_.data());glDeleteTextures(2,movingSun_.data());staticSun_={};movingSun_={};
-        if(sunFbo_)glDeleteFramebuffers(1,&sunFbo_);
-        sunFbo_=0;
+        staticSun_={};movingSun_={};
+        sunFbo_.reset();
         staticSunReady_=false;shadowTime_=-1;shadowPass_=false;staticSunUpdates_=movingSunUpdates_=0;
+        actorTime_=-1;cityFeet_={};
         sunDepth_.destroy();shader_.destroy();ready_=false;
     }
 };

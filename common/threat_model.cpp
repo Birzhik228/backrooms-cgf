@@ -9,6 +9,9 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <map>
+#include <numeric>
+#include <tuple>
 
 namespace br {
 namespace {
@@ -30,7 +33,8 @@ struct FrameInfo { Point pivot; std::uint8_t contacts=0; };
 struct SkinMask { std::uint8_t head; std::array<std::uint8_t,4> feet; };
 struct TexCoord { float u,v; };
 struct Clip { std::uint32_t frames=0; float duration=0; bool loop=false; std::vector<PackedVertex> values; std::vector<FrameInfo> info; };
-struct Model { std::uint32_t vertices=0; std::vector<Triangle> triangles; std::vector<SkinMask> masks; std::vector<TexCoord> uvs; std::array<Clip,CLIP_COUNT> clips; };
+struct FootInfluence {std::size_t index;int foot;float blend,gradient;};
+struct Model { std::uint32_t vertices=0; std::vector<Triangle> triangles; std::vector<SkinMask> masks; std::vector<TexCoord> uvs; std::array<Clip,CLIP_COUNT> clips; std::array<std::vector<std::size_t>,4> footTips; std::vector<FootInfluence> footInfluences; };
 
 struct Reader {
     std::vector<unsigned char> bytes;
@@ -122,6 +126,36 @@ Model readModel(const std::filesystem::path& path) {
             }
         }
     }
+    // Recover each lower-leg island once, including duplicated UV/normal seams.
+    // This distributes a small tip correction over the lower limb instead of
+    // pulling only the last tip ring away from its neighbouring triangles.
+    std::vector<std::size_t> parent(model.vertices);
+    std::iota(parent.begin(),parent.end(),0);
+    auto root=[&](std::size_t i) {while(parent[i]!=i){parent[i]=parent[parent[i]];i=parent[i];}return i;};
+    auto join=[&](std::size_t a,std::size_t b){a=root(a);b=root(b);if(a!=b)parent[b]=a;};
+    for(const auto& tri:model.triangles) {join(tri.vertices[0],tri.vertices[1]);join(tri.vertices[0],tri.vertices[2]);}
+    std::map<std::tuple<std::int16_t,std::int16_t,std::int16_t>,std::size_t> seams;
+    for(std::size_t i=0;i<model.vertices;++i) {
+        const auto& v=model.clips[0].values[i];
+        const auto found=seams.emplace(std::make_tuple(v.px,v.py,v.pz),i);
+        if(!found.second)join(i,found.first->second);
+    }
+    for(int foot=0;foot<4;++foot) {
+        std::size_t island=model.vertices;
+        for(std::size_t i=0;i<model.vertices;++i)if(model.masks[i].feet[foot]>128){island=root(i);break;}
+        if(island==model.vertices)continue;
+        float bottom=100,top=-100;
+        for(std::size_t i=0;i<model.vertices;++i)if(root(i)==island) {
+            const float y=model.clips[0].values[i].py*POSITION_UNIT;bottom=std::min(bottom,y);top=std::max(top,y);
+        }
+        for(std::size_t i=0;i<model.vertices;++i)if(root(i)==island) {
+            const float y=model.clips[0].values[i].py*POSITION_UNIT;
+            float t=std::clamp(((top-y)/std::max(.01f,top-bottom)-.10f)/.80f,0.f,1.f);
+            if(model.masks[i].feet[foot]==255)t=1;
+            if(model.masks[i].feet[foot]==255)model.footTips[foot].push_back(i);
+            if(t>0)model.footInfluences.push_back({i,foot,t*t*(3-2*t),-6*t*(1-t)/(.80f*std::max(.01f,top-bottom))});
+        }
+    }
     return model;
 }
 const Model& cachedModel() {
@@ -169,10 +203,52 @@ float threatStrideLength(float speed) {
     return 1.30f*(1-run)+2.0f*run;
 }
 
+void ThreatFootPlanting::reset(){*this=ThreatFootPlanting{};}
+void ThreatFootPlanting::setRoot(double x,double z,float yaw,float turning) {
+    if(!std::isfinite(x)||!std::isfinite(z)||!std::isfinite(yaw)){reset();return;}
+    x_=x;z_=z;yaw_=yaw;turning_=unit(turning);
+}
+std::array<Vec3,4> ThreatFootPlanting::correct(const std::array<Vec3,4>& tips,
+        const std::array<float,4>& contacts,float time,float stoop) {
+    std::array<Vec3,4> result{};
+    time=finite(time);const float dt=std::max(0.f,time-time_);
+    const float cy=std::cos(yaw_),sy=std::sin(yaw_);
+    const bool fresh=!ready_||time<time_||dt>.25f||std::hypot(x_-lastX_,z_-lastZ_)>1.2||
+        std::abs(std::remainder(yaw_-lastYaw_,2*PI))>1.2f;
+    // Doors need their authored tucked silhouette immediately. Only a few cm
+    // of residual placement correction survive full folding; no wide stance
+    // can remain planted on the far side of a jamb.
+    const float reach=.48f*(1-.935f*unit(stoop));
+    for(std::size_t i=0;i<4;++i) {
+        auto& f=feet_[i];const auto& p=tips[i];
+        const double wx=x_+p.x*cy-p.z*sy,wz=z_+p.x*sy+p.z*cy;
+        const bool support=contacts[i]>.55f;
+        if(fresh) {f={wx,wz,{},support};continue;}
+        if(support) {
+            if(!f.supported) {
+                f.x=wx+f.offset.x*cy-f.offset.z*sy;
+                f.z=wz+f.offset.x*sy+f.offset.z*cy;
+            }
+            const double dx=f.x-wx,dz=f.z-wz;
+            f.offset={float(dx*cy+dz*sy),0,float(-dx*sy+dz*cy)};
+        } else {
+            // Release through the raised portion of a step, without a snap at
+            // the contact bit boundary. Identical paused samples do not decay.
+            f.offset=f.offset*std::exp(-dt*24.f);
+        }
+        const float length=std::hypot(f.offset.x,f.offset.z);
+        if(length>reach)f.offset=f.offset*(reach/length);
+        f.x=wx+f.offset.x*cy-f.offset.z*sy;f.z=wz+f.offset.x*sy+f.offset.z*cy;
+        f.supported=support;result[i]=f.offset;
+    }
+    ready_=true;time_=time;lastX_=x_;lastZ_=z_;lastYaw_=yaw_;
+    return result;
+}
+
 void validateThreatModelAsset(const std::filesystem::path& path){(void)readModel(path);}
 
 std::vector<Vertex> threatModelVertices(float animationTime,float speed,bool chasing,
-                                      float scareAmount,float stoopAmount,float locomotionPhase,float headYaw,float headPitch) {
+                                      float scareAmount,float stoopAmount,float locomotionPhase,float headYaw,float headPitch,ThreatFootPlanting* planting) {
     (void)chasing; // Actual motion selects the gait, including Search and stalls.
     const auto& model=cachedModel();
     const float time=std::fmod(std::max(0.f,finite(animationTime)),100000.f);
@@ -215,6 +291,39 @@ std::vector<Vertex> threatModelVertices(float animationTime,float speed,bool cha
         }
         v.n=normalized(v.n);floor=std::min(floor,v.p.y);
     }
+    if(planting && scare<=0) {
+        std::array<Vec3,4> tips{},idleTips{};
+        std::array<unsigned,4> counts{};
+        for(int foot=0;foot<4;++foot)for(const auto i:model.footTips[foot]) {
+            tips[foot]=tips[foot]+Vec3{posed[i].p.x,posed[i].p.y,posed[i].p.z};
+            // Pure pivots lift the existing walking feet, but do not pretend
+            // that the stationary root is translating down a corridor.
+            if(planting->turning()>0) {
+                const auto a=sample(cursors[0],i),b=sample(cursors[3],i);
+                idleTips[foot]=idleTips[foot]+Vec3{0,0,a.p.z*(1-duck)+b.p.z*duck};
+            }
+            ++counts[foot];
+        }
+        std::array<Vec3,4> turnOffsets{};
+        for(int foot=0;foot<4;++foot)if(counts[foot]) {
+            tips[foot]=tips[foot]*(1.f/counts[foot]);idleTips[foot]=idleTips[foot]*(1.f/counts[foot]);
+            turnOffsets[foot].z=(idleTips[foot].z-tips[foot].z)*planting->turning();
+            tips[foot]=tips[foot]+turnOffsets[foot];
+        }
+        auto contacts=threatFootContacts(speed,phase);
+        for(auto& contact:contacts.feet)contact=1-walkWeight+contact*walkWeight;
+        const auto corrections=planting->correct(tips,contacts.feet,time,duck);
+        for(const auto& influence:model.footInfluences) {
+            const auto i=influence.index;const int foot=influence.foot;
+            const Vec3 correction=turnOffsets[foot]+corrections[foot];
+            const Vec3 offset=correction*influence.blend;
+            posed[i].p.x+=offset.x;posed[i].p.z+=offset.z;
+            // Inverse-transpose of the bounded horizontal shear. Tip caps and
+            // knee boundaries have zero gradient and retain their normals.
+            posed[i].n.y-=influence.gradient*(correction.x*posed[i].n.x+correction.z*posed[i].n.z);
+            posed[i].n=normalized(posed[i].n);
+        }
+    } else if(planting)planting->reset();
     // Interpolation between alternating foot contacts can lift both soles a
     // fraction; floor normalization keeps locomotion grounded, never the scare.
     const float groundOffset=scare>0?0.f:std::max(0.f,.012f-floor);

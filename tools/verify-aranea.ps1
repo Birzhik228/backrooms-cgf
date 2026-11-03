@@ -5,6 +5,8 @@ $taskEvidence=Join-Path $taskRoot 'tests\artifacts\aranea'
 New-Item -ItemType Directory -Force $taskEvidence | Out-Null
 $taskPose=@('--threat-preview','--threat-x','8','--threat-z','3.75','--threat-yaw','-90','--yaw','0','--pitch','2','--camera-view')
 $taskCases=@(
+ @{name='pivot-start';frames=5;args=@('--yaw','0','--threat-x','8','--threat-z','3.75','--threat-yaw','90');expected='GL errors: 0'},
+ @{name='pivot-transfer';frames=15;args=@('--yaw','0','--threat-x','8','--threat-z','3.75','--threat-yaw','90');expected='GL errors: 0'},
  @{name='walk-support';frames=15;args=$taskPose+@('--threat-time','0.12','--threat-speed','1.1');expected='GL errors: 0'},
  @{name='walk-transfer';frames=15;args=$taskPose+@('--threat-time','0.43','--threat-speed','1.1');expected='GL errors: 0'},
  @{name='run-support';frames=15;args=$taskPose+@('--threat-time','0.08','--threat-speed','3.3');expected='GL errors: 0'},

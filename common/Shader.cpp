@@ -18,8 +18,9 @@ std::string read(const std::string& path) {
     return contents.str();
 }
 
-GLuint compile(GLenum type, const std::string& text) {
-    const GLuint shader = glCreateShader(type);
+gl::ShaderObject compile(GLenum type, const std::string& text) {
+    gl::ShaderObject shader;
+    shader.create(type);
     const char* source = text.c_str();
     glShaderSource(shader, 1, &source, nullptr);
     glCompileShader(shader);
@@ -31,7 +32,6 @@ GLuint compile(GLenum type, const std::string& text) {
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
         std::vector<char> log(length + 1);
         glGetShaderInfoLog(shader, length, nullptr, log.data());
-        glDeleteShader(shader);
         throw std::runtime_error(std::string("Shader compile failed: ") + log.data());
     }
     return shader;
@@ -40,21 +40,14 @@ GLuint compile(GLenum type, const std::string& text) {
 } // namespace
 
 Shader::Shader(const std::string& vertex, const std::string& fragment, bool source) {
-    const GLuint vs = compile(GL_VERTEX_SHADER, source ? vertex : read(vertex));
-    GLuint fs = 0;
-    try {
-        fs = compile(GL_FRAGMENT_SHADER, source ? fragment : read(fragment));
-    } catch (...) {
-        glDeleteShader(vs);
-        throw;
-    }
-
-    id = glCreateProgram();
+    const auto vs = compile(GL_VERTEX_SHADER, source ? vertex : read(vertex));
+    const auto fs = compile(GL_FRAGMENT_SHADER, source ? fragment : read(fragment));
+    id.create();
     glAttachShader(id, vs);
     glAttachShader(id, fs);
     glLinkProgram(id);
-    glDeleteShader(vs);
-    glDeleteShader(fs);
+    glDetachShader(id, vs);
+    glDetachShader(id, fs);
 
     GLint success = 0;
     glGetProgramiv(id, GL_LINK_STATUS, &success);
@@ -79,10 +72,7 @@ GLint Shader::location(const char* name) const {
 }
 
 void Shader::destroy() {
-    if (id) {
-        glDeleteProgram(id);
-    }
-    id = 0;
+    id.reset();
     locations_.clear();
 }
 

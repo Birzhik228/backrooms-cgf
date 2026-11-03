@@ -26,7 +26,7 @@ Yaw and pitch define the first-person camera; mouse deltas feed targets that are
 
 Walking reaches 2.5 m/s, Shift movement 4.0 m/s and crouching 1.1 m/s. Velocity approaches the requested movement gradually, and braking slows the player after input stops. Crouching takes priority over sprinting. Collision checks the player's footprint against walls and subdivides travel to prevent tunnelling. Sliding along obstacles preserves movement parallel to a wall. Pausing or resetting clears movement velocity.
 
-Stamina starts at 100 and drains at 18 points per second during actual sprint travel. It recovers at 14 points per second after a 1.5-second delay; exhaustion blocks sprinting until 22 points have recovered. Pausing freezes this state. Returning to the entrance or starting a new seed restores stamina.
+Stamina starts at 100 and drains at 12 points per second during actual sprint travel, allowing about 8.3 seconds of continuous sprinting. It recovers at 14 points per second after a 1.5-second delay; exhaustion blocks sprinting until 22 points have recovered. Pausing freezes this state. Returning to the entrance or starting a new seed restores stamina.
 
 ## Rendering and sound
 

@@ -1,5 +1,16 @@
 # AI assistance and authorship disclosure
 
+On 26 October 2026, Codex assisted with Parking sector signs, cabinet markings,
+industrial details and original procedural spatial audio, circuit status HUD,
+and regression/visual checks. Existing collisions, lighting and Darkness rules
+were preserved. See [Parking atmosphere and wayfinding](parking-upgrade.md).
+
+On 26 October 2026, Codex assisted with Level 0 exploration: sparse procedural
+landmarks, optional notes on existing side routes, a closed-door handle hint
+tied to the real Aranea, and native/rendered checks. Existing materials and
+sound cues were reused; no new third-party assets or generated images were
+introduced. See [Level 0 exploration](level0-exploration.md).
+
 On 26 October 2026, Codex assisted with the requested level selector, native
 menu layout, fresh-level transitions and validation. At the user's follow-up
 request, the selector was moved into the Escape menu and Ctrl retained only
@@ -77,6 +88,14 @@ and corrected wall-adjacent/corner navigation. Assistance included regression
 and rendered checks and the measurements in `performance-2026-10.md`. No friend's
 hardware or temperature measurements were available; no thermal guarantee is made.
 
+## Level Fun atmosphere and search — 26 October 2026
+
+Codex assisted with deterministic party debris and toy props, original procedural
+spatial sounds for moving Partygoers and nearby decorations, optional gift clues,
+camera-facing interaction, native/rendered checks and English documentation.
+Existing level progression, collisions and seeded rewards were preserved.
+
+
 ## Elevator test ending - 26 October 2026
 
 At the user's request, Codex authored an original in-engine animated ending:
@@ -103,3 +122,45 @@ city ending. Cached static and animated depth maps use two fixed projections;
 city geometry and pedestrian/car transforms supply the shadow silhouettes.
 No external shaders, assets or libraries were introduced. Rendered occlusion,
 pause/cache lifetime and replay tests accompany the change.
+
+## Visual and animation polish — 28 October 2026
+
+At the user's request, Codex assisted with original procedural city silhouettes,
+storefront displays, material shading and a deterministic pedestrian/traffic
+episode. It also added turn-driven Aranea steps and bounded support-foot
+corrections around the existing imported animation bank. Assistance includes
+trajectory/contact regression tests, rendered inspection and performance checks.
+No additional third-party asset or library was introduced; the original Aranea
+source attribution remains applicable. These changes do not claim new original
+authorship of the user-supplied creature model.
+
+## Application structure and state flow — 3 November 2026
+
+At the user's request, Codex assisted with extracting the former main-file
+controller into application modules for input/options, menus, gameplay, audio,
+rendering, HUD, session lifecycle, the ending and scripted verification input.
+The work introduces one exclusive application screen state while retaining
+separate encounter/capture state and historical run metadata. New-run and
+level-entry paths share the world replacement and reset sequence. Assistance
+also includes build integration, a screen-flow regression test and architecture
+documentation. Six native suites, 91 integrated runtime scenarios and four
+before/after rendering comparisons passed; evidence is described in
+`code-structure.md`. No new library, external asset or gameplay-balancing change
+is part of this refactor; no performance improvement is claimed.
+
+
+## Resource ownership, diagnostics, tuning and team builds — 3 November 2026
+
+At the user's request, Codex assisted with move-only RAII ownership for OpenGL
+objects and the GLFW context/window; bounded frame/memory/resource diagnostics;
+a validated, startup-loaded balance configuration; and a unified CMake/CTest
+build with thin PowerShell/Make wrappers and a GitHub Actions workflow. No new
+runtime dependency or third-party asset was added. Default balance and rendering
+were preserved; four isolated reference images were byte-identical.
+
+Validation includes 28 native tests, four real-OpenGL tests, 48 full-game cases,
+27 level transitions, a 600-second Parking soak and actual shader-loading failure
+cleanup. Detailed timing/memory results and coverage limits are in `performance.md`.
+Hosted CI has not run as part of this local change; it becomes available after
+the workflow is committed and pushed. This work does not claim an FPS gain or
+complete coverage of every allocation, driver resource or gameplay scenario.

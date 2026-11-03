@@ -11,6 +11,69 @@ void parkingLetter(Chunk& c,float x,float y,float z,char letter,float size,float
         quad(c,{xx,yy,z},{xx+size*.88f,yy,z},{xx+size*.88f,yy+size*.88f,z},{xx,yy+size*.88f,z},{0,0,1},size,size,material);
     }
 }
+void parkingColumnSigns(Chunk& c,float x1,float z1,char letter) {
+    // Repeat the existing plaque on the three other faces of the same column.
+    // These surfaces do not add a collider or modify the overhead clearance.
+    const float centerX=x1-.67f,centerZ=z1-.67f;
+    for(int side=1;side<4;++side) {
+        const auto begin=c.vertices.size();
+        box(c,x1-1.04f,1.65f,z1-.30f,x1-.30f,2.48f,z1-.27f,89);
+        parkingLetter(c,x1-.94f,1.79f,z1-.265f,letter,.10f);
+        const float cosine=side==2?-1.f:0.f,sine=side==1?1.f:side==3?-1.f:0.f;
+        for(auto i=begin;i<c.vertices.size();++i) {
+            auto& v=c.vertices[i];const float dx=v.x-centerX,dz=v.z-centerZ,nx=v.nx;
+            v.x=centerX+dx*cosine+dz*sine;v.z=centerZ-dx*sine+dz*cosine;
+            v.nx=nx*cosine+v.nz*sine;v.nz=-nx*sine+v.nz*cosine;
+        }
+    }
+}
+void parkingCabinetMark(Chunk& c,float x0,float z0,int circuit) {
+    // A local painted approach arrow points only at the cabinet directly ahead.
+    // The letter faces the same direction, legible from the cross aisle.
+    const float x=x0+5.825f,y=.012f;
+    quad(c,{x-.085f,y,z0+3.35f},{x+.085f,y,z0+3.35f},
+         {x+.085f,y,z0+2.25f},{x-.085f,y,z0+2.25f},{0,1,0},.17f,1.1f,73);
+    for(P p:{P{x-.36f,y,z0+2.4f},P{x+.36f,y,z0+2.4f},P{x,y,z0+1.72f}})
+        c.vertices.push_back({p.x,p.y,p.z,0,1,0,p.x-x,p.z-z0,73});
+    const auto begin=c.vertices.size();
+    parkingLetter(c,x-.225f,0,0,char('A'+circuit),.09f,73);
+    for(auto i=begin;i<c.vertices.size();++i) {
+        auto& v=c.vertices[i];v.z=z0+4.16f-v.y;v.y=.014f;v.ny=1;v.nz=0;
+    }
+}
+void parkingVent(Chunk& c,float x0,float z0) {
+    const float x=x0+5.85f,z=z0+3.f;
+    // Flat grille on the existing ceiling: no additional low overhead volume.
+    quad(c,{x-.44f,3.18f,z-.31f},{x+.44f,3.18f,z-.31f},
+         {x+.44f,3.18f,z+.31f},{x-.44f,3.18f,z+.31f},{0,-1,0},.88f,.62f,75);
+    for(int slat=0;slat<7;++slat) {
+        const float at=x-.40f+slat*.12f;
+        quad(c,{at,3.175f,z-.29f},{at+.045f,3.175f,z-.29f},
+             {at+.045f,3.175f,z+.29f},{at,3.175f,z+.29f},{0,-1,0},.045f,.58f,7);
+    }
+}
+void parkingLeak(Chunk& c,float x0,float z0) {
+    // An irregular shallow wet patch under the service pipe in an empty bay.
+    const float x=x0+.85f,z=z0+4.05f;
+    for(int side=0;side<12;++side) {
+        const float a=side*6.28318530718f/12,b=(side+1)*6.28318530718f/12;
+        const float ra=side%3==0?.81f:1.f,rb=(side+1)%3==0?.81f:1.f;
+        for(P p:{P{x,.004f,z},P{x+std::cos(b)*.53f*rb,.004f,z+std::sin(b)*.71f*rb},
+                P{x+std::cos(a)*.53f*ra,.004f,z+std::sin(a)*.71f*ra}})
+            c.vertices.push_back({p.x,p.y,p.z,0,1,0,p.x,p.z,74});
+    }
+}
+void parkingCable(Chunk& c,float x0,float z0) {
+    // Loose cable lies below the height of the existing wheel stops.
+    const float x=x0+5.85f,z=z0+3.f;
+    for(int side=0;side<18;++side) {
+        const float a=side*6.28318530718f/18,b=(side+1)*6.28318530718f/18;
+        const auto point=[&](float angle,float r){return P{x+std::cos(angle)*r,.018f,z+std::sin(angle)*r*.72f};};
+        quad(c,point(a,.46f),point(b,.46f),point(b,.485f),point(a,.485f),{0,1,0},.16f,.025f,75);
+    }
+    quad(c,{x+.46f,.018f,z},{x+.48f,.018f,z+.025f},
+         {x+.95f,.018f,z-.28f},{x+.93f,.018f,z-.305f},{0,1,0},.57f,.025f,75);
+}
 void parkingCar(Chunk& c,float x,float z,std::uint64_t h,bool distant) {
     const float paint=86+float(h%3);
     // A low sedan: wheels, bumpers, bonnet, dark glazing, pillars and roof.
@@ -51,6 +114,7 @@ Chunk parkingChunk(ChunkCoord coord,std::uint64_t seed,const std::array<bool,3>&
         c.sightBlockers.push_back({{x1-1.02f,z1-1.02f,x1-.32f,z1-.32f},0,3.2f});
         box(c,x1-1.04f,1.65f,z1-.30f,x1-.30f,2.48f,z1-.27f,89);
         parkingLetter(c,x1-.94f,1.79f,z1-.265f,char('A'+sector),.10f);
+        parkingColumnSigns(c,x1,z1,char('A'+sector));
         // Painted bays, concrete wheel stops and a dashed centre line.
         for(float lane:{.25f,2.85f,4.65f,7.25f})
             box(c,x0+lane,.003f,z0+.22f,x0+lane+.055f,.007f,z0+5.18f,73);
@@ -77,9 +141,15 @@ Chunk parkingChunk(ChunkCoord coord,std::uint64_t seed,const std::array<bool,3>&
             box(c,x0+5.51f,1.64f,z0+1.345f,x0+5.68f,1.79f,z0+1.36f,powered[panel]?79:78);
             box(c,x0+5.80f,powered[panel]?1.24f:1.04f,z0+1.34f,x0+5.98f,powered[panel]?1.48f:1.28f,z0+1.47f,72);
             parkingLetter(c,x0+5.63f,2.02f,z0+1.155f,char('A'+panel),.045f);
+            parkingCabinetMark(c,x0,z0,panel);
             c.lamps.push_back({x0+5.8f,1.7f,z0+1.8f,.65f,powered[panel]?.20f:1.f,powered[panel]?1.f:.18f,.12f});
         }
         if(!exitHere && panel<0 && h%11==0 && !(gx==0&&gz==0))parkingCar(c,x0+1.55f,z0+2.8f,h,distant);
+        if(!exitHere && panel<0) {
+            if((h>>32)%7==0)parkingVent(c,x0,z0);
+            if((h>>40)%11==0 && h%11!=0 && !(gx==0&&gz==0))parkingLeak(c,x0,z0);
+            if((h>>48)%13==0 && !(gx==0&&gz==0))parkingCable(c,x0,z0);
+        }
         // Emergency lights survive in every sector. Restoring a circuit makes
         // its remaining fittings steady and turns the dead ones back on.
         LampState state=powered[sector]?LampState::Working:(h%9==0?LampState::Dying:LampState::Off);

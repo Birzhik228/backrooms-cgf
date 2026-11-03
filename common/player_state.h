@@ -1,4 +1,5 @@
 #pragma once
+#include "balance.h"
 #include <algorithm>
 #include <cmath>
 
@@ -12,14 +13,14 @@ struct Stamina {
         if (paused || !std::isfinite(dt) || dt <= 0) return;
         if(infinite){reset();return;}
         if (sprintTravel) {
-            value = std::max(0.f, value - 18.f * dt);
-            recoveryDelay = 1.5f;
+            value = std::max(0.f, value - balance().staminaDrain * dt);
+            recoveryDelay = balance().staminaDelay;
             if (value == 0) exhausted = true;
         } else {
             const float recovering = std::max(0.f, dt - recoveryDelay);
             recoveryDelay = std::max(0.f, recoveryDelay - dt);
-            value = std::min(100.f, value + 14.f * recovering);
-            if (value >= 22.f) exhausted = false;
+            value = std::min(100.f, value + balance().staminaRecovery * recovering);
+            if (value >= balance().staminaResumeThreshold) exhausted = false;
         }
     }
 };

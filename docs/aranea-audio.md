@@ -51,7 +51,7 @@ at 14.32 m and 1078–1082 at 22 m. The former gain/distance settings applied to
 the same new clip produce at most 632 and 388 respectively. This isolates the
 audibility gain from the changed recording. Walls and facing still attenuate it.
 
-`tests/audio_tests.exe --aranea-preview tests/artifacts/aranea-soil` exports the
+`build/windows-release/bin/audio_tests.exe --aranea-preview tests/artifacts/aranea-soil` exports the
 actual mixer without normalization: walking (0–4 s), running (4–7 s), detection
 at 14.32 m (7 s), and pursuit at 22 m (10 s). Separate detection previews are
 also written. This makes the distant calls reviewable outside gameplay.

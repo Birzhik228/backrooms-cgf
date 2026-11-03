@@ -73,7 +73,7 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
         if(page==1) {
             row(200,"F","FLASHLIGHT","Aim at the eyes to disperse them.");
             row(260,"TAB","LOCAL MAP","A / B / C mark the cabinets.");
-            row(320,"HUD","CIRCUIT SIGNAL","Distance to the nearest outage.");
+            row(320,"HUD","CIRCUIT STATUS","A / B / C show power; target is framed.");
             row(380,"E","RESTORE POWER","Face the front of the cabinet.");
         } else {
             row(200,"LIGHT","SAFE REFUGES","Entrance, cabinets, powered sectors.");
@@ -89,8 +89,8 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
         text(93,406,"WELCOME TO LEVEL FUN",1.4f,gold);
         if(page==1) {
             row(200,"E","OPEN PRESENTS","Search for the exit key.");
-            row(260,"TAB","LOCAL MAP","Find your way between rooms.");
-            row(320,"R","RETURN TO START","Stay on this level.");
+            row(260,"TAB","LOCAL MAP","Pink marks are unopened presents.");
+            row(320,"C","PRESENT CLUES","Toggle nearby gift directions.");
             row(380,"E","UNLOCK THE EXIT","Find the key, then open the door.");
         } else {
             row(200,"ESC","PAUSE MENU","Settings and level selection.");

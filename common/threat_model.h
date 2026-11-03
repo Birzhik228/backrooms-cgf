@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../world.h"
+#include "math.h"
 #include <array>
 #include <filesystem>
 #include <vector>
@@ -19,6 +20,24 @@ inline constexpr int THREAT_RIDGE_MATERIAL = 22;
 // Throws with an actionable asset error; does not replace the cached live model.
 void validateThreatModelAsset(const std::filesystem::path& path);
 
+// Four bounded world-space support anchors. The model still uses its authored
+// four-leg clips; this corrects residual sliding during pivots and speed blends.
+// A tighter correction budget while crouched preserves the doorway silhouette.
+class ThreatFootPlanting {
+public:
+    void reset();
+    void setRoot(double x,double z,float yaw,float turning=0.f);
+    float turning() const { return turning_; }
+    std::array<Vec3,4> correct(const std::array<Vec3,4>& tips,
+                              const std::array<float,4>& contacts,float time,float stoop);
+private:
+    struct Foot {double x=0,z=0;Vec3 offset{};bool supported=false;};
+    std::array<Foot,4> feet_{};
+    double x_=0,z_=0,lastX_=0,lastZ_=0;
+    float yaw_=0,lastYaw_=0,turning_=0,time_=-1;
+    bool ready_=false;
+};
+
 // Time is simulation time (freeze it when paused); speed is metres/second.
 // Locomotion clips blend by actual speed, including fast Search movement.
 // scareAmount > 0 samples the capture clip across normalized progress.
@@ -28,7 +47,8 @@ std::vector<Vertex> threatModelVertices(float animationTime, float speed,
                                       bool chasing, float scareAmount = 0.f,
                                       float stoopAmount = 0.f,
                                       float locomotionPhase = -1.f,
-                                      float headYaw = 0.f, float headPitch = 0.f);
+                                      float headYaw = 0.f, float headPitch = 0.f,
+                                      ThreatFootPlanting* planting = nullptr);
 
 // Feet are ordered front-left, front-right, rear-left, rear-right.
 struct ThreatFootContacts { std::array<float,4> feet{{1.f,1.f,1.f,1.f}}; };

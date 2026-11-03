@@ -96,7 +96,7 @@ void variedRoomsAndExit() {
     for (int step=0; step<=720; ++step)
         check(!world.blocked(br::CELL/2+step*.1,br::CELL/2,.25),"guaranteed east route remains traversable");
 
-    const std::set<int> allowedMaterials{0,1,2,3,5,7,16,18,19,57,32,33,34};
+    const std::set<int> allowedMaterials{0,1,2,3,5,7,13,16,18,19,25,46,57,32,33,34};
     std::set<int> materials;
     std::size_t vertexCount=0;
     bool hasUnlitFixture=false;
@@ -116,7 +116,7 @@ void variedRoomsAndExit() {
         for (const auto& vertex : chunk.vertices) {
             materials.insert(static_cast<int>(vertex.material));
             check(allowedMaterials.count(static_cast<int>(vertex.material))!=0,
-                  "only yellow room surfaces, lights, clue and exit materials remain");
+                  "only yellow room surfaces, lights, clues, landmarks and exit materials remain");
             if (vertex.material==16)
                 check(vertex.u>=0 && vertex.u<=1 && vertex.v>=0 && vertex.v<=1,
                       "exit sign supplies normalized lettering UVs");
@@ -452,8 +452,11 @@ void geometryAndCollision() {
         for (std::size_t i=0; i<chunk.vertices.size(); i+=3) {
             const auto &a=chunk.vertices[i],&b=chunk.vertices[i+1],&c=chunk.vertices[i+2];
             const double area=std::abs((b.x-a.x)*(c.z-a.z)-(b.z-a.z)*(c.x-a.x))*.5;
-            if (a.material==1 || a.material==18 || a.material==19) floorArea+=area;
-            if (a.material==2) ceilingArea+=area;
+            // Count architectural planes, not every use of their material:
+            // fallen acoustic panels also use the ceiling material near the floor.
+            if (a.y==0 && b.y==0 && c.y==0 && a.ny>.99f) floorArea+=area;
+            const float ceiling=static_cast<float>(br::ROOM_HEIGHT);
+            if (a.y==ceiling && b.y==ceiling && c.y==ceiling && a.ny<-.99f) ceilingArea+=area;
         }
         check(floorArea==br::CHUNK_SIZE*br::CHUNK_SIZE && ceilingArea==floorArea,
               "merged floors and ceilings cover exactly one whole chunk");

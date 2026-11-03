@@ -8,7 +8,8 @@ class UI {
     struct Point{float x,y,r,g,b,a;};
     std::vector<Point> vertices;
     Shader shader;
-    GLuint vao=0,vbo=0;
+    gl::VertexArray vao;
+    gl::Buffer vbo;
 public:
     UI();
     void rect(float x,float y,float w,float h,Color c);

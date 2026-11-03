@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glad/glad.h>
+#include "gl_resource.h"
 #include <string>
 #include <unordered_map>
 #include "math.h"
@@ -9,9 +9,13 @@ namespace br {
 
 class Shader {
 public:
-    GLuint id = 0;
+    gl::Program id;
 
     Shader() = default;
+    Shader(const Shader&)=delete;
+    Shader& operator=(const Shader&)=delete;
+    Shader(Shader&&) noexcept=default;
+    Shader& operator=(Shader&&) noexcept=default;
     Shader(const std::string& vertex, const std::string& fragment, bool source = false);
 
     void use() const { glUseProgram(id); }

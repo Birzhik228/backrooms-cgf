@@ -38,6 +38,8 @@ struct Lamp {
     float phase=0;
 };
 struct WorldPoint { double x,z; };
+// Optional Level 0 floor notes; position is the visible paper centre (y=.09m).
+struct Level0Observation { std::uint64_t id; WorldPoint position; int kind; };
 struct Present { std::uint64_t id; double x,z; bool opened=false; };
 enum class PresentResult { Invalid, Empty, Key, Mouse };
 struct HidingSpot {
@@ -80,6 +82,7 @@ struct Chunk {
     std::vector<DoorInfo> doors;
     std::vector<HidingSpot> hidingSpots;
     std::vector<Present> presents;
+    std::vector<Level0Observation> observations;
 };
 
 std::int64_t floorDiv(std::int64_t value, std::int64_t divisor);
@@ -135,11 +138,15 @@ public:
     bool toggleDoor(std::uint64_t id,double playerX,double playerZ,double playerRadius=.25);
     bool advanceDoors(float dt,double playerX,double playerZ,double playerRadius=.25,bool paused=false,
                       std::optional<WorldPoint> otherActor=std::nullopt,double otherRadius=.3);
-    std::vector<Vertex> doorVertices(double originX,double originZ) const;
+    // Optional cosmetic movement of one closed Level 0 handle. The leaf pose
+    // and collision remain unchanged; default calls reproduce the static mesh.
+    std::vector<Vertex> doorVertices(double originX,double originZ,
+        std::optional<std::uint64_t> rattleDoor=std::nullopt,float handleAngle=0) const;
     bool exitCrossed(double playerX,double playerZ) const;
     WorldPoint keyLocation() const;
     bool keyCollected() const { return keyCollected_; }
     bool collectKey(double x,double z);
+    bool nearestObservation(double x,double z,double range,Level0Observation& result) const;
     bool nearestPresent(double x,double z,double range,Present& result) const;
     PresentResult openPresent(std::uint64_t id,double x,double z);
     int presentsOpened() const { return int(openedPresents_.size()); }
@@ -166,6 +173,7 @@ private:
     std::set<std::uint64_t> openedPresents_;
     std::vector<WorldPoint> verityDrops_;
     bool verityCollected_=false;
+    std::vector<ChunkCoord> observationCells_;
     std::size_t shifts_ = 0;
     std::uint64_t nextRevision_ = 1;
     std::map<ChunkCoord,Chunk> chunks_;

@@ -104,9 +104,9 @@ void pixel(std::vector<unsigned char>& image, int x, int y, float r, float g, fl
     image[index + 2] = static_cast<unsigned char>(clamp01(b) * 255.0f + 0.5f);
 }
 
-unsigned int upload(const std::vector<unsigned char>& image, int width = kSize, int height = kSize) {
-    unsigned int id = 0;
-    glGenTextures(1, &id);
+gl::Texture upload(const std::vector<unsigned char>& image, int width = kSize, int height = kSize) {
+    gl::Texture id;
+    id.create();
     glBindTexture(GL_TEXTURE_2D, id);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
@@ -122,7 +122,7 @@ unsigned int upload(const std::vector<unsigned char>& image, int width = kSize, 
 // Central differences use the physical texture size, so a millimetre of
 // wallpaper relief does not become a metre-scale bump on the larger sheet.
 // Repeat-wrapped neighbours keep mipmapped normal maps continuous at seams.
-unsigned int uploadNormals(const std::vector<float>& heights, int width, int height,
+gl::Texture uploadNormals(const std::vector<float>& heights, int width, int height,
                            float metersWide, float metersHigh) {
     std::vector<unsigned char> normals(std::size_t(width) * height * 3);
     const float dxScale = float(width) / (2.0f * metersWide);
@@ -328,11 +328,6 @@ Textures createTextures() {
 }
 
 void destroyTextures(Textures& textures) {
-    const unsigned int ids[] = {textures.wallpaper, textures.carpet, textures.ceiling,
-        textures.wallpaperNormal, textures.carpetNormal, textures.ceilingNormal,
-        textures.hardFloor, textures.hardFloorNormal,
-        textures.creatureColor, textures.creatureNormal};
-    glDeleteTextures(10, ids);
     textures = Textures{};
 }
 

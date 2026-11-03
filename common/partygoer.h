@@ -1,6 +1,7 @@
 #pragma once
 #include "../world.h"
 #include "math.h"
+#include "balance.h"
 #include "render_limits.h"
 #include <array>
 #include <queue>
@@ -11,8 +12,8 @@ namespace br {
 class Partygoers {
 public:
     static constexpr int COUNT=4;
-    static constexpr float SPEED=4.875f;
-    static constexpr float ALARM_SPEED=7.5f;
+    inline static const float& SPEED=balance().partygoerSpeed;
+    inline static const float& ALARM_SPEED=balance().partygoerAlarmSpeed;
     static constexpr double RADIUS=.34;
     struct Actor {
         double x=0,z=0;
@@ -29,7 +30,7 @@ public:
     void reset() { *this=Partygoers{}; }
     void hearAlarm(double x,double z) {
         if(!std::isfinite(x) || !std::isfinite(z))return;
-        alarmTarget={x,z};alarmRemaining=6;
+        alarmTarget={x,z};alarmRemaining=balance().partygoerAlarmDuration;
         for(auto& actor:actors){actor.repath=0;actor.path.clear();actor.next=0;}
     }
     // Height-aware wall rays: low furniture cannot hide a visible head.

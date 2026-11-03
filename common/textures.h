@@ -1,4 +1,5 @@
 #pragma once
+#include "gl_resource.h"
 
 namespace br {
 
@@ -7,18 +8,18 @@ namespace br {
 // Carpet, ceiling and hard floor repeat every metre through mesh UVs. Normal
 // maps encode tangent-space XYZ in linear RGB, generated from physical heights.
 struct Textures {
-    unsigned int wallpaper = 0;
-    unsigned int carpet = 0;
-    unsigned int ceiling = 0;
-    unsigned int wallpaperNormal = 0;
-    unsigned int carpetNormal = 0;
-    unsigned int ceilingNormal = 0;
-    unsigned int hardFloor = 0;
-    unsigned int hardFloorNormal = 0;
+    gl::Texture wallpaper;
+    gl::Texture carpet;
+    gl::Texture ceiling;
+    gl::Texture wallpaperNormal;
+    gl::Texture carpetNormal;
+    gl::Texture ceilingNormal;
+    gl::Texture hardFloor;
+    gl::Texture hardFloorNormal;
     // Supplied Aranea source images converted offline into bounded RGB caches.
     // Color is sRGB (decoded in the shader); normal values remain linear.
-    unsigned int creatureColor = 0;
-    unsigned int creatureNormal = 0;
+    gl::Texture creatureColor;
+    gl::Texture creatureNormal;
 };
 
 Textures createTextures();

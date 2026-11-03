@@ -6,7 +6,7 @@ namespace br {
 // Flashlight tests use the physical beam cone, distance and occlusion, not gaze.
 class Darkness {
 public:
-    static constexpr float CHASE_SPEED=4.8f; // Player sprint is 4.0 m/s.
+    inline static const float& CHASE_SPEED=balance().darknessChaseSpeed;
     struct Eyes { double x=0,z=0;float y=1.7f,phase=0,cooldown=0,emerging=0;bool active=false; };
     std::array<Eyes,3> eyes{};
     int dispelled=0,spawned=0;
@@ -24,7 +24,7 @@ public:
         if(!flashlight)return false;
         const Vec3 delta{float(a.x-x),a.y-y,float(a.z-z)};
         const float distance=std::sqrt(dot(delta,delta));
-        if(distance>.01f && distance<=18 && dot(delta*(1.f/distance),normalize(forward))>=.955f)
+        if(distance>.01f && distance<=balance().darknessFlashlightRange && dot(delta*(1.f/distance),normalize(forward))>=.955f)
             return Partygoers::clearSight(w,x,y,z,a.x,a.y,a.z);
         return false;
     }
@@ -58,7 +58,7 @@ public:
             const double distance=std::hypot(x-a.x,z-a.z);
             if(distance>35) {a.active=false;a.cooldown=3;continue;}
             // A lit refuge stops the approach; the eyes wait outside its edge.
-            if(!safe(w,x,z) && distance<.65 && Partygoers::clearSight(w,x,eyeY,z,a.x,a.y,a.z))return true;
+            if(!safe(w,x,z) && distance<balance().darknessCatchDistance && Partygoers::clearSight(w,x,eyeY,z,a.x,a.y,a.z))return true;
             const double angle=std::atan2(z-a.z,x-a.x),step=dt*CHASE_SPEED;
             double best=-1e9,bx=a.x,bz=a.z;
             for(float offset:{0.f,.45f,-.45f,.9f,-.9f,1.5f,-1.5f,2.1f,-2.1f}) {

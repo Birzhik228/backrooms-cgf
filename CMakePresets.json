@@ -1,0 +1,43 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "release",
+      "displayName": "Release and native tests",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "ON",
+        "BACKROOMS_GRAPHICS_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "graphics",
+      "displayName": "Release with OpenGL context tests",
+      "inherits": "release",
+      "binaryDir": "${sourceDir}/build/graphics",
+      "cacheVariables": { "BACKROOMS_GRAPHICS_TESTS": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "release", "configurePreset": "release", "configuration": "Release", "jobs": 2 },
+    { "name": "graphics", "configurePreset": "graphics", "configuration": "Release", "jobs": 2 }
+  ],
+  "testPresets": [
+    {
+      "name": "native",
+      "configurePreset": "release",
+      "configuration": "Release",
+      "filter": { "include": { "label": "^native$" } },
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "graphics",
+      "configurePreset": "graphics",
+      "configuration": "Release",
+      "filter": { "include": { "label": "^graphics$" } },
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

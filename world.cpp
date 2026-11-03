@@ -170,6 +170,7 @@ void clue(Chunk& c, float centerX, float centerZ, bool east, float normalSign) {
 
 #include "common/fun_geometry.h"
 #include "common/parking_geometry.h"
+#include "common/level0_geometry.h"
 
 bool circleHits(const Aabb& b, double x, double z, double radius) {
     const double dx=x-std::clamp(x,b.minX,b.maxX);
@@ -353,7 +354,47 @@ bool edgeOpen(std::int64_t x, std::int64_t z,
     return edgeHash(x,z,otherX,otherZ,seed ^ salt)%100 < 27;
 }
 
-World::World(std::uint64_t seed,Level level) : seed_(seed),level_(level) {}
+World::World(std::uint64_t seed,Level level) : seed_(seed),level_(level) {
+    if(level_!=Level::Zero)return;
+    std::vector<ChunkCoord> route;
+    for(auto cell=exitCell(seed_);;cell=parent(cell.x,cell.z,seed_)) {
+        route.push_back(cell);
+        if(cell==ChunkCoord{0,0})break;
+    }
+    std::reverse(route.begin(),route.end());
+    const std::array<ChunkCoord,4> directions={ChunkCoord{1,0},{-1,0},{0,1},{0,-1}};
+    // Two optional discoveries along short child branches of the existing
+    // reserved tree. This never adds an opening or changes the objective route.
+    for(int target:{3,9}) {
+        ChunkCoord best{};int bestScore=std::numeric_limits<int>::max();
+        for(std::size_t index=2;index+3<route.size();++index) {
+            const auto junction=route[index];
+            auto consider=[&](ChunkCoord cell,int depth) {
+                if(std::find(route.begin(),route.end(),cell)!=route.end())return;
+                if(std::find(observationCells_.begin(),observationCells_.end(),cell)!=observationCells_.end())return;
+                for(const auto other:observationCells_)
+                    if(std::abs(cell.x-other.x)+std::abs(cell.z-other.z)<3)return;
+                const auto branchRoom=roomInfo(cell.x,cell.z,seed_);
+                const auto mainRoom=roomInfo(junction.x,junction.z,seed_);
+                const bool separate=branchRoom.x!=mainRoom.x || branchRoom.z!=mainRoom.z;
+                const int score=std::abs(int(index)-target)*100+depth*12+
+                    (separate?0:350)+int(hashCell(cell.x,cell.z,seed_^0x4e4f5445ULL)%11);
+                if(score<bestScore){bestScore=score;best=cell;}
+            };
+            for(const auto direction:directions) {
+                const ChunkCoord child{junction.x+direction.x,junction.z+direction.z};
+                if(!(parent(child.x,child.z,seed_)==junction) ||
+                   std::find(route.begin(),route.end(),child)!=route.end())continue;
+                consider(child,1);
+                for(const auto next:directions) {
+                    const ChunkCoord grandchild{child.x+next.x,child.z+next.z};
+                    if(parent(grandchild.x,grandchild.z,seed_)==child)consider(grandchild,2);
+                }
+            }
+        }
+        if(bestScore<std::numeric_limits<int>::max())observationCells_.push_back(best);
+    }
+}
 
 int parkingSector(std::int64_t x,std::int64_t z) { return x<0?0:z<0?1:2; }
 ChunkCoord parkingExitCell(std::uint64_t seed) { return {0,-7-std::int64_t(seed%3)}; }
@@ -535,6 +576,20 @@ Chunk World::generate(ChunkCoord coord, std::uint64_t variant) const {
             // Facing north from the entrance, the clue is on the first left jamb.
             if (gx==0 && gz==-1)
                 clue(chunk,x0+0.94f,z1+0.102f,false,1);
+
+            const auto observationIt=std::find(observationCells_.begin(),observationCells_.end(),ChunkCoord{gx,gz});
+            const bool observation=observationIt!=observationCells_.end();
+            const auto landmarkHash=hashCell(gx,gz,seed_^0x4c414e444d41524bULL);
+            const auto exit=exitCell(seed_);
+            const bool decor=!nearOrigin && landmarkHash%29==0 &&
+                (std::abs(gx-exit.x)>1 || std::abs(gz-exit.z)>1);
+            if(observation || decor) {
+                const int kind=observation?int((hashCell(0,0,seed_^0x4e4f5445ULL)%3+
+                    std::size_t(observationIt-observationCells_.begin()))%3):int((landmarkHash>>16)%3);
+                level0Landmark(chunk,x0,z0,kind,observation);
+                if(observation)chunk.observations.push_back({
+                    hashCell(gx,gz,seed_^0x4e4f544553ULL),{gx*CELL+5.85,gz*CELL+6.165},kind});
+            }
         }
     }
     return chunk;
@@ -777,7 +832,8 @@ bool World::advanceDoors(float dt,double playerX,double playerZ,double playerRad
     return changed;
 }
 
-std::vector<Vertex> World::doorVertices(double originX,double originZ) const {
+std::vector<Vertex> World::doorVertices(double originX,double originZ,
+        std::optional<std::uint64_t> rattleDoor,float handleAngle) const {
     Chunk panels{};
     for (const auto& [coord,chunk]:chunks_) {
         (void)coord;
@@ -795,8 +851,23 @@ std::vector<Vertex> World::doorVertices(double originX,double originZ) const {
                     box(panels,.12f,.06f,side*.048f-.005f,width-.12f,.29f,side*.048f+.005f,7);
                     box(panels,.16f,2.21f,side*.07f-.025f,.46f,2.30f,side*.07f+.025f,7);
                 }
-            } else box(panels,static_cast<float>(pose.width)-.26f,.99f,-.082f,
-                static_cast<float>(pose.width)-.20f,1.22f,.082f,7);
+            } else {
+                const auto handleFirst=panels.vertices.size();
+                box(panels,static_cast<float>(pose.width)-.26f,.99f,-.082f,
+                    static_cast<float>(pose.width)-.20f,1.22f,.082f,7);
+                if(level_==Level::Zero && rattleDoor && door.id==*rattleDoor &&
+                   !door.open && door.openness<=.001f && std::isfinite(handleAngle) && handleAngle!=0) {
+                    const float angle=std::clamp(handleAngle,-.3f,.3f);
+                    const float cosine=std::cos(angle),sine=std::sin(angle);
+                    const float pivotX=static_cast<float>(pose.width)-.23f,pivotY=1.105f;
+                    for(std::size_t i=handleFirst;i<panels.vertices.size();++i) {
+                        auto& v=panels.vertices[i];
+                        const float x=v.x-pivotX,y=v.y-pivotY,nx=v.nx,ny=v.ny;
+                        v.x=pivotX+x*cosine-y*sine;v.y=pivotY+x*sine+y*cosine;
+                        v.nx=nx*cosine-ny*sine;v.ny=nx*sine+ny*cosine;
+                    }
+                }
+            }
             for (std::size_t i=first;i<panels.vertices.size();++i) {
                 auto& v=panels.vertices[i];
                 const float x=v.x,z=v.z,nx=v.nx,nz=v.nz;
@@ -826,6 +897,24 @@ bool World::collectKey(double x,double z) {
     keyCollected_=true;
     // Unlocking does not change the leaf pose; E opens it through toggleDoor().
     return true;
+}
+
+bool World::nearestObservation(double x,double z,double range,Level0Observation& result) const {
+    if(level_!=Level::Zero || !std::isfinite(x) || !std::isfinite(z) ||
+       !std::isfinite(range) || range<=0 || range>4)return false;
+    bool found=false;
+    for(const auto& entry:chunks_)for(const auto& observation:entry.second.observations) {
+        const double distance=std::hypot(x-observation.position.x,z-observation.position.z);
+        if(distance>range)continue;
+        bool clear=true;
+        const int steps=std::max(1,int(std::ceil(distance/.1)));
+        for(int step=0;step<=steps;++step) {
+            const double t=double(step)/steps;
+            if(blocked(x+(observation.position.x-x)*t,z+(observation.position.z-z)*t,.05)) {clear=false;break;}
+        }
+        if(clear){result=observation;range=distance;found=true;}
+    }
+    return found;
 }
 
 bool World::nearestPresent(double x,double z,double range,Present& result) const {

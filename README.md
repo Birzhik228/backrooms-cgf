@@ -25,6 +25,13 @@ Find the brass key, follow the exit signal, open the red door with **E** and wal
 through it to reach Level Fun. The connected route to the exit is about
 **123–138 metres** from the start, with the key a few rooms before the door.
 
+Rare fallen light fittings, broken ceiling panels and damp wallpaper debris
+make some rooms recognizable. Two optional note corners sit along short side
+branches: approach the paper and press **E** to read it. A closed door's handle
+can briefly move when the real Aranea is wandering on the other side. These
+details preserve the short main route and existing creature behavior.
+See [Level 0 exploration and presence](docs/level0-exploration.md).
+
 ### Stage 2 — Level Fun
 
 Orange walls, green carpet, party tables, cakes, balloons, garlands and wrapped
@@ -43,6 +50,17 @@ release a squeaking mouse that attracts and speeds up the Partygoers. A rare
 **Verity** pickup restores stamina and grants unlimited sprint stamina for the
 current Level Fun run. Once you have the key, follow the exit signal, open the
 door with **E** and walk into Parking.
+
+Sparse deflated balloons, discarded cups, torn garlands and small winding music
+boxes give rooms traces of an abandoned party. Quiet balloon creaks and brief
+toy melodies come from actual nearby props. Moving Partygoers have soft spatial
+footsteps that stop when they freeze under your gaze; nearby danger quiets the
+decorative sounds.
+
+With **C / clues** enabled, **PRESENT SIGNAL** points toward the nearest unopened
+box within 32 metres, and **Tab** marks nearby boxes in pink. Opening a box removes
+its marker; finding the key retires these clues. The signal does not reveal which
+box holds the key. See [Level Fun atmosphere and exploration](docs/level-fun-upgrade.md).
 
 Direct launch: `Backrooms.exe --demo --level-fun`.
 See [Level Fun mechanics and checkpoint rules](docs/level-fun.md).
@@ -66,6 +84,16 @@ lights and make that sector safe. After all three circuits are online, follow
 the exit signal, open the service door with **E** and walk through it. Crossing
 the powered exit starts the elevator and city ending described below.
 
+Sector letters now face all four sides of columns, and painted arrows identify
+cabinet approaches. Sparse ventilation grilles, pipe leaks and coiled cables
+add maintenance details. Quiet pipe ticks and drips originate at real fixtures;
+ventilation can sound after its sector receives power. Each restored circuit
+has its own relay/startup cue. Decorative sounds recede when the eyes are close.
+
+The HUD shows **A / B / C ON or OFF**, highlighting the nearest unfinished
+circuit; the same target is framed on the map. See
+[Parking atmosphere and wayfinding](docs/parking-upgrade.md).
+
 Direct launch: `Backrooms.exe --demo --parking`.
 See [Parking mechanics and flashlight rules](docs/parking.md).
 
@@ -80,9 +108,12 @@ outside and looks along the street before the **You found the way out** screen.
 
 *Actual in-game capture: the final street shot, with sunlight and moving traffic.*
 
-- Twelve pedestrians walk with articulated arms and legs; six cars travel in two
-  lanes with rotating wheels. Buildings, shops, trees and street furniture line
-  the road.
+- Twelve articulated pedestrians have varied proportions, clothing, hair and
+  accessories. Six cars use compact, saloon and estate silhouettes, with rotating
+  wheels and brake lights. Distinct cafe, bakery and bookshop displays line the road.
+- A pedestrian crosses the zebra crossing while traffic smoothly brakes and
+  waits; other passers-by briefly look toward the doorway. The same film clock
+  drives the whole episode, including pause, seeking and replay.
 - A visible sun casts shadows from buildings, trees, doors, people and cars.
   Static shadow maps are cached; animated shadows follow the models and freeze
   when the cinematic is paused.
@@ -203,7 +234,7 @@ Settings includes a live FPS readout and an **FPS COUNTER** toggle for gameplay.
 The **FPS LIMIT** setting defaults to **60** (30/60/90/120/144/240/unlimited). Menus and unfocused windows are capped at 30 FPS. This cap works independently of VSync and uses a blocking high-resolution timer on Windows. Existing settings files receive the 60 FPS default without resetting other preferences. Hidden benchmarks remain uncapped unless `--fps-limit N` is supplied. See [performance measurements and checks](docs/performance-2026-10.md).
 
 
-Stamina starts at **100**, drains at **18 points per second** during actual sprint travel, and recovers at **14 points per second** after **1.5 seconds** without sprinting. Exhaustion prevents sprinting until stamina recovers to **22**. Pausing freezes stamina. Doors swing smoothly through **90° in about 0.8 seconds**. They choose a hinge direction away from the player when opened from a fully closed position. Their collision follows the moving panel; an obstructed closing door reverses instead of trapping the player. Pausing also freezes door movement. Reserved connecting routes remain traversable.
+Stamina starts at **100**, drains at **12 points per second** during actual sprint travel (about **8.3 seconds** of continuous sprinting), and recovers at **14 points per second** after **1.5 seconds** without sprinting. Exhaustion prevents sprinting until stamina recovers to **22**. Pausing freezes stamina. Doors swing smoothly through **90° in about 0.8 seconds**. They choose a hinge direction away from the player when opened from a fully closed position. Their collision follows the moving panel; an obstructed closing door reverses instead of trapping the player. Pausing also freezes door movement. Reserved connecting routes remain traversable.
 
 Mouse look is smoothly eased, and restrained head bob follows actual movement. The default camera has light soft focus and a field-of-view change from **78° to 82°** during sprint travel. Version 0.10 reduces the blur radius from 1.7 to **0.8 reference pixels** at the image centre, roughly halving the previous softness while keeping existing settings. The interface remains sharp. Rooms have dim fluorescent lighting and deep shadows; use **F** to toggle the flashlight. V hides the ordinary navigation HUD for a cleaner camera view; it does not record video.
 
@@ -216,6 +247,10 @@ The Aranea animation update replaces the humanoid with the supplied four-legged 
 The **Aranea Membri** uses the actual 3D mesh from the user-supplied `rec-room-backrooms-entity-62-aranea-membri.zip`, including `source/Scene.glb` and its two carpet textures. All 135 mesh parts and 15,220 triangles are retained. The source has no rig or animation; the project adds four articulated leg chains, head/jaw movement, walk/run cycles and a capture pose. Offline conversion produces `assets/models/aranea/aranea.brm` and two texture caches, so Blender and Python are not needed to build or play. Source provenance and rebuild instructions are in the [model notes](assets/models/aranea/README.md). This replaces the previous Smiler; its earlier source and animation remain in local backups. After an initial **8-second grace period**, one creature can enter unseen, reachable space **24–32 metres** from the player, also outside a 24-metre radius around the initial player position. Walls and closed doors block its sight; obstructions reduce its hearing range. Crouching is quiet, sprinting is louder, and nearby door interactions can reveal your position.
 
 The creature runs faster than walking speed but slower than the player's sprint. When contact is lost it searches the last sensed position, giving up after about **5 seconds** without seeing or hearing you. It navigates around walls and pillars, folds its legs through doorways and cannot catch through a closed door. Its corrected skull and body both face forward: it turns before moving along a new route segment, and its head stays centered while walking or running. Positional footfalls help you hear its direction during a chase.
+
+Pivots now include actual leg transfers and contact sounds. Bounded support-foot
+anchors reduce sliding, while tighter corrections preserve the folded doorway
+pose. See [Aranea movement](docs/aranea-motion.md).
 
 Contact or unobstructed proximity within **1.5 m** triggers a **2-second 3D jumpscare**, then **0.3 seconds of black** before Game Over. The camera turns toward the animated head over **0.20 seconds** with ease-out. The creature faces the camera and lunges to an eye-anchor distance of **0.90 m**, with a large close-up, reaching claws and head jitter. Random camera shake and roll fade over time, while FOV punches from **70° to 95°**. Edit `jumpscare.cfg` and restart to change duration, distance, timing and effects; `--jumpscare-config` selects an alternative file. **J** triggers a debug scare. See [jumpscare settings and implementation](docs/jumpscare.md).
 
@@ -252,48 +287,97 @@ Room loading keeps **25 playable chunks** and at most **24 prepared neighbours**
 
 Initial loading, teleports and cache misses can still generate geometry synchronously. Read the measured results and their limits in [verification.md](docs/verification.md). The base world regenerates from its seed. Temporary room changes reset after their chunk unloads; at most 128 opened-door overrides are remembered, after which the oldest return to their seeded state when regenerated. “Endless” means continuing generation within finite numeric limits and bounded memory.
 
-## Build from source
+## Gameplay tuning and diagnostics
 
-The working setup on this computer is **MSYS2 MinGW64 GCC + GLFW**. The build script locates it at `C:\msys64\mingw64`, or uses `BACKROOMS_CXX` / a suitable compiler on PATH.
+Edit `balance.cfg` beside the executable and restart to tune movement, stamina,
+creature speed, hearing and memory without recompiling. The shipped values keep
+the existing gameplay balance. Startup validates every supplied value and their
+relationships; a missing or invalid file logs the problem and uses the complete
+built-in defaults. `--balance-file PATH` selects an isolated configuration.
+See [balance configuration](docs/balance.md) for keys, ranges and examples.
 
-After `git pull`, use `Run.cmd`: it rebuilds a missing or outdated executable
-before launching. `Backrooms.exe` is ignored by Git, so pulling new source does
-not replace an existing local EXE. A message about the removed Smiler model means
-an older executable is being launched; rebuild and run the EXE in this folder.
-
-For a manual rebuild, close the game and run from the project folder:
+**F1** now includes process RAM, tracked OpenGL object counts, frame-time p95 and
+slow-frame totals. `--performance-report PATH` writes JSON on shutdown, including
+resource counts after automatic cleanup. Its histories are bounded to 720
+memory/resource samples and 16 worst frames; frame histograms also have fixed
+storage. Object counts do not measure GPU VRAM. See
+[performance diagnostics](docs/performance.md) for the schema and measurement limits.
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\build.ps1 -Test
+.\Backrooms.exe --performance-report tests/artifacts/session-performance.json
+.\tools\verify-performance.ps1 -SkipSoak # nine cycles / 27 level changes
+.\tools\verify-performance.ps1           # also run 600 real seconds in Parking
 ```
 
-On a fresh Windows machine, install MSYS2 and these packages from its **MinGW64 terminal**:
+The verifier checks level cleanup, bounded caches, resource plateaus and sustained
+memory growth. Run it after building, with other instances of that executable
+closed. It keeps timestamped reports and logs in `tests/artifacts/performance/`.
+
+## Build from source
+
+**CMake is the single source of build and test rules.** PowerShell, Make and the
+launchers call the same dependency graph; they do not maintain separate lists
+of C++ files or tests. Shared world, audio and rendering libraries are compiled
+once per build configuration.
+
+After `git pull`, close the game and use **Run.cmd**. It checks the CMake graph,
+rebuilds changed dependencies, updates the root `Backrooms.exe` and launches it.
+The EXE is ignored by Git, so pulling source alone does not update a running game.
+The existing `Build.cmd` runs the native test suite as well.
+
+On Windows, install CMake 3.21+ and MSYS2. In the **MinGW64 terminal**, install:
 
 ```sh
-pacman -S --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-glfw
+pacman -S --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-glfw mingw-w64-x86_64-make mingw-w64-x86_64-cmake
 ```
 
-GLAD support files are included in `common/` and `include/`. The build script statically links GLFW and the MinGW runtime. Windows system libraries and a compatible graphics driver remain required. Its PATH change applies only to its own process.
+The wrapper finds the compiler under `C:\msys64\mingw64`, `C:\msys64\ucrt64`,
+on PATH, or through `BACKROOMS_CXX`. From the project folder:
 
-Alternative course-style build definitions are supplied:
+```powershell
+.\build.ps1 -IfNeeded                    # incremental game build
+.\build.ps1 -Test                        # build and run native tests
+.\build.ps1 -Test -GraphicsTest           # also exercise a real OpenGL context
+.\build.ps1 -DebugBuild -Jobs 2           # separate debug build
+```
+
+GLAD is bundled. The Windows MinGW build statically links GLFW and the compiler
+runtimes; Windows system libraries and an OpenGL 3.3-capable driver are required.
+Settings remain beside the root executable and are never overwritten by building.
+
+On Linux, install GCC, CMake, GLFW and OpenGL development packages, then use:
 
 ```sh
-make
-make test
+cmake --preset release
+cmake --build --preset release
+ctest --preset native
 ```
 
-```sh
-cmake -S . -B build
-cmake --build build --config Release
-ctest --test-dir build --output-on-failure
-```
+The CMake executable and runtime assets are in `build/release/bin/`. The target
+`backrooms_deploy` also copies the executable to the project root. `make`,
+`make test` and `make graphics-test` remain thin convenience wrappers.
 
-The primary verified build is the Windows PowerShell route. Other toolchains require testing on their target machines. CMake copies the runtime shaders and assets beside its executable, including the converted creature mesh and audio.
+[Build and test guide](docs/build-and-tests.md) explains test labels, graphics
+checks, clean checkouts and CI. GitHub Actions runs native checks on Windows and
+Linux, with a separate Mesa/Xvfb graphics job, when the workflow is pushed to the
+repository. Local validation does not imply a hosted Actions run has completed.
 
 ## Source organization
+
+See [Application architecture](docs/code-structure.md) for module responsibilities,
+state transitions and the level reset lifecycle. CMake discovers
+application `.cpp` files; every build wrapper uses that graph. `build.ps1 -Test`
+also checks the screen flow. Move-only RAII owners release buffers, textures,
+shaders, framebuffers and fences automatically; the window/context outlives all
+graphics owners, including when initialization fails.
+
 ```text
 Backrooms CGF Project/
-  backrooms.cpp              Application, input, camera, rendering and HUD
+  backrooms.cpp              Startup, asset-root selection and error reporting
+  app/                       Game loop, input, menus, rendering and level lifecycle
+  app/flow.h                 Exclusive application screen state
+  app/gl_context.h           Window/context lifetime enclosing every GL owner
+  app/performance.h / .cpp   Process memory sampling and bounded JSON reports
   world.cpp / world.h        Generation, streaming and collision
   vshader_backrooms.glsl     Model / view / projection vertex stage
   fshader_backrooms.glsl     Textures, local lighting, flashlight and fog
@@ -302,6 +386,9 @@ Backrooms CGF Project/
   vshader_shadow.glsl / fshader_shadow.glsl   Flashlight and cached lamp depth maps
   fshader_ao.glsl            Half-resolution screen-space contact occlusion
   common/graphics.h         Shadow/AO targets and lamp face transforms
+  common/gl_resource.h      Move-only GL owners and lifetime counters
+  common/balance.h          Typed defaults, validation and frozen startup tuning
+  common/performance.h      Fixed-size frame histograms and worst-frame samples
   common/gameplay.h         Movement speed and field-of-view settings
   common/movement.h         Acceleration and braking
   common/player_state.h     Stamina and smooth mouse-look state
@@ -309,6 +396,7 @@ Backrooms CGF Project/
   common/threat_model.h/.cpp Converted Aranea mesh, four-leg clips and capture pose
   common/ending.h           Cinematic timeline and automatic camera
   common/ending_city.h      Deterministic pedestrian and traffic motion
+  common/ending_city_feet.h Planted feet, curb steps and continuous support motion
   common/ending_renderer.h  City, lift, articulated models and shadow passes
   common/ending_sun.h       Fixed near/far sunlight projections
   common/ending_ui.h        Cinematic captions, pause and result buttons
@@ -328,15 +416,27 @@ Backrooms CGF Project/
   tools/prepare_aranea_textures.py   Offline texture-cache converter
   tools/prepare_aranea_audio.py     Offline audio-bank rebuild from retained sources
   tools/verify-aranea-audio.ps1     Automated audio gameplay scenarios
+  tools/verify-performance.ps1     Repeated level transitions and timed soak
   assets/                   In-game preview and exported audio preview
   docs/                     Report draft, slides, demo and learning guide
   build.ps1                 Windows build and test
   settings.cfg              User preferences, created when settings change
+  balance.cfg               Validated gameplay tuning, loaded once at startup
   jumpscare.cfg             Optional capture duration, camera, lunge and effect settings
-  Makefile / CMakeLists.txt  Alternative build definitions
+  CMakeLists.txt            Shared build, dependencies, runtime assets and tests
+  Makefile                  Thin CMake/CTest convenience wrapper
 ```
 
 ## Verification and demonstration
+
+The resource/configuration/diagnostics upgrade passed 28 native and four real
+OpenGL CTest cases, 48 full-game scenarios, 27 repeated level transitions and a
+600-second real-time Parking soak.
+Four isolated before/after scenes produced byte-identical screenshots and equal
+non-timing profiles. These checks preserve behavior and verify cleanup; they do
+not claim a frame-rate increase. Measured transition and ten-minute soak results
+are in [performance diagnostics](docs/performance.md). Build and CI coverage are
+explained in the [build and test guide](docs/build-and-tests.md).
 
 After building, verify the ending and its lighting with:
 
@@ -345,7 +445,7 @@ After building, verify the ending and its lighting with:
 .\tools\verify-ending-lighting.ps1
 ```
 
-The first script checks 13 runtime cases, including the complete film,
+The first script checks 15 runtime cases, including the complete film,
 pause/replay, sound toggling and the powered Parking exit. The second
 compares shadowed and unshadowed captures and checks shadow caching,
 moving objects, pause and resource cleanup. Evidence stays in the ignored
@@ -366,7 +466,7 @@ For the current creature audio, run these from the project folder after building
 
 ```powershell
 .\tools\verify-aranea-audio.ps1
-.\tests\audio_tests.exe --aranea-preview tests\artifacts\aranea-soil
+.\build\windows-release\bin\audio_tests.exe --aranea-preview tests\artifacts\aranea-soil
 ```
 
 The mixer preview contains walking, running, a detection scream at 14.32 metres and a pursuit call at 22 metres. It uses master volume 0.75 without normalization. The separate `assets/audio/aranea/preview.wav` demonstrates the source bank without world attenuation. Rebuilding those assets with `python tools/prepare_aranea_audio.py` requires NumPy only for offline processing; playing the game does not.

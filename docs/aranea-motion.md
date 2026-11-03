@@ -55,3 +55,40 @@ chase speed is 3.6 m/s (was 3.3). The existing 1.35 key-rage multiplier remains.
 Partygoer speed is unchanged. Door leaves now open away from the interacting
 player when fully closed, preserving their signed hinge pose through streaming;
 reversing an unfinished animation retains its current direction to avoid a jump.
+
+## Foot placement polish — 28 October 2026
+
+Turning on the spot now advances the four-leg walking cycle, rather than rotating
+a frozen standing pose. Angular movement contributes to the same contact phase
+used for footstep sounds. Translation still drives the walk/run stride, and the
+body continues to face its actual direction of travel.
+
+Four bounded world-space support anchors reduce residual sliding in planted
+feet. Small corrections are distributed along each lower leg, using cached
+topology information; the supplied model, UVs and animation bank are unchanged.
+The correction budget narrows while folding near walls and doorways, so an old
+wide foot placement cannot keep a leg stretched across the jamb. Raised feet
+release their correction smoothly. Spawn, restart, catch and time discontinuities
+discard old anchors; a paused pose remains unchanged. Capture animation and
+stateless model previews retain their existing behavior.
+
+This refines the authored clips on the game's flat floors; it is not a general
+physics or terrain-climbing system. Existing perception, routes and movement
+speeds remain unchanged. Model tests cover pivot support, rest, folding, paused
+sampling and reset/rewind. Runtime captures include the beginning and transfer
+of a real pivot in addition to doorway pursuit, walking/running and capture.
+
+The model suite measured 10.71 m of cumulative support-tip movement during its
+pivot fixture versus 14.27 m for the uncorrected clips, a 24.9% reduction across
+555 support samples. Fully folded corrections stay below 3.2 cm. Paused sampling,
+idle contacts, reset/rewind, original UVs and the capture pose passed regression
+checks. Sparse tip/lower-leg index lists avoid additional full-mesh scans. An
+interleaved local diagnostic of 300 poses per path measured 2.09 ms without the
+correction and 2.07 ms with it, within measurement noise; it is not a speedup claim.
+
+The release build passed all 17 Aranea runtime cases, including live pivot
+captures, walking/running contacts, doorway pursuit, wall folding, pause, capture,
+restart and an odd-sized framebuffer. The native threat navigation suite also
+passed; all rendered cases reported zero OpenGL errors. Actual pivot, run and
+doorway poses were visually inspected. Evidence is under `tests/artifacts/aranea`
+and `tests/artifacts/visual-polish` in the verification staging copy.

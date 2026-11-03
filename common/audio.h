@@ -11,6 +11,7 @@ enum class SoundKind {
     Footstep, ClothRustle, AmbientCreak, WaterDrip, ElectricalStinger, Door,
     ThreatNotice, ThreatStep, ThreatRunStep, Jumpscare, ThreatRoar, MouseSqueak, MouseAmbient, PresentOpen,
     DarknessJumpscare, VentRattle, DistantFootsteps, ThreatRustle,
+    PartyFootstep, BalloonRub, PartyMelody, PipeTick, ParkingVent, PowerRelay,
     ElevatorDoor, ElevatorMotor, ElevatorBell, SurfaceAmbience, CityAmbience
 };
 struct SoundEvent {
@@ -66,11 +67,15 @@ struct AudioScene {
     AudioPosition listener{},forward{0,0,-1},fluorescent{3,3.2,3};
     float lightPower=1,lightInstability=0,tension=0;
     float threatTransmission=1;
-    // Level 0 schedules world-aware ambience in gameplay instead of the old
-    // random creak/drip/stinger timer. Other levels keep the original timer.
+    // Each stage's world-aware director can replace the legacy random timer.
     bool level0Atmosphere=false;
+    bool funAtmosphere=false;
+    bool parkingAtmosphere=false;
     // Scripted finale owns its soundscape; suppress world hum/random danger.
     bool cinematic=false;
+    // Four real Partygoers own their footfall tails. A frozen actor releases
+    // only its own voice; the device's already queued audio is left intact.
+    std::uint8_t partyMovingMask=0;
     // Duck only atmosphere one-shots during danger/hiding, leaving actual
     // creature footsteps, calls and capture feedback at their normal level.
     bool atmosphereQuiet=false;
@@ -95,6 +100,7 @@ public:
     void setPaused(bool paused);
     void enqueue(const SoundEvent& event);
     void play(SoundKind kind,AudioPosition position,float gain=1,float transmission=1);
+    void playPartyStep(int actor,AudioPosition position,float gain=1,float transmission=1);
     void render(std::int16_t* interleavedStereo,std::size_t frames);
     std::size_t activeVoices() const;
 private:
@@ -119,6 +125,7 @@ public:
     void setPaused(bool paused);
     void reset(std::uint32_t seed=1);
     void play(SoundKind kind,AudioPosition position,float gain=1,float transmission=1);
+    void playPartyStep(int actor,AudioPosition position,float gain=1,float transmission=1);
     void update(float dt,float actualDistance,bool crouched,bool sprinting,
                 Surface surface=Surface::Carpet,bool paused=false);
     bool available() const;

@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
@@ -221,6 +222,87 @@ int main() {
     }
     check(delta(threatModelVertices(0,0,true,.7f,0,-1,-.8f),threatModelVertices(0,0,true,.7f,0,-1,.8f))==0,
           "Capture keeps its authored head motion independent of gameplay tracking");
+    // Exercise the actual runtime support anchors, not only authored forward
+    // clips. A pivot used to rotate all grounded feet as one frozen object.
+    ThreatFootPlanting planted;
+    double rawSlip=0,correctedSlip=0;int supportPairs=0;
+    std::array<Vertex,4> oldRaw{},oldPlanted{};ThreatFootContacts oldContacts{};
+    auto worldTip=[](Vertex p,float yaw) {const float x=p.x,z=p.z;p.x=x*std::cos(yaw)-z*std::sin(yaw);p.z=x*std::sin(yaw)+z*std::cos(yaw);return p;};
+    for(int frame=0;frame<=180;++frame) {
+        const float t=frame/120.f,yaw=t*2.0f,phase=wrap(yaw/PI);
+        planted.setRoot(0,0,yaw,1);
+        const auto fixed=threatModelVertices(t,1.1f,false,0,0,phase,0,0,&planted);
+        const auto raw=threatModelVertices(t,1.1f,false,0,0,phase);
+        const auto contacts=threatFootContacts(1.1f,phase);
+        for(int foot=0;foot<4;++foot) {
+            const auto a=worldTip(footMean(raw,foot),yaw),b=worldTip(footMean(fixed,foot),yaw);
+            if(frame && contacts.feet[foot]>.99f&&oldContacts.feet[foot]>.99f) {
+                rawSlip+=std::hypot(a.x-oldRaw[foot].x,a.z-oldRaw[foot].z);
+                correctedSlip+=std::hypot(b.x-oldPlanted[foot].x,b.z-oldPlanted[foot].z);
+                ++supportPairs;
+            }
+            if(frame)check(std::hypot(b.x-oldPlanted[foot].x,b.z-oldPlanted[foot].z)<.16f,
+                           "Pivot contact transfer remains continuous without snapping feet");
+            oldRaw[foot]=a;oldPlanted[foot]=b;
+        }
+        if(frame%20==0)validate(fixed);
+        oldContacts=contacts;
+    }
+    std::cout<<"Pivot planted-tip travel: "<<correctedSlip<<" vs "<<rawSlip<<" m across "<<supportPairs<<" supporting samples.\n";
+    check(supportPairs>300&&correctedSlip<rawSlip*.80,"World-space support planting reduces pivot foot sliding by at least a fifth");
+    planted.reset();planted.setRoot(0,0,0);
+    auto stopped=threatModelVertices(0,0,false,0,0,0,0,0,&planted);
+    for(int frame=1;frame<=90;++frame) {
+        const auto current=threatModelVertices(frame/60.f,0,false,0,0,0,0,0,&planted);
+        for(int foot=0;foot<4;++foot) {
+            const auto a=footMean(stopped,foot),b=footMean(current,foot);
+            check(std::hypot(a.x-b.x,a.z-b.z)<.001f,"Idle breathing never drags the planted feet");
+        }
+        stopped=current;
+    }
+    const auto frozen=threatModelVertices(1.5f,0,false,0,0,0,0,0,&planted);
+    for(int repeat=0;repeat<8;++repeat)
+        check(delta(frozen,threatModelVertices(1.5f,0,false,0,0,0,0,0,&planted))<.0000001f,
+              "Paused mesh sampling leaves foot anchors and corrections unchanged");
+    // Folding must not pin a wide foot outside the narrow baked door pose.
+    planted.reset();
+    for(int frame=0;frame<=90;++frame) {
+        const float t=frame/60.f,duck=std::min(1.f,t),phase=wrap(t*1.1f/1.3f);
+        planted.setRoot(0,-t*1.1,0);
+        const auto fixed=threatModelVertices(t,1.1f,false,0,duck,phase,0,0,&planted);
+        const auto raw=threatModelVertices(t,1.1f,false,0,duck,phase);
+        if(frame%15==0)validate(fixed);
+        if(duck==1)for(int foot=0;foot<4;++foot) {
+            const auto a=footMean(raw,foot),b=footMean(fixed,foot);
+            check(std::hypot(a.x-b.x,a.z-b.z)<.033f,"Full doorway folding limits planting correction to 3.2 cm");
+        }
+    }
+    planted.setRoot(100,-200,1);
+    const auto respawned=threatModelVertices(2,1.1f,false,0,0,.4f,0,0,&planted);
+    ThreatFootPlanting fresh;fresh.setRoot(100,-200,1);
+    check(delta(respawned,threatModelVertices(2,1.1f,false,0,0,.4f,0,0,&fresh))==0,"Teleport/respawn drops obsolete world anchors");
+    planted.setRoot(100,-200,1);
+    const auto rewind=threatModelVertices(.1f,1.1f,false,0,0,.1f,0,0,&planted);
+    fresh.reset();fresh.setRoot(100,-200,1);
+    check(delta(rewind,threatModelVertices(.1f,1.1f,false,0,0,.1f,0,0,&fresh))==0,"Rewinding simulation time restarts planting deterministically");
+    check(delta(threatModelVertices(.2f,3.3f,true,.7f,0,.1f,0,0,&planted),
+                threatModelVertices(.2f,3.3f,true,.7f,0,.1f))==0,"Foot planting never deforms the cinematic scare clip");
+    // Diagnostic only: machine load is not a correctness assertion. Runtime
+    // still uploads the same mesh at its existing maximum 60 Hz cadence.
+    std::array<double,2> poseMilliseconds{};double profileChecksum=0;
+    for(int round=0;round<10;++round)for(int slot=0;slot<2;++slot) {
+        const int usePlanting=(round+slot)%2;ThreatFootPlanting state;
+        const auto start=std::chrono::steady_clock::now();
+        for(int i=0;i<30;++i) {
+            const float t=i/60.f;state.setRoot(0,-t*1.1,0);
+            const auto vertices=threatModelVertices(t,1.1f,false,0,0,wrap(t*1.1f/1.3f),0,0,usePlanting?&state:nullptr);
+            profileChecksum+=vertices[0].x;
+        }
+        poseMilliseconds[usePlanting]+=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count();
+    }
+    check(std::isfinite(profileChecksum),"Profile samples retain finite geometry");
+    std::cout<<"Model sample diagnostic (interleaved): authored "<<poseMilliseconds[0]/300
+             <<" ms, planted "<<poseMilliseconds[1]/300<<" ms per pose.\n";
     validate(threatModelVertices(std::numeric_limits<float>::quiet_NaN(),std::numeric_limits<float>::infinity(),true,-3,8));
     std::filesystem::create_directories("tests/artifacts/aranea");
     const std::filesystem::path bad="tests/artifacts/aranea/invalid-aranea.brm";

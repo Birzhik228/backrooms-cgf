@@ -56,7 +56,7 @@ All cues obey stereo position, master volume, mute, pause and exclusive capture.
 `build.ps1 -Test` includes `tests/atmosphere_tests.cpp` alongside the expanded
 audio and spawn tests. `tools/verify-atmosphere.ps1` runs room sounds, natural
 spawning, paused play, both later levels and capture/restart in the actual game.
-`tests/audio_tests.exe --level0-preview tests/artifacts/atmosphere` writes the
+`build/windows-release/bin/audio_tests.exe --level0-preview tests/artifacts/atmosphere` writes the
 software mix for listening, with real distance and wall gains.
 
 Automated verification checks timing, collision barriers, isolation and PCM

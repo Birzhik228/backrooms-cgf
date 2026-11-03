@@ -22,7 +22,8 @@ inline Mat4 lampFace(Vec3 eye,int face) {
     return perspective(PI*.5f,1,.05f,10.f)*lightView(eye,dirs[face],face==2||face==3?Vec3{0,0,1}:Vec3{0,1,0});
 }
 struct ShadowMaps {
-    GLuint fbo=0,flash=0,lamps=0;
+    gl::Framebuffer fbo;
+    gl::Texture flash, lamps;
     struct Cache {Vec3 position{};std::uint64_t revision=0;bool valid=false;double worldX=0,worldZ=0;};
     std::array<Cache,24> cache{};
     // Retained global lamp identities reserve their slots before newcomers evict
@@ -47,16 +48,16 @@ struct ShadowMaps {
     }
     static constexpr int flashSize=1024,lampSize=256;
     void init() {
-        glGenFramebuffers(1,&fbo);
-        glGenTextures(1,&flash);glBindTexture(GL_TEXTURE_2D,flash);
+        fbo.create();
+        flash.create();glBindTexture(GL_TEXTURE_2D,flash);
         glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT24,flashSize,flashSize,0,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
         setup(GL_TEXTURE_2D);
-        glGenTextures(1,&lamps);glBindTexture(GL_TEXTURE_2D_ARRAY,lamps);
+        lamps.create();glBindTexture(GL_TEXTURE_2D_ARRAY,lamps);
         glTexImage3D(GL_TEXTURE_2D_ARRAY,0,GL_DEPTH_COMPONENT24,lampSize,lampSize,144,0,GL_DEPTH_COMPONENT,GL_FLOAT,nullptr);
         setup(GL_TEXTURE_2D_ARRAY);
         glBindFramebuffer(GL_FRAMEBUFFER,fbo);glDrawBuffer(GL_NONE);glReadBuffer(GL_NONE);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,flash,0);
-        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE) throw std::runtime_error("Shadow framebuffer incomplete");
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE) {destroy();throw std::runtime_error("Shadow framebuffer incomplete");}
         glBindFramebuffer(GL_FRAMEBUFFER,0);
     }
     static void setup(GLenum type) {
@@ -71,21 +72,23 @@ struct ShadowMaps {
         const int size=layer<0?flashSize:lampSize;glViewport(0,0,size,size);
         glClear(GL_DEPTH_BUFFER_BIT);
     }
-    void destroy() {glDeleteTextures(1,&flash);glDeleteTextures(1,&lamps);glDeleteFramebuffers(1,&fbo);}
+    void destroy() {flash.reset();lamps.reset();fbo.reset();cache={};}
 };
 struct AmbientTarget {
-    GLuint fbo=0,texture=0;int width=0,height=0;
+    gl::Framebuffer fbo;
+    gl::Texture texture;
+    int width=0,height=0;
     void resize(int w,int h) {
         w=(w+1)/2;h=(h+1)/2;if(w==width&&h==height)return;
-        destroy();width=w;height=h;glGenFramebuffers(1,&fbo);glBindFramebuffer(GL_FRAMEBUFFER,fbo);
-        glGenTextures(1,&texture);glBindTexture(GL_TEXTURE_2D,texture);
+        destroy();width=w;height=h;fbo.create();glBindFramebuffer(GL_FRAMEBUFFER,fbo);
+        texture.create();glBindTexture(GL_TEXTURE_2D,texture);
         glTexImage2D(GL_TEXTURE_2D,0,GL_R8,w,h,0,GL_RED,GL_UNSIGNED_BYTE,nullptr);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
         glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,texture,0);
-        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE)throw std::runtime_error("AO framebuffer incomplete");
+        if(glCheckFramebufferStatus(GL_FRAMEBUFFER)!=GL_FRAMEBUFFER_COMPLETE){destroy();throw std::runtime_error("AO framebuffer incomplete");}
         glBindFramebuffer(GL_FRAMEBUFFER,0);
     }
-    void destroy(){if(texture)glDeleteTextures(1,&texture);if(fbo)glDeleteFramebuffers(1,&fbo);texture=fbo=0;width=height=0;}
+    void destroy(){texture.reset();fbo.reset();width=height=0;}
 };
 }

@@ -1,5 +1,6 @@
 #include "world.h"
 #include "common/mouse.h"
+#include "common/fun_clues.h"
 #include <cmath>
 #include <iostream>
 #include <set>
@@ -14,9 +15,17 @@ std::uint64_t digest(const br::Chunk& c) {
     return h;
 }
 int main() {try {
+    const br::Present aimedGift{1,.8,5.9,false};
+    check(br::facingPresent(aimedGift,1.1,5.9,1.65f,br::normalize({-.1f,-1,0})),"floor gifts can be focused while looking down");
+    check(!br::facingPresent(aimedGift,1.1,5.9,1.65f,{0,1,0}),"looking at ceiling does not focus gift");
+    check(!br::facingPresent(aimedGift,1.1,5.9,1.65f,{1,0,0}),"looking away does not focus gift");
     std::uint64_t previous=0;
     for(auto seed:{0ULL,42ULL,12071998ULL}) {
         br::World w(seed,br::Level::Fun);w.update(3.75,3.75,1);
+        const auto clue=br::funPresentClue(w,3.75,3.75,true);
+        check(clue && std::hypot(clue->x-3.75,clue->z-3.75)<=32 && !clue->opened,"local clue selects a real unopened present");
+        check(!br::funPresentClue(w,3.75,3.75,false),"disabled clues reveal no presents");
+        check(!br::funPresentClue(w,6000,6000,true),"clues do not fabricate gifts in unloaded rooms");
         check(w.isFun() && w.chunks().size()==9,"Fun uses the bounded world streamer");
         check(!w.collectKey(3.75,3.75) && w.keyVertices(0,0).empty() && !w.exitCrossed(6.225,-268),"Fun has no stale Level 0 objectives");
         std::set<int> materials;
@@ -86,11 +95,14 @@ int main() {try {
                 check(!mouse.active,"present mouse cannot respawn elsewhere");
             }
             check(!w.blocked(gift.x,gift.z,.12),"searched present removes collision");
+            const auto nextClue=br::funPresentClue(w,gift.x+1.05,gift.z,true);
+            check(!nextClue || nextClue->id!=gift.id,"opened present is removed from clues immediately");
             check(w.openPresent(gift.id,gift.x+1.05,gift.z)==br::PresentResult::Invalid,"one roll per present");
             if(!haveFirst){first=gift;haveFirst=true;}
             check(w.presentsOpened()<=15,"key obtained within hard pity limit");
         }
         check(w.keyCollected() && w.presentsOpened()<=15,"searching gifts grants the Fun key");
+        check(!br::funPresentClue(w,3.75,3.75,true),"key acquisition retires gift objective clue");
         const int count=w.presentsOpened();
         w.update(6000,6000,0);w.update(first.x,first.z,1);
         br::Present restored{};
@@ -139,6 +151,9 @@ int main() {try {
     check(bonus.infiniteStamina() && bonus.verityDrops().empty() && !bonus.collectVerity(1.3,5.9),"one-shot level-local reward");
     bonus=br::World(3,br::Level::Fun);check(!bonus.infiniteStamina(),"checkpoint reset clears reward");
     br::World zero(42);zero.update(3.75,3.75,0);
+    check(!br::funPresentClue(zero,3.75,3.75,true),"gift clue is isolated from Level 0");
+    br::World parking(42,br::Level::Parking);parking.update(3.75,3.75,0);
+    check(!br::funPresentClue(parking,3.75,3.75,true),"gift clue is isolated from Parking");
     check(!zero.isFun() && !zero.infiniteStamina(),"Level 0 has no Verity bonus");
     std::cout<<"Level Fun tests passed: connected routes, prop materials, collision, winding, bounds, deterministic streaming and Level 0 isolation.\n";
 }catch(const std::exception& e){std::cerr<<e.what()<<'\n';return 1;}}

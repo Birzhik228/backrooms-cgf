@@ -1,5 +1,6 @@
 #pragma once
 #include "../world.h"
+#include "balance.h"
 #include <algorithm>
 #include <cmath>
 
@@ -46,7 +47,7 @@ public:
         }
         // Seek the player until the one alarm, then keep escaping.
         const float wanted=float(std::atan2(alerted?x-px:px-x,alerted?pz-z:z-pz));
-        const double speed=alerted?2.1:1.65;
+        const double speed=alerted?balance().mouseFleeSpeed:balance().mouseApproachSpeed;
         float best=wanted;double bestScore=-1e9;
         for(float offset:{0.f,.45f,-.45f,.9f,-.9f,1.5f,-1.5f,2.2f,-2.2f,3.14159f}) {
             float direction=wanted+offset;double sx=std::sin(direction),sz=-std::cos(direction);

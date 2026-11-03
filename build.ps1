@@ -1,116 +1,60 @@
-param([switch]$Test, [switch]$DebugBuild, [switch]$GraphicsTest, [switch]$IfNeeded)
-$ErrorActionPreference = 'Stop'
+param(
+    [switch]$Test, [switch]$DebugBuild, [switch]$GraphicsTest, [switch]$IfNeeded,
+    [ValidateRange(1,32)][int]$Jobs=2
+)
+$ErrorActionPreference='Stop'
 Set-Location -LiteralPath $PSScriptRoot
-$taskOutputPath = Join-Path $PSScriptRoot 'Backrooms.exe'
-if ($IfNeeded -and !$Test -and !$GraphicsTest -and !$DebugBuild -and (Test-Path -LiteralPath $taskOutputPath)) {
-    $taskBuildTime = (Get-Item -LiteralPath $taskOutputPath).LastWriteTimeUtc
-    $taskInputs = @(Get-Item -LiteralPath (Join-Path $PSScriptRoot 'backrooms.cpp'), (Join-Path $PSScriptRoot 'world.cpp'), (Join-Path $PSScriptRoot 'world.h'), $PSCommandPath)
-    $taskInputs += Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'common') -File -Recurse | Where-Object { $_.Extension -in '.cpp','.c','.h' }
-    if (!($taskInputs | Where-Object { $_.LastWriteTimeUtc -gt $taskBuildTime })) {
-        Write-Host 'Backrooms.exe is up to date.'
-        exit 0
-    }
-    Write-Host 'Source files changed. Rebuilding Backrooms.exe before launch.'
-}
-$taskRunningGame = Get-Process -Name Backrooms -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq $taskOutputPath }
-if ($taskRunningGame) { throw 'Close the Backrooms window before rebuilding this executable.' }
-$taskCompiler = $null
-$taskCandidatePaths = @()
-if ($env:BACKROOMS_CXX) { $taskCandidatePaths += $env:BACKROOMS_CXX }
-$taskOnPath = Get-Command g++.exe -ErrorAction SilentlyContinue
-if ($taskOnPath) { $taskCandidatePaths += $taskOnPath.Source }
-$taskCandidatePaths += 'C:\msys64\mingw64\bin\g++.exe', 'C:\msys64\ucrt64\bin\g++.exe'
-foreach ($taskCandidate in $taskCandidatePaths) {
-    if (Test-Path -LiteralPath $taskCandidate) {
-        $taskPrefix = Split-Path -Parent (Split-Path -Parent $taskCandidate)
-        if (Test-Path -LiteralPath (Join-Path $taskPrefix 'include\GLFW\glfw3.h')) { $taskCompiler = $taskCandidate; break }
+$taskCandidates=@()
+if($env:BACKROOMS_CXX){$taskCandidates+=$env:BACKROOMS_CXX}
+$taskOnPath=Get-Command g++.exe -ErrorAction SilentlyContinue
+if($taskOnPath){$taskCandidates+=$taskOnPath.Source}
+$taskCandidates+='C:\msys64\mingw64\bin\g++.exe','C:\msys64\ucrt64\bin\g++.exe'
+$taskCompiler=$null
+foreach($taskCandidate in $taskCandidates){
+    if(Test-Path -LiteralPath $taskCandidate){
+        $taskPrefix=Split-Path -Parent (Split-Path -Parent $taskCandidate)
+        if(Test-Path -LiteralPath (Join-Path $taskPrefix 'include\GLFW\glfw3.h')){
+            $taskCompiler=(Resolve-Path -LiteralPath $taskCandidate).Path
+            break
+        }
     }
 }
-if (-not $taskCompiler) { throw 'Install MSYS2 MinGW64 GCC and GLFW first. See README.md. You can also set BACKROOMS_CXX to g++.exe.' }
-$env:PATH = (Split-Path -Parent $taskCompiler) + ';' + $env:PATH
-$taskFlags = @('-std=c++17','-Wall','-Wextra','-Iinclude','-I.')
-if ($DebugBuild) { $taskFlags += @('-O0','-g') } else { $taskFlags += '-O2' }
-$taskSources = @('backrooms.cpp','world.cpp','common\threat.cpp','common\threat_model.cpp','common\audio.cpp','common\music.cpp','common\Shader.cpp','common\ui.cpp','common\textures.cpp','common\glad.c')
-Write-Host "Building Backrooms with $taskCompiler"
-& $taskCompiler @taskFlags @taskSources '-o' 'Backrooms.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-lwinmm' '-static' '-mwindows'
-if ($LASTEXITCODE -ne 0) { throw "Build failed ($LASTEXITCODE)." }
-Write-Host 'Built Backrooms.exe. Start with Run.cmd.'
-if ($Test) {
-    & $taskCompiler @taskFlags 'tests\ending_tests.cpp' '-o' 'tests\ending_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Ending test compilation failed.' }
-    & '.\tests\ending_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Ending tests failed.' }
-    & $taskCompiler @taskFlags 'common\audio.cpp' 'tests\ending_audio_tests.cpp' '-o' 'tests\ending_audio_tests.exe' '-lwinmm' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Ending audio compilation failed.' }
-    & '.\tests\ending_audio_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Ending audio tests failed.' }
-
-    & $taskCompiler @taskFlags 'world.cpp' 'tests\atmosphere_tests.cpp' '-o' 'tests\atmosphere_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Atmosphere test compilation failed.' }
-    & '.\tests\atmosphere_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Atmosphere tests failed.' }
-    & $taskCompiler @taskFlags 'world.cpp' 'tests\parking_tests.cpp' '-o' 'tests\parking_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Parking test compilation failed.' }
-    & '.\tests\parking_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Parking tests failed.' }
-    & $taskCompiler @taskFlags 'world.cpp' 'tests\partygoer_tests.cpp' '-o' 'tests\partygoer_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Partygoer test compilation failed.' }
-    & '.\tests\partygoer_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Partygoer tests failed.' }
-
-    & $taskCompiler @taskFlags 'world.cpp' 'tests\fun_tests.cpp' '-o' 'tests\fun_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Level Fun test compilation failed.' }
-    & '.\tests\fun_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Level Fun tests failed.' }
-    & $taskCompiler @taskFlags 'world.cpp' 'common\threat.cpp' 'tests\progression_tests.cpp' '-o' 'tests\progression_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Progression test compilation failed.' }
-    & '.\tests\progression_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Progression tests failed.' }
-    & $taskCompiler @taskFlags 'world.cpp' 'tests\world_tests.cpp' '-o' 'tests\world_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'World test compilation failed.' }
-    & '.\tests\world_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'World tests failed.' }
-    & $taskCompiler @taskFlags 'world.cpp' 'tests\streaming_tests.cpp' '-o' 'tests\streaming_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Streaming test compilation failed.' }
-    & '.\tests\streaming_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Streaming tests failed.' }
-    & $taskCompiler @taskFlags 'tests\movement_tests.cpp' '-o' 'tests\movement_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Movement test compilation failed.' }
-    & '.\tests\movement_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Movement tests failed.' }
-    & $taskCompiler @taskFlags 'world.cpp' 'common\threat.cpp' 'tests\threat_tests.cpp' '-o' 'tests\threat_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Threat test compilation failed.' }
-    & '.\tests\threat_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Threat tests failed.' }
-    & $taskCompiler @taskFlags 'common\threat_model.cpp' 'tests\threat_model_tests.cpp' '-o' 'tests\threat_model_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Threat model test compilation failed.' }
-    & '.\tests\threat_model_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Threat model tests failed.' }
-    & $taskCompiler @taskFlags 'tests\encounter_tests.cpp' '-o' 'tests\encounter_tests.exe' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Encounter test compilation failed.' }
-    & '.\tests\encounter_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Encounter tests failed.' }
-    & $taskCompiler @taskFlags 'common\audio.cpp' 'tests\audio_tests.cpp' '-o' 'tests\audio_tests.exe' '-lwinmm' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Audio test compilation failed.' }
-    & '.\tests\audio_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Audio tests failed.' }
-    & $taskCompiler @taskFlags 'common\music.cpp' 'tests\music_tests.cpp' '-o' 'tests\music_tests.exe' '-lwinmm' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Music test compilation failed.' }
-    & '.\tests\music_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Music tests failed.' }
+if(!$taskCompiler){throw 'Install MSYS2 GCC and GLFW. See docs/build-and-tests.md; BACKROOMS_CXX can select g++.exe.'}
+$taskBin=Split-Path -Parent $taskCompiler
+$taskPrefix=Split-Path -Parent $taskBin
+$env:PATH=$taskBin+';'+$env:PATH
+$taskCmake=Get-Command cmake.exe -ErrorAction SilentlyContinue
+if(!$taskCmake -and (Test-Path -LiteralPath 'C:\Program Files\CMake\bin\cmake.exe')){
+    $taskCmake=Get-Item -LiteralPath 'C:\Program Files\CMake\bin\cmake.exe'
 }
-
-if ($GraphicsTest) {
-    & $taskCompiler @taskFlags 'tests\graphics_tests.cpp' 'common\Shader.cpp' 'common\glad.c' '-o' 'tests\graphics_tests.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Graphics test compilation failed.' }
-    & '.\tests\graphics_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Graphics tests failed.' }
-    & $taskCompiler @taskFlags 'tests\lens_noise_tests.cpp' 'common\Shader.cpp' 'common\glad.c' '-o' 'tests\lens_noise_tests.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Lens noise test compilation failed.' }
-    & '.\tests\lens_noise_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Lens noise tests failed.' }
-    & $taskCompiler @taskFlags 'tests\ending_lighting_tests.cpp' 'common\Shader.cpp' 'common\glad.c' '-o' 'tests\ending_lighting_tests.exe' '-lglfw3' '-lopengl32' '-lgdi32' '-static'
-    if ($LASTEXITCODE -ne 0) { throw 'Ending sunlight test compilation failed.' }
-    & '.\tests\ending_lighting_tests.exe'
-    if ($LASTEXITCODE -ne 0) { throw 'Ending sunlight tests failed.' }
+if(!$taskCmake){throw 'Install CMake 3.21 or newer. See docs/build-and-tests.md.'}
+$taskCmakePath=if($taskCmake -is [System.Management.Automation.CommandInfo]){$taskCmake.Source}else{$taskCmake.FullName}
+$taskCtestPath=Join-Path (Split-Path -Parent $taskCmakePath) 'ctest.exe'
+$taskMake=Join-Path $taskBin 'mingw32-make.exe'
+if(!(Test-Path -LiteralPath $taskMake)){throw 'Install the MSYS2 MinGW make package. See docs/build-and-tests.md.'}
+$taskConfig=if($DebugBuild){'Debug'}else{'Release'}
+$taskBuild=Join-Path $PSScriptRoot ('build\windows-'+$taskConfig.ToLowerInvariant())
+$taskOutput=Join-Path $PSScriptRoot 'Backrooms.exe'
+$taskRunning=Get-Process -Name Backrooms -ErrorAction SilentlyContinue | Where-Object {$_.Path -eq $taskOutput}
+if($taskRunning){throw 'Close the Backrooms window before updating this executable.'}
+if($IfNeeded){Write-Host 'Checking the CMake dependency graph; unchanged source is not recompiled.'}
+$taskGraphics=if($GraphicsTest){'ON'}else{'OFF'}
+& $taskCmakePath -S $PSScriptRoot -B $taskBuild -G 'MinGW Makefiles' `
+    "-DCMAKE_CXX_COMPILER=$taskCompiler" "-DCMAKE_C_COMPILER=$(Join-Path $taskBin 'gcc.exe')" `
+    "-DCMAKE_MAKE_PROGRAM=$taskMake" "-DCMAKE_PREFIX_PATH=$taskPrefix" `
+    "-DCMAKE_BUILD_TYPE=$taskConfig" '-DBUILD_TESTING=ON' "-DBACKROOMS_GRAPHICS_TESTS=$taskGraphics"
+if($LASTEXITCODE -ne 0){throw 'CMake configuration failed.'}
+$taskTargets=@('backrooms_deploy')
+if($Test){$taskTargets+='native_tests'}
+if($GraphicsTest){$taskTargets+='graphics_tests_build'}
+& $taskCmakePath --build $taskBuild --config $taskConfig --parallel $Jobs --target @taskTargets
+if($LASTEXITCODE -ne 0){throw 'CMake build failed.'}
+if($Test){
+    & $taskCtestPath --test-dir $taskBuild -C $taskConfig -L '^native$' --output-on-failure
+    if($LASTEXITCODE -ne 0){throw 'Native tests failed.'}
 }
+if($GraphicsTest){
+    & $taskCtestPath --test-dir $taskBuild -C $taskConfig -L '^graphics$' --output-on-failure
+    if($LASTEXITCODE -ne 0){throw 'Graphics tests failed (a working OpenGL 3.3 context is required).'}
+}
+Write-Host 'Backrooms.exe is ready. Start with Run.cmd or open the executable.'

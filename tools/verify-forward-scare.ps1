@@ -56,6 +56,10 @@ $taskCases=@(
     @{name='walking-forward';frames=140;args=@('--yaw','0','--auto-crouch','--threat-x','28','--threat-z','3.75','--threat-yaw','90');config='default';expected='Catches: 0';kind='movement'},
     @{name='chasing-forward';frames=100;args=@('--yaw','0','--threat-x','12','--threat-z','3.75','--threat-yaw','-90');config='default';expected='Catches: 0';kind='movement'}
 )
+# Current gameplay speeds; the tolerance covers quantized CSV coordinates.
+$taskWalkingSpeed=1.2
+$taskChasingSpeed=3.6
+$taskGaitTolerance=.08
 $taskResults=@()
 foreach($taskCase in $taskCases) {
     if($taskCase.name -notlike $CaseFilter){continue}
@@ -154,8 +158,8 @@ foreach($taskCase in $taskCases) {
                 ++$taskGaitFrames
                 Assert-Check ([Math]::Abs((Read-Number $taskRow.head_yaw)) -lt .00001) "$($taskCase.name): moving head points sideways"
             }
-            if($taskSpeed -gt 1.0 -and $taskSpeed -lt 1.2){++$taskWalkingFrames}
-            if($taskSpeed -gt 3.2 -and $taskSpeed -lt 3.4){++$taskRunningFrames}
+            if([Math]::Abs($taskSpeed-$taskWalkingSpeed) -lt $taskGaitTolerance){++$taskWalkingFrames}
+            if([Math]::Abs($taskSpeed-$taskChasingSpeed) -lt $taskGaitTolerance){++$taskRunningFrames}
         }
         Assert-Check ($taskMoved -ge 20 -and $taskGaitFrames -ge 20) "$($taskCase.name): fixture did not exercise sustained motion"
         if($taskCase.name -eq 'walking-forward') {

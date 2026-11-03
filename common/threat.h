@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../world.h"
+#include "balance.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -24,8 +25,8 @@ struct ThreatPlayer {
 class Threat {
 public:
     static constexpr double RADIUS=.26;
-    static constexpr double SPAWN_MIN_DISTANCE=24.0;
-    static constexpr double SPAWN_MAX_DISTANCE=32.0;
+    inline static const double& SPAWN_MIN_DISTANCE=balance().araneaSpawnMin;
+    inline static const double& SPAWN_MAX_DISTANCE=balance().araneaSpawnMax;
     static constexpr std::size_t MAX_PATH_NODES=4096;
     explicit Threat(std::uint64_t seed=42) { reset(seed); }
     void reset(std::uint64_t seed);

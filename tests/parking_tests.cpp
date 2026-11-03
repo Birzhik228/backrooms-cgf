@@ -1,6 +1,7 @@
 #include "world.h"
 #include "common/partygoer.h"
 #include "common/darkness.h"
+#include "common/parking_objective.h"
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -12,6 +13,13 @@ int main() {try {
     using namespace br;
     for(auto seed:{0ULL,3ULL,42ULL,12071998ULL}) {
         World w(seed,Level::Parking);w.update(3.75,3.75,1);
+        const int target=parkingCircuitTarget(w,3.75,3.75);
+        check(target>=0 && target<3,"HUD starts with an unpowered circuit target");
+        const auto targetPoint=w.breakerLocation(target);
+        for(int i=0;i<3;++i) {
+            const auto p=w.breakerLocation(i);
+            check(std::hypot(targetPoint.x-3.75,targetPoint.z-3.75)<=std::hypot(p.x-3.75,p.z-3.75),"HUD target is nearest cabinet");
+        }
         check(w.isParking() && !w.isFun() && w.chunks().size()==9,"bounded independent parking world");
         for(int i=0;i<3;++i)for(int j=i+1;j<3;++j) {
             const auto a=w.breakerLocation(i),b=w.breakerLocation(j);
@@ -62,6 +70,7 @@ int main() {try {
             w.prepareAhead(p.x,p.z);
             check(w.activateBreaker(i,p.x,p.z+1),"front interaction restores circuit");
             check(w.breakerPowered(i) && !w.activateBreaker(i,p.x,p.z+1),"activation is idempotent");
+            check(parkingCircuitTarget(w,p.x,p.z+1)!=i,"restored circuit immediately retires from target");
             for(const auto* chunks:{&w.chunks(),&w.preparedChunks()})for(const auto& entry:*chunks)
                 for(const auto& lamp:entry.second.lamps) {
                     const auto gx=int64_t(std::floor((entry.first.x*CHUNK_SIZE+lamp.x)/CELL));
@@ -71,6 +80,7 @@ int main() {try {
             if(w.breakersPowered()<3)check(!w.exitUnlocked(),"partial power cannot unlock exit");
         }
         check(w.exitUnlocked() && !w.keyCollected(),"three circuits unlock exit without a key");
+        check(parkingCircuitTarget(w,3.75,3.75)==-1,"all-powered HUD leaves only exit objective");
         w.update(6000,-6000,0);w.update(exit.x,exit.z,1);
         check(w.breakersPowered()==3,"power survives chunk eviction");
         check(w.nearestDoor(exit.x,exit.z,2,door) && w.toggleDoor(door.id,exit.x,exit.z),"powered service exit opens");
@@ -80,6 +90,7 @@ int main() {try {
         w=World(seed,Level::Parking);check(w.breakersPowered()==0 && !w.exitUnlocked(),"new building resets circuit state");
     }
     World zero(42),fun(42,Level::Fun);
+    check(parkingCircuitTarget(zero,3.75,3.75)==-1 && parkingCircuitTarget(fun,3.75,3.75)==-1,"circuit HUD is isolated from previous stages");
     check(!zero.activateBreaker(0,0,0) && !fun.activateBreaker(0,0,0),"circuits belong only to parking");
     World garage(42,Level::Parking);garage.update(3.75,-11.25,1);
     Darkness dark;

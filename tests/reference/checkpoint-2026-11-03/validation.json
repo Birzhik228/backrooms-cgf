@@ -1,0 +1,48 @@
+{
+  "date": "2026-11-03",
+  "platform": "Windows, Intel UHD Graphics, OpenGL 3.3 driver 32.0.101.5768",
+  "fresh_checkpoint_cases": 7,
+  "fresh_all_zero_gl_errors": true,
+  "fresh_all_zero_final_owned_gl": true,
+  "all_images_visually_inspected": true,
+  "fresh_comparison_to_previous_evidence": [
+    {
+      "case": "level0-sprint",
+      "pixels_equal_to_previous_tested_build": true,
+      "stable_profile_equal": true
+    },
+    {
+      "case": "paused",
+      "pixels_equal_to_previous_tested_build": true,
+      "stable_profile_equal": true
+    },
+    {
+      "case": "aranea-facing",
+      "pixels_equal_to_previous_tested_build": true,
+      "stable_profile_equal": true
+    },
+    {
+      "case": "city-ending",
+      "pixels_equal_to_previous_tested_build": true,
+      "stable_profile_equal": true
+    }
+  ],
+  "previous_tests_on_identical_source_and_executable": {
+    "native": 28,
+    "real_opengl": 4,
+    "runtime_scenarios": 48,
+    "level_transitions": 27,
+    "parking_wall_time_seconds": 600,
+    "shader_startup_failure_cleanup_cases": 2,
+    "parking_private_memory_growth_mib": 0.57
+  },
+  "source_binding": "All286Git-visible files byte-equal to the tested engineering-upgrade copy before adding this reference directory; raw SHA256 entries in source-hashes.json.",
+  "limits": [
+    "No second physical PC tested.",
+    "No hosted GitHub Actions run yet.",
+    "These are hidden automated scenarios, not a manual input/audio playtest.",
+    "Pixel equality is only meaningful with equivalent driver/render settings; other GPUs may differ.",
+    "Frame timings are not baselines; *.csv deliberately excludes *_ms columns.",
+    "City uses a separate cinematic loop and its stable CSV has no gameplay rows."
+  ]
+}

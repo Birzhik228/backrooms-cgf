@@ -1,5 +1,7 @@
 /Backrooms.exe
 /atmosphere_tests
+/level0_landmark_tests
+/presence_tests
 /Backrooms
 /backrooms.log
 /build/
@@ -27,8 +29,15 @@ __pycache__/
 /encounter_tests.exe
 /progression_tests
 /fun_tests
+/fun_detail_tests
+/fun_audio_tests
 /parking_tests
+/parking_detail_tests
+/parking_audio_tests
 /assets/*-v8.png
 
 /ending_tests
 /ending_audio_tests
+
+/flow_tests
+/flow_tests.exe

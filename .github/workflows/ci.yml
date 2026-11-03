@@ -1,0 +1,108 @@
+name: Build and tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install compiler and development libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libglfw3-dev libgl1-mesa-dev
+      - name: Configure
+        run: cmake -S . -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBACKROOMS_GRAPHICS_TESTS=OFF
+      - name: Build game and native tests
+        run: cmake --build build/ci --parallel 2 --target Backrooms native_tests
+      - name: Native tests without a display server
+        run: ctest --test-dir build/ci -L '^native$' --output-on-failure
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: native-linux-diagnostics
+          path: |
+            build/ci/Testing/Temporary/
+            build/ci/CMakeFiles/CMakeConfigureLog.yaml
+            tests/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  native-windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-ninja
+            mingw-w64-ucrt-x86_64-glfw
+      - name: Configure
+        run: cmake -S . -B build/ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBACKROOMS_GRAPHICS_TESTS=OFF
+      - name: Build game and native tests
+        run: cmake --build build/ci --parallel 2 --target Backrooms native_tests
+      - name: Native tests without a hardware audio endpoint
+        run: ctest --test-dir build/ci -L '^native$' -LE audio-device --output-on-failure
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: native-windows-diagnostics
+          path: |
+            build/ci/Testing/Temporary/
+            build/ci/CMakeFiles/CMakeConfigureLog.yaml
+            tests/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  graphics-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Install Mesa and a virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libglfw3-dev libgl1-mesa-dev xvfb xauth mesa-utils
+      - name: Configure explicit graphics checks
+        run: cmake -S . -B build/graphics-ci -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DBACKROOMS_GRAPHICS_TESTS=ON
+      - name: Build graphics tests
+        run: cmake --build build/graphics-ci --parallel 2 --target graphics_tests_build
+      - name: Rendered tests under software OpenGL
+        run: xvfb-run -a -s '-screen 0 1280x800x24' ctest --test-dir build/graphics-ci -L '^graphics$' --output-on-failure
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: graphics-linux-diagnostics
+          path: |
+            build/graphics-ci/Testing/Temporary/
+            build/graphics-ci/CMakeFiles/CMakeConfigureLog.yaml
+            tests/artifacts/
+          if-no-files-found: ignore
+          retention-days: 7

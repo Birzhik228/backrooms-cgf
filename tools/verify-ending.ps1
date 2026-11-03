@@ -13,6 +13,8 @@ $taskCases=@(
  @{name='reveal';args='--ending-time 26 --frames 2';expected=@('Ending started: preview','Ending phase: City street')},
  @{name='city-life';args='--ending-time 32 --frames 2';expected=@('Ending started: preview','Ending phase: City life','Ending city: 12 walking pedestrians / 6 moving cars.')},
  @{name='city-late';args='--ending-time 37 --frames 2';expected=@('Ending started: preview','Ending phase: City life','Ending city: 12 walking pedestrians / 6 moving cars.')},
+ @{name='crossing-yield';args='--ending-time 35 --frames 2';expected=@('Ending started: preview','Ending phase: City life')},
+ @{name='crossing-clear';args='--ending-time 39.3 --frames 2';expected=@('Ending started: preview','Ending phase: Fade')},
  @{name='result';args='--ending-time 42 --frames 2';expected=@('Ending started: preview','Ending finished: You found the way out.')},
  @{name='full-sequence';args='--ending-preview --frames 2540';expected=@('Ending phase: Doors closing','Ending phase: Ascending','Ending phase: Surface','Ending phase: Lobby','Ending phase: Exit opening','Ending phase: City street','Ending phase: City life','Ending phase: Fade','Ending finished: You found the way out.')},
  @{name='controls';args='--ending-check --frames 45';expected=@('Ending paused.','Ending resumed.','Ending sound: off','Ending sound: on','Ending finished: You found the way out.','Ending replayed.','Ending returned to menu.','/ active no / completed 2 / replayed 1')},

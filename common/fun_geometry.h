@@ -95,16 +95,76 @@ void funBalloons(Chunk& c,float x,float z,std::uint64_t h,bool distant=false) {
     }
 }
 void funBunting(Chunk& c,float x0,float z0,std::uint64_t h) {
+    const bool worn=(h>>40)%5==0;
     for(int i=0;i<12;++i) {
         const float x=x0+.25f+i*.58f,z=z0+3.0f;
         const float y=3.10f-.20f*std::sin((i+.5f)/12*3.14159f);
         const float mat=48+float((h+i)%6);
         box(c,x,y,z-.008f,x+.58f,y+.012f,z+.008f,45);
-        const P a{x+.055f,y,z},b{x+.49f,y,z},tip{x+.27f,y-.34f,z};
+        // A missing flag and a shortened neighbour leave the string intact.
+        // Only the cloth changes; overhead and collision data remain identical.
+        if(worn && i==int((h>>44)%10)+1)continue;
+        const float drop=worn && i==int((h>>44)%10)?.13f:.34f;
+        const P a{x+.055f,y,z},b{x+.49f,y,z},tip{x+.27f,y-drop,z};
         for(float side:{-1.f,1.f}) {
             const P q[]={a,side>0?tip:b,side>0?b:tip};
             for(P p:q) c.vertices.push_back({p.x,p.y,p.z,0,0,side,p.x-x,y-p.y,mat});
         }
+    }
+}
+void funMusicBox(Chunk& c,float tableX,float tableZ) {
+    // The sound director uses this same table offset. Stay clear of the cake
+    // and place settings, within the table's existing collision footprint.
+    const float x=tableX+.20f,z=tableZ-.43f;
+    box(c,x-.18f,.843f,z-.12f,x+.18f,.99f,z+.12f,50);
+    box(c,x-.19f,.99f,z-.13f,x+.19f,1.02f,z+.13f,49);
+    box(c,x-.14f,1.021f,z-.085f,x+.14f,1.025f,z+.085f,45);
+    // Small winding key and dark speaker slots identify the abandoned toy.
+    box(c,x+.18f,.90f,z-.014f,x+.24f,.925f,z+.014f,7);
+    box(c,x+.225f,.875f,z-.015f,x+.25f,.95f,z+.015f,7);
+    for(int i=0;i<3;++i)
+        box(c,x-.105f+i*.08f,.88f,z+.121f,x-.075f+i*.08f,.945f,z+.125f,17);
+}
+void funFloorPaper(Chunk& c,float x,float z,float rx,float rz,float angle,float material) {
+    const float cosine=std::cos(angle),sine=std::sin(angle);
+    const auto p=[&](float dx,float dz){return P{x+dx*cosine-dz*sine,.008f,z+dx*sine+dz*cosine};};
+    quad(c,p(-rx,rz),p(rx,rz),p(rx,-rz),p(-rx,-rz),{0,1,0},rx*2,rz*2,material);
+}
+void funAftermath(Chunk& c,float x0,float z0,std::uint64_t h) {
+    // Sparse walk-over traces occupy only the unused southeast corner. The
+    // centre-to-door cross and the southwest searchable gift stay untouched.
+    const float x=x0+5.9f,z=z0+5.8f;
+    const int kind=int((h>>48)%3);
+    if(kind==0) {
+        funOrb(c,x,.045f,z,.31f,.036f,.19f,48,3,8);
+        funOrb(c,x+.27f,.025f,z+.025f,.07f,.018f,.045f,48,3,6);
+        funFloorPaper(c,x+.49f,z+.06f,.20f,.011f,.20f,45);
+        funFloorPaper(c,x+.79f,z+.13f,.13f,.011f,-.42f,45);
+    } else if(kind==1) {
+        funFloorPaper(c,x-.25f,z-.15f,.16f,.13f,.25f,46);
+        funFloorPaper(c,x+.24f,z+.31f,.14f,.12f,-.48f,45);
+        for(int i=0;i<2;++i) {
+            const float cx=x-.04f+i*.36f,cz=z-.07f+i*.11f;
+            const auto first=c.vertices.size();
+            funCylinder(c,cx,.054f,cz,.048f,.13f,49+float(i),true);
+            // Tip the cup onto its side. Rotate normals with its vertices.
+            for(std::size_t v=first;v<c.vertices.size();++v) {
+                auto& a=c.vertices[v];const float dx=a.x-cx,dy=a.y-.054f,nx=a.nx;
+                a.x=cx+dy;a.y=.054f-dx;a.nx=a.ny;a.ny=-nx;
+            }
+        }
+    } else {
+        funFloorPaper(c,x,z,.64f,.012f,-.18f,45);
+        for(int i=0;i<3;++i) {
+            const float px=x-.47f+i*.38f,pz=z+.09f-i*.07f;
+            for(P p:{P{px,.013f,pz},P{px+.14f,.013f,pz+.28f},P{px+.30f,.013f,pz}})
+                c.vertices.push_back({p.x,p.y,p.z,0,1,0,p.x-px,p.z-pz,48.f+i});
+        }
+    }
+    for(int i=0;i<5;++i) {
+        const auto piece=hashCell(i,81,h);
+        const float px=x-.55f+float(piece%110)*.01f,pz=z-.39f+float((piece>>8)%90)*.01f;
+        funFloorPaper(c,px,pz,.025f,.012f,float((piece>>16)%628)*.01f,48+float(piece%6));
     }
 }
 Chunk funChunk(ChunkCoord coord,std::uint64_t seed,std::uint64_t variant,const std::set<std::uint64_t>& opened,bool distant=false) {
@@ -132,8 +192,12 @@ Chunk funChunk(ChunkCoord coord,std::uint64_t seed,std::uint64_t variant,const s
             continue;
         }
         const float jitter=float((h>>8)%201)*.001f-.1f;
-        if(h%2==0 || (gx==0&&gz==0)) funTable(c,x0+1.65f+jitter,z0+1.65f,h,distant);
+        if(h%2==0 || (gx==0&&gz==0)) {
+            funTable(c,x0+1.65f+jitter,z0+1.65f,h,distant);
+            if((h>>36)%7==0)funMusicBox(c,x0+1.65f+jitter,z0+1.65f);
+        }
         if((h>>12)%5==0) funTable(c,x0+5.85f-jitter,z0+5.85f,h>>4,distant);
+        else if((h>>32)%9==0)funAftermath(c,x0,z0,h);
         if((h>>16)%3!=0 || (gx==0&&gz==0)) funBalloons(c,x0+6.1f,z0+1.45f,h,distant);
         if((h>>24)%3!=0) funBunting(c,x0,z0,h);
         ceilingLight(c,x0+float(CELL/2),z0+float(CELL/2),1.65f,LampState::Working,0);

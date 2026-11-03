@@ -80,8 +80,8 @@ out vec4 frag;
 void main() {
     frag = color;
 })", true) {
-    glGenVertexArrays(1, &vao);
-    glGenBuffers(1, &vbo);
+    vao.create();
+    vbo.create();
     glBindVertexArray(vao);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
 
@@ -158,8 +158,8 @@ void UI::render(int w, int h) {
 
 void UI::destroy() {
     shader.destroy();
-    glDeleteBuffers(1, &vbo);
-    glDeleteVertexArrays(1, &vao);
+    vbo.reset();
+    vao.reset();
 }
 
 } // namespace br

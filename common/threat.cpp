@@ -12,12 +12,12 @@ namespace br {
 namespace {
 constexpr double PI=3.14159265358979323846;
 constexpr double GRID=.75;
-constexpr float MEMORY_SECONDS=5.0f;
-constexpr float SIGHT_RANGE=22.0f;
-constexpr float WANDER_SPEED=1.2f;
-constexpr float CHASE_SPEED=3.6f;
-constexpr float SPAWN_GRACE=8.0f;
-constexpr double CATCH_DISTANCE=.62;
+const float& MEMORY_SECONDS=balance().araneaMemory;
+const float& SIGHT_RANGE=balance().araneaSightRange;
+const float& WANDER_SPEED=balance().araneaWanderSpeed;
+const float& CHASE_SPEED=balance().araneaChaseSpeed;
+const float& SPAWN_GRACE=balance().araneaSpawnGrace;
+const double& CATCH_DISTANCE=balance().araneaCatchDistance;
 
 bool segmentClear(const World& world,double ax,double az,double bx,double bz,double radius) {
     const double distance=std::hypot(bx-ax,bz-az);
@@ -250,7 +250,7 @@ void Threat::walk(const World& world,float dt,float desiredSpeed) {
     const double dx=point.x-x_,dz=point.z-z_,distance=std::hypot(dx,dz);
     const float desiredYaw=static_cast<float>(std::atan2(dx,-dz));
     const float delta=std::remainder(desiredYaw-yaw_,static_cast<float>(2*PI));
-    const float turnRate=state_==ThreatState::Wander?6.f:9.f;
+    const float turnRate=state_==ThreatState::Wander?balance().araneaWalkTurnRate:balance().araneaChaseTurnRate;
     yaw_+=std::clamp(delta,-dt*turnRate,dt*turnRate);
     constexpr float alignmentTolerance=static_cast<float>(2*PI/180);
     if (std::abs(std::remainder(desiredYaw-yaw_,static_cast<float>(2*PI)))>alignmentTolerance) return;
@@ -272,14 +272,14 @@ void Threat::walk(const World& world,float dt,float desiredSpeed) {
 
 void Threat::hearAlarm(const World& world,const ThreatPlayer& player,double x,double z,bool globalCall) {
     if(caught() || !std::isfinite(x) || !std::isfinite(z)) return;
-    const double range=48*std::sqrt(world.soundTransmission(x,z,x_,z_));
+    const double range=balance().araneaAlarmRange*std::sqrt(world.soundTransmission(x,z,x_,z_));
     if(!globalCall && active() && std::hypot(x-x_,z-z_)>range) return;
     // A key/alarm can arrive before the first simulation update. Capture the
     // same starting clearance before its immediate spawn attempt as well.
     if (!hasSpawnAnchor_ && std::isfinite(player.x) && std::isfinite(player.z)) {
         spawnAnchor_={player.x,player.z}; hasSpawnAnchor_=true;
     }
-    alarm_={x,z};alarmRemaining_=5;age_=std::max(age_,SPAWN_GRACE);spawnRetry_=0;
+    alarm_={x,z};alarmRemaining_=balance().araneaAlarmMemory;age_=std::max(age_,SPAWN_GRACE);spawnRetry_=0;
     if(!active()) spawn(world,player);
 }
 
@@ -319,11 +319,11 @@ void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool 
     seesPlayer_=!player.hidden && clear && distance<=SIGHT_RANGE && (facing>=.57 || distance<1.5);
     const float motion=std::isfinite(player.speed)?std::max(0.f,player.speed):0.f;
     const float noise=std::isfinite(player.noise)?std::clamp(player.noise,0.f,1.f):0.f;
-    double hearing=motion>.12?std::clamp(2.0+motion*3.5,0.0,18.0):0;
-    if (player.crouched) hearing*=.28;
-    hearing=std::max(hearing,20.0*noise);
+    double hearing=motion>balance().araneaMotionThreshold?std::clamp(balance().araneaHearingBase+motion*balance().araneaHearingPerSpeed,0.0,balance().araneaHearingMax):0;
+    if (player.crouched) hearing*=balance().araneaCrouchHearing;
+    hearing=std::max(hearing,balance().araneaDoorHearing*noise);
     // A wall muffles sound but does not make running or a nearby door silent.
-    if (!clear) hearing*=.45;
+    if (!clear) hearing*=balance().araneaWallHearing;
     const bool heard=!player.hidden && hearing>0 && distance<hearing;
     if (seesPlayer_ || heard) {
         const bool entering=state_!=ThreatState::Chase;
@@ -359,7 +359,7 @@ void Threat::update(const World& world,const ThreatPlayer& player,float dt,bool 
         repath_=state_==ThreatState::Wander?1.8f:.65f;
         if (!valid && state_==ThreatState::Wander) { hasGoal_=false; wanderWait_=1; }
     }
-    walk(world,dt,(state_==ThreatState::Wander?WANDER_SPEED:CHASE_SPEED)*(enraged_?1.35f:1.f));
+    walk(world,dt,(state_==ThreatState::Wander?WANDER_SPEED:CHASE_SPEED)*(enraged_?balance().araneaEnragedMultiplier:1.f));
     // Test after the sweep as well, so high frame times cannot skip contact.
     if (!player.hidden && std::hypot(player.x-x_,player.z-z_)<CATCH_DISTANCE && visibleSegment(world,x_,z_,player.x,player.z)) {
         state_=ThreatState::Caught; speed_=0; path_.clear();

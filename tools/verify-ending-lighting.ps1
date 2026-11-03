@@ -4,30 +4,20 @@ $taskRoot=Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $taskRoot
 $taskEvidence=Join-Path $taskRoot 'tests\artifacts\ending-sun'
 New-Item -ItemType Directory -Force -Path $taskEvidence | Out-Null
-$taskCompiler=$null
-$taskCandidates=@()
-if($env:BACKROOMS_CXX){$taskCandidates+=$env:BACKROOMS_CXX}
-$taskOnPath=Get-Command g++.exe -ErrorAction SilentlyContinue
-if($taskOnPath){$taskCandidates+=$taskOnPath.Source}
-$taskCandidates+=@('C:\msys64\mingw64\bin\g++.exe','C:\msys64\ucrt64\bin\g++.exe')
-foreach($taskCandidate in $taskCandidates){
-    if(Test-Path -LiteralPath $taskCandidate){
-        $taskPrefix=Split-Path -Parent (Split-Path -Parent $taskCandidate)
-        if(Test-Path -LiteralPath (Join-Path $taskPrefix 'include\GLFW\glfw3.h')){$taskCompiler=$taskCandidate;break}
-    }
-}
-if(!$taskCompiler){throw 'MSYS2 MinGW GCC and GLFW are required. See README.md.'}
-$env:PATH=(Split-Path -Parent $taskCompiler)+';'+$env:PATH
-$taskExecutable=Join-Path $taskRoot 'tests\ending_lighting_tests.exe'
+$taskExecutable=Join-Path $taskRoot 'build\windows-release\bin\ending_lighting_tests.exe'
 if(!$SkipBuild){
-    & $taskCompiler '-std=c++17' '-O2' '-Wall' '-Wextra' '-Iinclude' '-I.' 'tests\ending_lighting_tests.cpp' 'common\Shader.cpp' 'common\glad.c' '-o' $taskExecutable '-lglfw3' '-lopengl32' '-lgdi32' '-static'
-    if($LASTEXITCODE -ne 0){throw 'Ending sunlight verification compilation failed.'}
+    # Compilation, dependencies and test registration belong to CMake. The
+    # dedicated run below preserves this helper's evidence files and logs.
+    & (Join-Path $taskRoot 'build.ps1') -GraphicsTest
 }
-if(!(Test-Path -LiteralPath $taskExecutable)){throw 'Build the ending sunlight test first.'}
+if(!(Test-Path -LiteralPath $taskExecutable)){throw 'Run build.ps1 -GraphicsTest before using -SkipBuild.'}
 $taskOutput=Join-Path $taskEvidence 'lighting-tests.log'
 $taskError=Join-Path $taskEvidence 'lighting-tests.stderr.log'
 $taskClock=[Diagnostics.Stopwatch]::StartNew()
 $taskProcess=Start-Process -FilePath $taskExecutable -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $taskOutput -RedirectStandardError $taskError
+# Keep the handle while the child runs so Windows PowerShell can read its exit
+# code after the process has already left the process table.
+$taskProcessHandle=$taskProcess.Handle
 if(!$taskProcess.WaitForExit(60000)){$taskProcess.Kill();$taskProcess.WaitForExit();throw 'Ending sunlight verification timed out.'}
 $taskClock.Stop()
 Get-Content -LiteralPath $taskOutput

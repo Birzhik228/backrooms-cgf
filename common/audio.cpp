@@ -196,6 +196,94 @@ std::vector<std::int16_t> threatSound(const SoundEvent& event) {
     return result;
 }
 
+std::vector<std::int16_t> partySound(const SoundEvent& event) {
+    const bool step=event.kind==SoundKind::PartyFootstep;
+    const bool balloon=event.kind==SoundKind::BalloonRub;
+    const double duration=step?.34:(balloon?1.18:2.55);
+    std::vector<std::int16_t> result(std::size_t(duration*AUDIO_SAMPLE_RATE));
+    std::uint32_t state=event.variation*747796405u+2891336453u;
+    double low=0,soft=0,phase=0;
+    const double pitch=.97+.013*(event.variation%4);
+    for(std::size_t i=0;i<result.size();++i) {
+        const double t=double(i)/AUDIO_SAMPLE_RATE,n=noise(state);
+        low+=.025*(n-low);soft+=.13*(n-soft);
+        double value=0;
+        if(step) {
+            // Fabric over a soft sole: no hard heel click or Aranea sample.
+            const double press=std::exp(-std::pow((t-.065)/.045,2));
+            const double drag=std::exp(-std::pow((t-.19)/.075,2));
+            value=.24*std::sin(2*PI*pitch*(53*t-17*t*t))*press+
+                .35*low*press+.25*(soft-low)*drag;
+        } else if(balloon) {
+            // Slow rubber friction, with filtered air rather than a pop.
+            const double swell=std::pow(std::sin(PI*t/duration),2.2);
+            phase+=2*PI*pitch*(210+75*std::sin(t*3.1)+8*std::sin(t*37))/AUDIO_SAMPLE_RATE;
+            value=.12*swell*(.6*std::sin(phase)+.24*std::sin(phase*2.02)+1.3*(soft-low));
+        } else {
+            // Three original, slightly detuned toy-box notes, never a loop.
+            constexpr double frequencies[]={523.25,617.0,489.0};
+            constexpr double starts[]={.08,.69,1.34};
+            for(int note=0;note<3;++note) {
+                const double age=t-starts[note];
+                if(age<0)continue;
+                const double attack=std::min(1.,age/.018);
+                const double tone=2*PI*frequencies[note]*pitch*age;
+                value+=.095*attack*std::exp(-age*4.3)*
+                    (std::sin(tone)+.28*std::sin(tone*2.007)+.10*std::sin(tone*3.98));
+            }
+        }
+        const double fade=std::min({1.,t/.015,(duration-t)/.065});
+        result[i]=pcm(value*fade);
+    }
+    result.front()=result.back()=0;
+    return result;
+}
+
+std::vector<std::int16_t> parkingSound(const SoundEvent& event) {
+    const bool tick=event.kind==SoundKind::PipeTick,vent=event.kind==SoundKind::ParkingVent;
+    const double duration=tick?.72:(vent?2.4:1.3);
+    std::vector<std::int16_t> result(std::size_t(duration*AUDIO_SAMPLE_RATE));
+    std::uint32_t random=event.variation*2891336453u+747796405u;
+    const double pitch=.97+.015*(event.variation%4);
+    double low=0,air=0,phase=0;
+    for(std::size_t i=0;i<result.size();++i) {
+        const double t=double(i)/AUDIO_SAMPLE_RATE,n=noise(random);
+        low+=.018*(n-low);air+=.12*(n-air);
+        double value=0;
+        if(tick) {
+            // A pipe contracts: two muted metallic taps, not an impact scare.
+            for(const double start:{.025,.18}) {
+                const double age=t-start;
+                if(age<0)continue;
+                const double envelope=std::min(1.,age/.003)*std::exp(-age*14);
+                value+=.12*envelope*(std::sin(2*PI*483*pitch*age)+
+                    .38*std::sin(2*PI*1271*pitch*age)+.55*air);
+            }
+        } else if(vent) {
+            const double envelope=std::pow(std::sin(PI*t/duration),1.4);
+            phase+=2*PI*pitch*(67+2*std::sin(t*3))/AUDIO_SAMPLE_RATE;
+            value=envelope*(.075*std::sin(phase)+.025*std::sin(phase*2)+.32*low+.09*(air-low));
+        } else {
+            // Relay closure followed by a brief motor spin-up at the cabinet.
+            for(const double start:{.02,.16}) {
+                const double age=t-start;
+                if(age<0)continue;
+                value+=.19*std::min(1.,age/.002)*std::exp(-age*35)*
+                    (std::sin(2*PI*190*pitch*age)+.5*air);
+            }
+            if(t>.18) {
+                const double age=t-.18,envelope=std::sin(PI*age/(duration-.18));
+                phase+=2*PI*pitch*(42+58*(1-std::exp(-age*4)))/AUDIO_SAMPLE_RATE;
+                value+=.095*envelope*(std::sin(phase)+.25*std::sin(phase*2)+1.1*low);
+            }
+        }
+        const double fade=std::min({1.,t/.008,(duration-t)/.06});
+        result[i]=pcm(value*fade);
+    }
+    result.front()=result.back()=0;
+    return result;
+}
+
 // Original synthesized placeholders, cached once with the other mixer clips.
 // Smooth envelopes avoid sharp clicks; only the arrival bell is a bright tone.
 std::vector<std::int16_t> cinematicClip(const SoundEvent& event) {
@@ -410,6 +498,10 @@ std::size_t recordedFootstepCount() { return loadedSteps; }
 std::vector<std::int16_t> synthesizeSound(const SoundEvent& input) {
     SoundEvent event=input;
     if(cinematicSound(event.kind))return cinematicClip(event);
+    if(event.kind==SoundKind::PipeTick||event.kind==SoundKind::ParkingVent||event.kind==SoundKind::PowerRelay)
+        return parkingSound(event);
+    if(event.kind==SoundKind::PartyFootstep||event.kind==SoundKind::BalloonRub||event.kind==SoundKind::PartyMelody)
+        return partySound(event);
     if(event.kind==SoundKind::VentRattle||event.kind==SoundKind::DistantFootsteps||event.kind==SoundKind::ThreatRustle)
         return atmosphereSound(event);
     if(event.kind==SoundKind::DarknessJumpscare) {
@@ -623,6 +715,8 @@ struct AudioMixer::Impl {
         std::uint64_t started=0;
         float transmission=1;
         bool atmosphere=false;
+        int partyActor=-1;
+        float actorGain=1;
     };
     std::array<std::array<std::array<std::vector<std::int16_t>,6>,3>,3> steps;
     std::array<std::vector<std::int16_t>,3> cloth;
@@ -679,7 +773,7 @@ struct AudioMixer::Impl {
         nextAmbient=std::uint64_t((5+randomUnit()*5)*AUDIO_SAMPLE_RATE);
     }
     void add(const std::vector<std::int16_t>& clip,AudioPosition position,bool positional,float gain,
-             bool occluded=false,float nearDistance=3,unsigned priority=0,float transmission=1,bool atmosphere=false) {
+             bool occluded=false,float nearDistance=3,unsigned priority=0,float transmission=1,bool atmosphere=false,int partyActor=-1) {
         if (paused || clip.empty() || !std::isfinite(gain) || gain<=0 || !std::isfinite(transmission) || transmission<=0) return;
         Voice* slot=nullptr;
         for (auto& voice:voices) if (!voice.clip) {
@@ -691,9 +785,9 @@ struct AudioMixer::Impl {
             (!slot||voice.priority<slot->priority||
              (voice.priority==slot->priority&&voice.started<slot->started)))slot=&voice;
         if(slot)*slot={&clip,0,position,positional,std::min(gain,1.0f),occluded,
-                       nearDistance,priority,voiceSequence++,std::min(transmission,1.f),atmosphere};
+                       nearDistance,priority,voiceSequence++,std::min(transmission,1.f),atmosphere,partyActor,1.f};
     }
-    void environmental(SoundKind kind,AudioPosition position,float gain,float transmission=1) {
+    void environmental(SoundKind kind,AudioPosition position,float gain,float transmission=1,int partyActor=-1) {
         const auto index=int(kind)-int(SoundKind::AmbientCreak);
         if (index<0 || std::size_t(index)>=ambience.size() || paused || !std::isfinite(gain) || gain<=0 ||
             !std::isfinite(transmission) || transmission<=0) return;
@@ -707,14 +801,20 @@ struct AudioMixer::Impl {
         const bool monsterStep=kind==SoundKind::ThreatStep||kind==SoundKind::ThreatRunStep;
         const bool vocal=kind==SoundKind::ThreatRoar||kind==SoundKind::ThreatNotice;
         const bool distant=kind==SoundKind::VentRattle||kind==SoundKind::DistantFootsteps||kind==SoundKind::ThreatRustle;
-        const bool atmosphere=distant||(scene.level0Atmosphere&&(kind==SoundKind::AmbientCreak||kind==SoundKind::WaterDrip));
+        const bool partyStep=kind==SoundKind::PartyFootstep;
+        const bool relay=kind==SoundKind::PowerRelay;
+        const bool atmosphere=distant||kind==SoundKind::BalloonRub||kind==SoundKind::PartyMelody||
+            kind==SoundKind::PipeTick||kind==SoundKind::ParkingVent||
+            (scene.level0Atmosphere&&(kind==SoundKind::AmbientCreak||kind==SoundKind::WaterDrip))||
+            (scene.parkingAtmosphere&&kind==SoundKind::WaterDrip);
         const std::size_t variant=capture?std::min(std::size_t(randomUnit()*4),std::size_t(3)):
             monsterStep?monsterVariation[kind==SoundKind::ThreatRunStep?1:0]++%4:variation++%4;
         add(ambience[std::size_t(index)][variant],position,!capture&&!cinematicSound(kind),gain,
-            monsterStep||vocal,vocal?7.f:(distant?6.f:3.f),cinematicSound(kind)?2u:(vocal?1u:0u),transmission,atmosphere);
+            monsterStep||vocal,vocal?7.f:(partyStep?4.f:(relay?5.f:(distant?6.f:3.f))),(relay||cinematicSound(kind))?2u:(vocal||partyStep)?1u:0u,
+            transmission,atmosphere,partyActor);
     }
     void schedule() {
-        if(captureOnly||scene.cinematic||scene.level0Atmosphere) return;
+        if(captureOnly||scene.cinematic||scene.level0Atmosphere||scene.funAtmosphere||scene.parkingAtmosphere) return;
         if (sample>=nextAmbient) {
             const double angle=randomUnit()*PI*2,distance=14+randomUnit()*18;
             const AudioPosition source{scene.listener.x+std::cos(angle)*distance,
@@ -769,6 +869,10 @@ void AudioMixer::enqueue(const SoundEvent& event) {
     else if (event.kind==SoundKind::ClothRustle) impl_->add(impl_->cloth[gait],{},false,1);
 }
 void AudioMixer::play(SoundKind kind,AudioPosition position,float gain,float transmission) { impl_->environmental(kind,position,gain,transmission); }
+void AudioMixer::playPartyStep(int actor,AudioPosition position,float gain,float transmission) {
+    if(actor<0||actor>=4)return;
+    impl_->environmental(SoundKind::PartyFootstep,position,gain,transmission,actor);
+}
 std::size_t AudioMixer::activeVoices() const {
     std::size_t result=0;
     for (const auto& voice:impl_->voices) result+=voice.clip!=nullptr;
@@ -810,8 +914,12 @@ void AudioMixer::render(std::int16_t* output,std::size_t frames) {
             for (std::size_t v=0;v<m.voices.size();++v) {
                 auto& voice=m.voices[v];
                 if (!voice.clip) continue;
+                if(voice.partyActor>=0 && !(m.scene.partyMovingMask&(1u<<voice.partyActor))) {
+                    voice.actorGain=std::max(0.f,voice.actorGain-1.f/(.018f*AUDIO_SAMPLE_RATE));
+                    if(voice.actorGain==0){voice.clip=nullptr;continue;}
+                }
                 const double sound=(*voice.clip)[voice.cursor++]/32767.0*voice.gain*
-                    (voice.atmosphere?m.atmosphereGain:1.f);
+                    (voice.atmosphere?m.atmosphereGain:1.f)*voice.actorGain;
                 const float occlusion=voice.transmission*(voice.occluded?m.scene.threatTransmission:1.f);
                 left+=sound*gains[v].left*occlusion; right+=sound*gains[v].right*occlusion;
                 if (voice.cursor==voice.clip->size()) voice.clip=nullptr;
@@ -928,6 +1036,9 @@ void Audio::play(SoundKind kind,AudioPosition position,float gain,float transmis
     }
     impl_->mixer.play(kind,position,gain,transmission);
     if(captureSound(kind) && !impl_->service()) stop();
+}
+void Audio::playPartyStep(int actor,AudioPosition position,float gain,float transmission) {
+    if(available())impl_->mixer.playPartyStep(actor,position,gain,transmission);
 }
 void Audio::reset(std::uint32_t seed) {
     cadence_.reset(); impl_->mixer.reset(seed);
