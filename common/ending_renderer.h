@@ -403,7 +403,7 @@ float hash(vec2 v){return fract(sin(dot(v,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 v){vec2 i=floor(v),f=fract(v);f=f*f*(3-2*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
 vec3 point(vec3 pos,vec3 tint,float power,vec3 normal){vec3 d=pos-p;float r=dot(d,d);return tint*power*(.18+.82*max(0,dot(normal,normalize(d))))/(1+r*.42);}
 float sunMap(sampler2D fixedMap,sampler2D movingMap,vec3 q,float bias){
- if(any(lessThan(q,vec3(.001)))||any(greaterThan(q,vec3(.999))))return 1;
+ if(any(lessThan(q,vec3(.001)))||any(greaterThan(q,vec3(.999))))return 1.0;
  vec2 fixedTexel=1./vec2(textureSize(fixedMap,0)),movingTexel=1./vec2(textureSize(movingMap,0));float visible=0;
  for(int y=-1;y<=1;++y)for(int x=-1;x<=1;++x){vec2 offset=vec2(x,y);
   float fixedDepth=texture(fixedMap,q.xy+offset*fixedTexel).r;
@@ -412,7 +412,7 @@ float sunMap(sampler2D fixedMap,sampler2D movingMap,vec3 q,float bias){
  return visible/9.;
 }
 float sunlight(vec3 normal){
- if(uSunShadows==0)return 1;
+ if(uSunShadows==0)return 1.0;
  vec3 nearQ=sunPosition0.xyz/sunPosition0.w*.5+.5,farQ=sunPosition1.xyz/sunPosition1.w*.5+.5;
  float bias=.000025+.00007*(1-max(0,dot(normal,uSunDirection)));
  float edge=min(min(nearQ.x,1-nearQ.x),min(nearQ.y,1-nearQ.y));
