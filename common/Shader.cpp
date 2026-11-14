@@ -18,7 +18,7 @@ std::string read(const std::string& path) {
     return contents.str();
 }
 
-gl::ShaderObject compile(GLenum type, const std::string& text) {
+gl::ShaderObject compile(GLenum type, const std::string& text, const std::string& label) {
     gl::ShaderObject shader;
     shader.create(type);
     const char* source = text.c_str();
@@ -32,7 +32,8 @@ gl::ShaderObject compile(GLenum type, const std::string& text) {
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
         std::vector<char> log(length + 1);
         glGetShaderInfoLog(shader, length, nullptr, log.data());
-        throw std::runtime_error(std::string("Shader compile failed: ") + log.data());
+        const char* stage = type == GL_VERTEX_SHADER ? "vertex" : "fragment";
+        throw std::runtime_error(std::string("Shader compile failed (") + stage + ", " + label + "): " + log.data());
     }
     return shader;
 }
@@ -40,8 +41,10 @@ gl::ShaderObject compile(GLenum type, const std::string& text) {
 } // namespace
 
 Shader::Shader(const std::string& vertex, const std::string& fragment, bool source) {
-    const auto vs = compile(GL_VERTEX_SHADER, source ? vertex : read(vertex));
-    const auto fs = compile(GL_FRAGMENT_SHADER, source ? fragment : read(fragment));
+    const std::string vertexLabel = source ? "inline vertex shader" : vertex;
+    const std::string fragmentLabel = source ? "inline fragment shader" : fragment;
+    const auto vs = compile(GL_VERTEX_SHADER, source ? vertex : read(vertex), vertexLabel);
+    const auto fs = compile(GL_FRAGMENT_SHADER, source ? fragment : read(fragment), fragmentLabel);
     id.create();
     glAttachShader(id, vs);
     glAttachShader(id, fs);
@@ -57,7 +60,7 @@ Shader::Shader(const std::string& vertex, const std::string& fragment, bool sour
         std::vector<char> log(length + 1);
         glGetProgramInfoLog(id, length, nullptr, log.data());
         destroy();
-        throw std::runtime_error(std::string("Shader link failed: ") + log.data());
+        throw std::runtime_error("Shader link failed (" + vertexLabel + " + " + fragmentLabel + "): " + log.data());
     }
 }
 

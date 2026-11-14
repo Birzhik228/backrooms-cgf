@@ -199,3 +199,62 @@ capture. Nine unchanged-scene comparisons matched checkpoint pixels and
 non-timing profiles exactly. Runtime logs reported no OpenGL errors or owned
 graphics resources remaining after shutdown. These checks ran locally on
 Windows/Intel UHD; they do not establish results on another computer or CI.
+
+## Graphics comparison and inspection controls — 13 November 2026
+
+At the user's request, Codex assisted with a G-key ambient-occlusion toggle
+that skips the AO pass when off, restores the previous positive intensity when
+enabled, and displays the applied ON/OFF state in the HUD. Codex also assisted
+with an independent F4 free-fly camera, three-dimensional movement, frozen
+gameplay during inspection, and preservation and restoration of the world and
+player state on return. The work includes in-game control hints, field-guide
+and README updates, and targeted verification fixtures. The Release build,
+10 selected native tests, four OpenGL tests and 12 runtime scenarios passed
+locally. An AO comparison changed 3,949 sampled scene pixels outside the HUD.
+The camera roundtrip check preserved all 25 original chunk revisions, including
+a shifted room, after travelling more than 135 metres. These checks do not
+establish performance on the lab computer.
+
+## Team credits and presentation start — 13 November 2026
+
+At the user's request, Codex assisted with an in-game team-name overlay using
+the supplied names Rukhanov Birzhan, Zhamenov Gani and Rinatuly Miras. Assistance
+also covers a main/pause-menu presentation entry, a direct presentation launch,
+a fixed live-rendered scene for AO comparisons, and updated controls and README
+instructions. Presentation slides and the backup video are separate work planned
+for later. The Release build, 10 selected native tests, four OpenGL tests,
+13 presentation runtime scenarios and two existing AO/free-fly regressions
+passed locally. The presentation AO comparison changed 4,702 sampled scene
+pixels outside the HUD. Menu and presentation captures were inspected at
+960 by 640. Direct startup plus 12 rendered frames and shutdown took 7.958
+seconds locally; this is not a lab-computer FPS measurement.
+
+## Visible Windows diagnostics — 14 November 2026
+
+At the user's request, Codex assisted with the Windows console-subsystem build,
+immediate stdout/stderr diagnostics mirrored to the existing log, and shader
+errors that identify their stage and source file. The work also includes build
+documentation and isolated failure-verification tooling. The existing fatal
+error dialog and OpenGL resource cleanup remain in use.
+
+The Release build passed six isolated Windows console checks, all four OpenGL
+tests and a normal presentation-startup smoke check. Console verification
+confirmed PE subsystem 3 and matching stderr/log diagnostics for invalid
+options, missing shaders, malformed GLSL and missing creature textures. The
+OpenGL lifetime suite also passed its incomplete-framebuffer failure cases.
+
+## AO performance comparison — 14 November 2026
+
+At the user's request, Codex assisted with a repeatable PowerShell benchmark
+using the existing live presentation scene, AO toggle checks and per-frame
+telemetry. No rendering code was changed for this measurement. Assistance
+included collecting hardware and executable metadata, excluding warmup,
+calculating FPS and frame-time percentiles, and recording the results in
+`docs/ao-performance-2026-11-14.md` and its JSON companion.
+
+Six sequential measured trials (three per AO setting, 30 seconds each after
+five seconds of warmup) passed the scene, AO-state, error, resource and settings
+checks. Two separate captures confirmed 1280 by 720 rendering and a visible AO
+difference. Median trial-average FPS was 122.24 with AO ON and 142.80 with AO OFF
+on Intel UHD Graphics. The report retains individual trials and isolated stalls;
+these are local frozen-scene measurements, not lab-computer or full-game proof.

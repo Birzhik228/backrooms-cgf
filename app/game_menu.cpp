@@ -5,6 +5,7 @@ namespace fs = std::filesystem;
 
 void Game::saveSettings() {
     settings.sanitize(); input.sensitivity = settings.sensitivity;
+    if (settings.ambientOcclusion > 0) lastAOAmount = settings.ambientOcclusion;
     audio.setVolume(settings.volume);
     glfwSwapInterval(options.hidden ? 0 : int(settings.vsync));
     if ((!options.hidden || !options.settingsFile.empty()) && !settings.save(settingsPath)) {
@@ -14,6 +15,8 @@ void Game::saveSettings() {
 
 void Game::handleMenus() {
     bool resumeAction = false, newSeedAction = false, resetAction = false, quitAction = false;
+    bool presentationAction = false;
+    const bool presentationPlayRequested = presentationActive && flow.gameplay() && input.hit(GLFW_KEY_ENTER);
     bool escapeHandled = false;
     const bool selectorConsumes=flow.is(Screen::LevelSelect);
     if(flow.is(Screen::LevelSelect)) {
@@ -105,6 +108,10 @@ void Game::handleMenus() {
                 setScreen(Screen::Menu); escapeHandled=true; saveSettings();
             }
         } else {
+            presentationAction = flow.is(Screen::Menu) &&
+                (input.hit(GLFW_KEY_P) || (input.clicked &&
+                 mouseX >= left+boxW-245 && mouseX <= left+boxW-32 &&
+                 mouseY >= top+57 && mouseY <= top+89));
             if (input.hit(GLFW_KEY_UP)) menuSelection=(menuSelection+5)%6;
             if (input.hit(GLFW_KEY_DOWN)) menuSelection=(menuSelection+1)%6;
             bool activate=input.hit(GLFW_KEY_ENTER);
@@ -153,8 +160,23 @@ void Game::handleMenus() {
         setScreen(Screen::Menu);
         menuSelection=0;
     }
+    if (presentationAction) {
+        startPresentation();
+        input.pressed.fill(false);
+        input.clicked = false;
+    } else if (presentationPlayRequested) {
+        endPresentation();
+    }
     if (input.hit(GLFW_KEY_F)) {
         flashlight = !flashlight;
+    }
+    if (input.hit(GLFW_KEY_G) && encounter.alive() &&
+        (flow.gameplay() || flow.is(Screen::Menu))) {
+        toggleAmbientOcclusion();
+    }
+    if (input.hit(GLFW_KEY_F4) && encounter.alive() &&
+        (flow.gameplay() || (inspectionCamera.active && flow.is(Screen::Menu)))) {
+        toggleInspectionCamera();
     }
     if (input.hit(GLFW_KEY_C)) {
         clues = !clues;
@@ -206,9 +228,10 @@ void Game::handleMenus() {
     // Resume the mixer before any door, mouse, vocal or foot-contact event
     // consumes its one-shot state. Capture keeps its existing pause policy.
     scareSuspended=!options.hidden && !glfwGetWindowAttrib(window,GLFW_FOCUSED);
-    audio.setPaused(input.paused && (!encounter.presenting() || scareSuspended || !scareConfig.audio));
+    audio.setPaused(inspectionCamera.active || presentationActive ||
+        (input.paused && (!encounter.presenting() || scareSuspended || !scareConfig.audio)));
     input.smooth(dt);
-    if (options.tour && encounter.alive() && !input.paused && !player.hiding) {
+    if (options.tour && encounter.alive() && !input.paused && !player.hiding && !inspectionCamera.active && !presentationActive) {
         input.setLook(options.yaw + std::sin(elapsed * .38) * 40, -3 + std::sin(elapsed * .2) * 4);
     }
 }

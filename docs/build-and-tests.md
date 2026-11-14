@@ -46,6 +46,20 @@ package's DLL import target and statically links GCC's runtime. A player still
 needs Windows and a compatible graphics driver, but does not need MSYS2 on PATH.
 The PowerShell wrapper checks and propagates configure, compile and test failures.
 
+The Windows executable uses the console subsystem (`WIN32_EXECUTABLE FALSE`).
+Launching from Explorer opens a diagnostics console; launching from a terminal
+uses its standard streams. Normal messages are flushed to stdout, while startup
+and GLFW errors are flushed to stderr. Both are also written to `backrooms.log`.
+Fatal startup errors retain the existing dialog, keeping the process and console
+alive until the dialog is dismissed. Closing a newly opened console terminates
+the game, so use the game's Quit action for normal shutdown.
+
+Run `tools/verify-console.ps1` to check the executable's PE subsystem and capture
+help, invalid options, missing shaders, shader compilation and texture failures
+from isolated runtime folders. These cases use `--hidden` and hidden process
+windows so automated verification does not open game windows or error dialogs.
+The existing OpenGL lifetime test also covers incomplete framebuffers.
+
 ## Direct CMake and Make
 
 Use a shell with the intended compiler/dependencies available:

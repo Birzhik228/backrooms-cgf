@@ -22,6 +22,15 @@ struct PlayerState {
     float minimumStamina = 100;
 };
 
+// The inspection view has its own position. Player/progression state stays
+// where it was when the camera was detached, even across streamed chunks.
+struct InspectionCamera {
+    bool active = false;
+    double x = 0, z = 0;
+    float y = 1.65f;
+    float playerYaw = -90, playerPitch = -3;
+};
+
 // Wall-clock timestamps and phase durations; kept separate from simulation dt.
 struct FrameTimings {
     double frameStart = 0, rawDelta = 0;

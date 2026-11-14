@@ -5,6 +5,13 @@ namespace fs = std::filesystem;
 
 void Game::updateAudio() {
     const double audioStart = glfwGetTime();
+    if (inspectionCamera.active || presentationActive) {
+        audio.setPaused(true);
+        music.update(true, muted || options.hidden || !settings.musicEnabled,
+            settings.volume * settings.musicVolume, 0);
+        timing.audioMs = (glfwGetTime() - audioStart) * 1000;
+        return;
+    }
     currentRoom = roomInfo(int64_t(std::floor(player.x / CELL)), int64_t(std::floor(player.z / CELL)), world.seed(),world.level());
     const auto floorSurface = world.isParking()?FloorSurface::Tile:world.isFun()?FloorSurface::Carpet:floorSurfaceAt(player.x, player.z, world.seed());
     const Surface surface = floorSurface==FloorSurface::Tile ? Surface::HardFloor :

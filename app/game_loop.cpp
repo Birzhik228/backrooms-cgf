@@ -17,7 +17,7 @@ int Game::execute() {
         // render speed; performance counters always use real wall-clock time.
         dt = usesFixedTimeStep() ? 1.f / 60.f :
                          static_cast<float>(std::min(timing.rawDelta, .05));
-        elapsed += dt;
+        if (!inspectionCamera.active && !presentationActive) elapsed += dt;
         timing.inputStart = glfwGetTime();
         glfwPollEvents();
         applyScenarioInput();
@@ -143,6 +143,14 @@ void Game::reportAndShutdown() {
             << ". Brightness: " << settings.brightness << ". Volume: " << settings.volume
             << ". Paused: " << (input.paused ? "yes" : "no") << ". GL errors: 0.";
     log(summary.str());
+    log(std::string("Presentation: ") + (presentationActive ? "active" : "off") +
+        " / team " + teamCreditLine());
+    log("Demo controls: AO amount " + std::to_string(actualAOAmount) +
+        " / AO passes " + std::to_string(aoPasses) +
+        " / camera " + (inspectionCamera.active ? "free-fly" : "player") +
+        " / inspection position " + std::to_string(inspectionCamera.x) + ", " +
+        std::to_string(inspectionCamera.y) + ", " + std::to_string(inspectionCamera.z) +
+        " / look " + std::to_string(input.yaw) + ", " + std::to_string(input.pitch));
     log("Streaming: max prepared chunks " + std::to_string(maxPrepared) +
         ", cached promotions " + std::to_string(world.streamPromotions()) +
         ", synchronous fallback chunks " + std::to_string(world.streamFallbacks()) + ".");

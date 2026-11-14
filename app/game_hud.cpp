@@ -1,4 +1,5 @@
 #include "game_internal.h"
+#include "../common/team_info.h"
 
 namespace br::app {
 namespace fs = std::filesystem;
@@ -20,12 +21,14 @@ void Game::drawHud() {
         ui.rect(18, 18, 330 * scale, 50, {.015f, .020f, .015f, .70f});
         ui.rect(22, 24, 3, 38, gold);
         ui.text(36, 25, "BACKROOMS", 2 * scale, paper);
-        ui.text(36, 47, world.isParking()?std::string("STAGE 3 / PARKING / SECTOR ")+char('A'+parkingSector(int64_t(std::floor(player.x/CELL)),int64_t(std::floor(player.z/CELL)))):world.isFun()?std::string("LEVEL FUN / PARTY ROOMS"):std::string("LEVEL 0 / ")+roomName(currentRoom.kind), 1.15f * scale, dim);
+        ui.text(36, 47, inspectionCamera.active?std::string("FREE-FLY CAMERA / GAMEPLAY FROZEN"):
+            presentationActive?std::string("PRESENTATION / AMBIENT OCCLUSION"):
+            world.isParking()?std::string("STAGE 3 / PARKING / SECTOR ")+char('A'+parkingSector(int64_t(std::floor(player.x/CELL)),int64_t(std::floor(player.z/CELL)))):world.isFun()?std::string("LEVEL FUN / PARTY ROOMS"):std::string("LEVEL 0 / ")+roomName(currentRoom.kind), 1.15f * scale, dim);
         const std::string seedText = "SEED " + std::to_string(world.seed());
         ui.text(float(width) - UI::textWidth(seedText, 1.25f * scale) - 26,
                 28, seedText, 1.25f * scale, paper);
 
-        if (!input.paused) {
+        if (!input.paused && !inspectionCamera.active && !presentationActive) {
             ui.rect(width * .5f - 1, height * .5f - 1, 2, 2, {.95f, .94f, .81f, .65f});
             ui.text(28, float(height) - 55,
                     "FLASHLIGHT " + std::string(flashlight && !player.hiding ? "ON" : "OFF") +
@@ -97,12 +100,12 @@ void Game::drawHud() {
             }
         }
     }
-    if(observationTime>0 && !input.paused && encounter.alive() && !cameraView)
+    if(observationTime>0 && !input.paused && encounter.alive() && !cameraView && !inspectionCamera.active && !presentationActive)
         drawObservation(ui,width,height,observationKind);
-    if (showMap && !input.paused) {
+    if (showMap && !input.paused && !inspectionCamera.active && !presentationActive) {
         minimap(ui, world, player.x, player.z, forward, width, clues);
     }
-    if(settings.showFPS && !input.paused) {
+    if((settings.showFPS || presentationActive) && !input.paused) {
         const std::string rate="FPS "+std::to_string(int(fps));
         const float w=UI::textWidth(rate,1.4f);
         ui.rect(float(width)-w-38,66,w+20,25,{.02f,.025f,.02f,.82f});
@@ -129,8 +132,8 @@ void Game::drawHud() {
         ui.text(38, 95, text.str(), 1.4f, paper);
     }
     if (noticeTime > 0) {
-        noticeTime -= dt;
-        const bool besideMap=world.isParking() && showMap && !input.paused;
+        if (!inspectionCamera.active && !presentationActive) noticeTime -= dt;
+        const bool besideMap=world.isParking() && showMap && !input.paused && !inspectionCamera.active && !presentationActive;
         const float noticeArea=besideMap?float(width)-306:float(width)-48;
         const float noticeScale=std::min(1.5f,noticeArea/std::max(1.f,UI::textWidth(notice,1)));
         const float textWidth = UI::textWidth(notice, noticeScale);
@@ -147,6 +150,12 @@ void Game::drawHud() {
         ui.rect(left,top,boxW,2,gold);
         ui.text(left+32,top+27,flow.is(Screen::Settings) ? "CAMERA / SOUND / DISPLAY" : world.isParking()?"STAGE 3 / UNDERGROUND PARKING":world.isFun()?"LEVEL FUN / PARTY ROOMS":"LEVEL 0 / ENDLESS EXPLORATION",1.4f,gold);
         ui.text(left+32,top+57,flow.is(Screen::Settings) ? "SETTINGS" : encounter.gameOver() ? "GAME OVER" : flow.escaped ? "PARKING COMPLETE" : flow.entered ? "PAUSED" : "BACKROOMS",3.6f,paper);
+        if (flow.is(Screen::Menu)) {
+            ui.rect(left+boxW-245,top+57,213,32,{.16f,.18f,.10f,1});
+            ui.rect(left+boxW-245,top+57,2,32,gold);
+            ui.text(left+boxW-232,top+68,"P / PRESENTATION",1.45f,paper);
+            ui.text(left+boxW-232,top+94,"FRESH DEMO SCENE",1.05f,dim);
+        }
         if (flow.is(Screen::Settings)) {
             ui.text(left+boxW-245,top+69,"LIVE FPS "+std::to_string(int(fps)),1.6f,gold);
             const std::array<std::string,14> labels={"MOUSE SENSITIVITY","MASTER VOLUME","BRIGHTNESS","FIELD OF VIEW","HEAD BOB","CAMERA SOFTNESS","VSYNC","MUSIC","MUSIC VOLUME","CONTACT SHADING","FPS COUNTER","FPS LIMIT","RESET DEFAULTS","BACK"};
@@ -165,7 +174,9 @@ void Game::drawHud() {
             }
             ui.text(left+32,top+boxH-68,music.available() ? "MUSIC: LOADED" : "MUSIC: NO TRACK LOADED",1.1f,dim);
             ui.text(left+32,top+boxH-47,"UP/DOWN SELECT   LEFT/RIGHT ADJUST   ESC BACK",1.3f,dim);
-            ui.text(left+32,top+boxH-25,"CLICK A ROW OR ITS - / + CONTROLS. SETTINGS SAVE AUTOMATICALLY.",1.1f,dim);
+            ui.text(left+32,top+boxH-25,presentationActive?
+                "NORMAL PLAY GRAPHICS / PRESENTATION USES A FIXED PRESET":
+                "CLICK A ROW OR ITS - / + CONTROLS. SETTINGS SAVE AUTOMATICALLY.",1.1f,dim);
         } else {
             ui.text(left+32,top+107,encounter.gameOver() ? (world.isParking()?"THE DARKNESS FOUND YOU. AIM YOUR FLASHLIGHT AT THE EYES.":world.isFun()?"CAUGHT AT THE PARTY. RESTART FROM THE LEVEL FUN CHECKPOINT.":"IT FOUND YOU. BREAK SIGHT. CROUCH TO STAY QUIET.") : flow.escaped ? "PARKING COMPLETE. THE SERVICE EXIT IS POWERED. YOU MADE IT." : world.isParking()?"LIGHT REPELS THE EYES. RESTORE A, B AND C TO ESCAPE.":world.isFun()?"SEARCH PRESENTS FOR THE KEY. KEEP PARTYGOERS IN SIGHT.":"FOLLOW THE HUM. LISTEN FOR FOOTSTEPS THAT ARE NOT YOURS.",1.35f,dim);
             const std::array<std::string,6> labels={encounter.gameOver()?(world.level()!=Level::Zero?"RESTART CHECKPOINT":"RESTART RUN"):flow.escaped?"CONTINUE EXPLORING":flow.entered?"RESUME":"ENTER THE BACKROOMS","SETTINGS","CHOOSE A LEVEL","NEW SEEDED BUILDING",encounter.gameOver()?"MAIN MENU":"RETURN TO FIRST ROOM","QUIT"};
@@ -180,6 +191,28 @@ void Game::drawHud() {
     }
     if(flow.is(Screen::Controls)) drawControlsGuide(ui,width,height,guidePage,world.isFun(),world.isParking());
     if(flow.is(Screen::LevelSelect))drawLevelMenu(ui,width,height,levelMenuSelection,int(world.level()));
+    // Keep the comparison controls readable even with the minimal camera HUD.
+    // Inspection shows camera controls instead of the frozen player's prompts.
+    if(encounter.alive() && (flow.gameplay() || (flow.is(Screen::Menu) && flow.entered))) {
+        const bool flying=inspectionCamera.active;
+        const bool flyingNow=flying && !input.paused;
+        const bool presentingNow=presentationActive && !flying && !input.paused;
+        const float controlScale=std::min(scale,1.25f);
+        const float stripTop=float(height)-(flyingNow?65.f:presentingNow?48.f:30.f);
+        ui.rect(18,stripTop,float(width)-36,float(height)-stripTop-8,{.015f,.020f,.015f,.85f});
+        const std::string status=std::string("G / AO: ")+(activeAOAmount()>0?"ON":"OFF")+
+            "    F4 / CAMERA: "+(flying?"FREE FLY":"PLAYER")+
+            (flying?"    GAMEPLAY FROZEN":presentationActive?"    PRESENTATION / FROZEN":"");
+        ui.text(28,stripTop+9,status,1.15f*controlScale,paper);
+        if(flyingNow) {
+            ui.text(28,stripTop+27,"WASD MOVE   MOUSE LOOK   SPACE UP   CTRL DOWN   SHIFT FASTER",1.1f*controlScale,gold);
+            ui.text(28,stripTop+43,presentationActive?"F4 RETURN TO PRESENTATION   ENTER PLAY   ESC PAUSE CAMERA":
+                "F4 RETURN TO PLAYER   ESC PAUSE CAMERA",1.05f*controlScale,dim);
+        } else if(presentingNow) {
+            ui.text(28,stripTop+27,"G COMPARE AO   F4 EXPLORE   ENTER PLAY   ESC MENU",1.1f*controlScale,gold);
+        }
+    }
+    drawTeamCredits(ui,width);
     ui.render(width, height);
 }
 

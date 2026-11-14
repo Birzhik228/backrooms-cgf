@@ -6,6 +6,7 @@ namespace fs = std::filesystem;
 
 void Game::initialize() {
     if (!options.hidden || !options.settingsFile.empty()) settings.load(settingsPath);
+    if (settings.ambientOcclusion > 0) lastAOAmount = settings.ambientOcclusion;
     glfwSwapInterval(options.hidden ? 0 : int(settings.vsync));
     glEnable(GL_DEPTH_TEST);
     glDisable(GL_FRAMEBUFFER_SRGB);
@@ -98,6 +99,7 @@ void Game::initialize() {
     runStart = lastTime = glfwGetTime();
     performance.mark("session-start",int(world.level()),world.chunks().size(),world.preparedChunks().size(),gpu.size());
     if(options.endingPreview)startEnding("preview",options.endingTime);
+    if(options.presentation)startPresentation();
 
     if (!options.profile.empty()) {
         profile.open(options.profile);
@@ -108,8 +110,8 @@ void Game::initialize() {
 
 int run(const Options& options) {
     glfwSetErrorCallback(glfwError);
-    WindowContext context(options.width,options.height,
-        "BACKROOMS / Threshold - CGF Prototype v0.12",options.hidden);
+    const std::string title = "BACKROOMS / Threshold - " + teamCreditLine();
+    WindowContext context(options.width,options.height,title.c_str(),options.hidden);
     glfwSetWindowSizeLimits(context.window(),MIN_WINDOW_WIDTH,MIN_WINDOW_HEIGHT,
                            GLFW_DONT_CARE,GLFW_DONT_CARE);
     log(std::string("OpenGL: ")+reinterpret_cast<const char*>(glGetString(GL_VERSION)));

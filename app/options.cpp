@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <iostream>
+#include <iterator>
 #include <stdexcept>
 
 namespace br::app {
@@ -31,7 +32,13 @@ Options parseOptions(int argc, char** argv) {
             return argv[++i];
         };
 
-        if (argument == "--performance-report") {
+        if (argument == "--presentation") {
+            options.presentation=true;
+        } else if (argument == "--presentation-check") {
+            options.presentationCheck=next();
+        } else if (argument == "--demo-controls-check") {
+            options.demoControlsCheck=next();
+        } else if (argument == "--performance-report") {
             options.performanceReport=next();
         } else if(argument=="--balance-file") {
             options.balanceFile=next();
@@ -194,12 +201,15 @@ Options parseOptions(int argc, char** argv) {
         } else if (argument == "--help") {
             std::cout << "Backrooms: --seed N --frames N --capture image.bmp --hidden "
                          "--demo --tour --x X --z Z --yaw DEGREES --width N --height N\n"
+                         "--presentation opens the fixed graphics demonstration immediately; Enter begins play.\n"
                          "--level-fun starts the party checkpoint; --parking starts the third stage.\n"
                          "Escape opens the pause menu with level selection; hold Ctrl to crouch.\n"
                          "--observation-preview 0|1 / --auto-read-observation inspect optional Level 0 notes.\n"
                          "--presence-preview uses the specified player/creature pose to verify a real-door hint.\n"
                          "--level-menu-check [--level-menu-select 1..3] [--level-menu-click] verifies the selector.\n"
                          "--level-menu-close / --control-hold-check verify closing and crouch input.\n"
+                         "--demo-controls-check MODE verifies AO/free-fly controls (see tools/verify-demo-controls.ps1).\n"
+                         "--presentation-check MODE verifies the presentation lifecycle (see tools/verify-presentation.ps1).\n"
                          "--darkness-preview / --auto-breakers verify garage threats and power.\n"
                          "Verification: --exit-preview --key-preview --no-flashlight --map --metrics --wireframe --auto-walk\n"
                          "--auto-exit simulates E once; --auto-continue simulates Enter afterward.\n"
@@ -237,6 +247,25 @@ Options parseOptions(int argc, char** argv) {
         }
     }
 
+    if(options.presentation && options.endingPreview)
+        throw std::runtime_error("Choose either --presentation or --ending-preview.");
+    if(!options.presentationCheck.empty()) {
+        const std::string modes[]={"direct","menu-key","menu-click","ao-on","ao-off","ao-toggle",
+            "camera","pause","play","reset","level","ending"};
+        if(std::find(std::begin(modes),std::end(modes),options.presentationCheck)==std::end(modes))
+            throw std::runtime_error("Unknown presentation verification mode: "+options.presentationCheck);
+        if(!options.demoControlsCheck.empty())
+            throw std::runtime_error("Run only one verification scenario at a time.");
+        if(!options.frames)options.frames=12;
+    }
+    if(!options.demoControlsCheck.empty()) {
+        const std::string modes[]={"ao-on","ao-off","ao-restore","ao-zero","camera-move",
+            "camera-return","camera-pause","camera-reset","camera-level","camera-ending","camera-menu","camera-capture"};
+        if(std::find(std::begin(modes),std::end(modes),options.demoControlsCheck)==std::end(modes))
+            throw std::runtime_error("Unknown demo-controls verification mode: "+options.demoControlsCheck);
+        if(!options.frames)options.frames=options.demoControlsCheck=="camera-return"?440:
+            options.demoControlsCheck=="camera-move"?362:24;
+    }
     if(!std::isfinite(options.slowFrameMs)||options.slowFrameMs<1||options.slowFrameMs>10000 ||
        !std::isfinite(options.runSeconds)||options.runSeconds<0||options.runSeconds>86400 ||
        options.stressCycles<0||options.stressCycles>1000||options.stressInterval<40||options.stressInterval>36000)

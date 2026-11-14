@@ -19,6 +19,8 @@ void Game::restoreEndingAmbience(const char* reason) {
 }
 
 void Game::startEnding(const char* reason,float at) {
+    endPresentation();
+    leaveInspectionCamera();
     ending.start(at);endingPaused=false;endingFinishedLogged=false;
     endingPhase.clear();endingCueTime=at>0?at:-1;
     endingAmbienceRestore=at>0?"seek":nullptr;
@@ -111,7 +113,9 @@ bool Game::renderEnding() {
             music.update(true,true,0,dt);
             if(width<=0||height<=0){glfwWaitEventsTimeout(.03);return true;}
             endingRenderer.draw(ending,width,height,settings.brightness);
-            drawEndingUI(ui,width,height,ending,suspended,endingSelection);ui.render(width,height);
+            drawEndingUI(ui,width,height,ending,suspended,endingSelection);
+            drawTeamCredits(ui,width);
+            ui.render(width,height);
             const bool lastFrame=options.frames>0&&frame+1>=options.frames;
             if(lastFrame&&!options.capture.empty())screenshot(options.capture,width,height);
             if(input.hit(GLFW_KEY_F12))screenshot(fs::path("captures")/"ending.bmp",width,height);

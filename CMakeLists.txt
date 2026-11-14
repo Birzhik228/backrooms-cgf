@@ -72,7 +72,9 @@ target_link_libraries(Backrooms PRIVATE backrooms_world backrooms_threat backroo
   backrooms_audio backrooms_music backrooms_app_support)
 if(WIN32)
   target_link_libraries(Backrooms PRIVATE psapi)
-  set_target_properties(Backrooms PROPERTIES WIN32_EXECUTABLE TRUE)
+  # A console-subsystem executable inherits a launching terminal, or opens a
+  # console when double-clicked, so startup/GL diagnostics are always readable.
+  set_target_properties(Backrooms PROPERTIES WIN32_EXECUTABLE FALSE)
 endif()
 
 # This target also runs for an incremental build: edited shaders/config/assets

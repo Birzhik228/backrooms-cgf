@@ -14,6 +14,7 @@ struct Options {
     int fpsLimit = -1; // -1: settings; hidden benchmarks remain uncapped.
     int frames = 0, width = 1280, height = 800;
     bool hidden = false, demo = false, tour = false;
+    bool presentation = false;
     bool endingPreview=false,endingCheck=false;
     float endingTime=0;
     bool explicitSeed=false,explicitPitch=false,exitPreview=false,keyPreview=false;
@@ -39,6 +40,8 @@ struct Options {
     float threatYaw=-90;
     float threatPreviewTime=0, threatPreviewSpeed=0, threatPreviewHeadYaw=0, threatPreviewHeadPitch=0;
     std::string settingsFile, musicFile;
+    std::string demoControlsCheck;
+    std::string presentationCheck;
     int doorCloseFrame=110;
     double spawnX = CELL*.5, spawnZ = CELL*.5;
     float yaw = -90, pitch = -3;

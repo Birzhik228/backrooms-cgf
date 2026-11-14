@@ -5,6 +5,28 @@ objects, frame-time p95 and the slow-frame count alongside the existing world
 and rendering counters. These are diagnostic values, not an FPS improvement
 claim or a hardware requirement.
 
+## AO comparison at 1280 by 720
+
+```powershell
+.\tools\benchmark-ao.ps1
+```
+
+The script uses the current `Backrooms.exe` and runs three sequential trials per
+AO setting, reversing the pair order on alternate repetitions. Each trial
+discards five seconds of rendered warmup frames and measures the next 30 seconds.
+The fixed Level 0 presentation view runs hidden, uncapped and without VSync;
+the normal bounded GPU queue stays enabled. AO ON uses intensity 0.85; AO OFF
+uses the actual G-key toggle and verifies that the AO pass is skipped.
+
+Results include average FPS, nearest-rank p95/p99 frame times, run variation,
+hardware, executable hash, arguments, logs and original frame CSV files. They
+are saved in a new timestamped `tests/artifacts/ao-performance/` directory.
+Ordinary player settings are checked for changes. These measurements describe
+the frozen presentation scene, not every gameplay situation or another PC.
+
+See [the 14 November 2026 measured results](ao-performance-2026-11-14.md)
+and [the recorded comparison data](ao-performance-2026-11-14.json).
+
 ## Capture a report
 
 ```powershell

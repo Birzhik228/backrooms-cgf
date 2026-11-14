@@ -10,6 +10,8 @@ void Game::setScreen(Screen screen) {
 }
 
 void Game::resetPlayer() {
+    endPresentation();
+    leaveInspectionCamera();
     // A return to the entrance resets actors and transient audio, while keeping
     // the current world's collected items, opened doors and powered circuits.
     player.x = player.z = CELL*.5;
@@ -45,6 +47,7 @@ void Game::resetPlayer() {
 }
 
 void Game::replaceWorld(uint64_t seed, Level level) {
+    leaveInspectionCamera();
     // Build the new CPU world first, then discard render data belonging to the
     // old one. Reset the player/actors/audio once, after invalidating shadows;
     // resetPlayer() prepares the entrance chunks in the replacement world.

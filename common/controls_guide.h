@@ -125,7 +125,9 @@ inline void drawControlsGuide(UI& ui,int width,int height,int page,bool fun=fals
         text(446,384,"MICE SQUEAK WHEN TOUCHED.",1.45f,gold);
         text(446,408,"The creature comes to investigate.",1.22f,muted);
     }
-    rect(32,468,836,1,edge);
+    text(32,450,"GRAPHICS: P IN MENU FOR PRESENTATION   G AO ON/OFF   F4 FREE-FLY CAMERA",1.08f,gold);
+    text(32,463,"FREE FLY: WASD + MOUSE   SPACE UP   CTRL DOWN   SHIFT FASTER   F4 RETURN",1.03f,muted);
+    rect(32,476,836,1,edge);
     if(page>0) {rect(32,486,126,40,edge);text(61,501,"BACK",1.6f,paper);}
     text(185,502,"ESC TO SKIP",1.15f,muted);
     rect(652,484,216,44,gold);text(675,499,page==2?"BEGIN EXPLORING":"NEXT",1.5f,ink);

@@ -34,6 +34,8 @@
 #include "../common/textures.h"
 #include "../common/ui.h"
 #include "../common/controls_guide.h"
+#include "../common/team_info.h"
+#include "../common/presentation.h"
 #include "../common/level_menu.h"
 #include "../common/ending_renderer.h"
 #include "../common/ending_ui.h"
@@ -65,6 +67,8 @@
 #include "flow.h"
 #include "performance.h"
 #include "game_state.h"
+#include "demo_controls_probe.h"
+#include "presentation_probe.h"
 
 namespace br::app {
 // Internal application coordinator. Public entry point is game.h.
@@ -81,12 +85,21 @@ private:
     void replaceWorld(uint64_t seed, Level level);
     void freshRun(uint64_t seed);
     void enterLevel(Level next,bool selected=false);
+    void startPresentation();
+    void endPresentation();
     void restoreEndingAmbience(const char* reason);
     void startEnding(const char* reason,float at=0);
     void simulateKey(int key);
     void applyScenarioInput();
+    void applyDemoControlsScenario();
+    void applyPresentationScenario();
     void handleMenus();
     void saveSettings();
+    void toggleAmbientOcclusion();
+    float activeAOAmount() const;
+    void toggleInspectionCamera();
+    void leaveInspectionCamera();
+    void updateInspectionCamera();
     bool updateGameplay();
     void updateAudio();
     bool renderWorld();
@@ -124,6 +137,8 @@ private:
     bool scenarioCrouchHeld() const;
     bool scenarioSprintHeld() const;
     float forwardMovementInput() const;
+    Vec3 inspectionMovementInput() const;
+    bool inspectionMoveFast() const;
     void applyInteractionScenario();
     void applyVerityScenario();
     bool doorInteractionRequested() const;
@@ -155,6 +170,10 @@ private:
 
     // Persistent session, renderer and player state.
     Settings settings;
+    float lastAOAmount = .65f, actualAOAmount = 0;
+    unsigned aoPasses = 0;
+    bool presentationActive = false;
+    float presentationAO = PRESENTATION_AO;
     int mouseSqueaks=0;
     float presentMouseTime=0;
     const std::string settingsPath = options.settingsFile.empty() ? "settings.cfg" : options.settingsFile;
@@ -171,6 +190,10 @@ private:
     gl::VertexArray emptyVao;
     World world{options.seed,options.parkingPreview?Level::Parking:options.funPreview?Level::Fun:Level::Zero};
     PlayerState player{options.spawnX, options.spawnZ};
+    InspectionCamera inspectionCamera;
+    std::optional<World> inspectionWorldSnapshot;
+    DemoControlsProbe demoControlsProbe{};
+    PresentationProbe presentationProbe{};
     Threat threat{world.seed()};
     Mouse mouse;
     JumpscareManager encounter{loadJumpscareConfig(options.jumpscareConfigFile)};

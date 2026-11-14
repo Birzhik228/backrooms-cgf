@@ -1,4 +1,5 @@
 #include "game_internal.h"
+#include "common/presentation.h"
 
 namespace br::app {
 namespace fs = std::filesystem;
@@ -9,6 +10,8 @@ void Game::simulateKey(int key) {
 
 void Game::applyScenarioInput() {
     scriptedMenuClick.reset();
+    applyPresentationScenario();
+    applyDemoControlsScenario();
     // Bounded, opt-in integration fixture: exercise the real level lifecycle.
     if(options.stressCycles && frame>0 && frame%options.stressInterval==0 &&
        stressTransitions<options.stressCycles*3 && lastStressTransitionFrame!=frame) {
@@ -220,7 +223,7 @@ void Game::applyDarknessScenario() {
 }
 
 bool Game::usesFixedTimeStep() const {
-    return options.stressCycles ||
+    return !options.demoControlsCheck.empty() || !options.presentationCheck.empty() || options.stressCycles ||
            (options.endingPreview && options.hidden) ||
            options.levelMenuCheck ||
            options.controlHoldCheck ||
@@ -241,6 +244,228 @@ bool Game::usesFixedTimeStep() const {
            options.mouseFixture ||
            options.guideCheck ||
            options.forcedThreat;
+}
+
+Vec3 Game::inspectionMovementInput() const {
+    if(options.presentationCheck=="camera" && frame>=3 && frame<6)return {0,1,1};
+    const auto& mode=options.demoControlsCheck;
+    if(!mode.empty()) {
+        const int stop=mode=="camera-return"?438:360;
+        if(mode.rfind("camera-",0)!=0 || frame<3 || frame>=stop)return {};
+        // Move vertically first, then along the same look-based path as WASD.
+        if(frame<5)return {0,1,0};
+        return {0,0,1};
+    }
+    return {float(input.down(GLFW_KEY_D))-float(input.down(GLFW_KEY_A)),
+            float(input.down(GLFW_KEY_SPACE))-float(input.down(GLFW_KEY_LEFT_CONTROL)||input.down(GLFW_KEY_RIGHT_CONTROL)),
+            float(input.down(GLFW_KEY_W))-float(input.down(GLFW_KEY_S))};
+}
+
+bool Game::inspectionMoveFast() const {
+    return !options.demoControlsCheck.empty() || input.down(GLFW_KEY_LEFT_SHIFT) || input.down(GLFW_KEY_RIGHT_SHIFT);
+}
+
+void Game::applyPresentationScenario() {
+    const auto& mode=options.presentationCheck;
+    if(mode.empty())return;
+    auto& probe=presentationProbe;
+    auto check=[&](bool passed,const char* message) {
+        if(!passed)throw std::runtime_error("Presentation check ("+mode+"): "+message);
+    };
+    auto equal=[](double a,double b){return std::abs(a-b)<.00001;};
+    auto verified=[&]() {
+        if(!probe.verified){probe.verified=true;log("Presentation verified: "+mode);}
+    };
+    // The dedicated settings fixture intentionally differs from every preset.
+    check(equal(settings.ambientOcclusion,0)&&equal(settings.brightness,.7f)&&
+        equal(settings.blur,1.2f)&&equal(settings.fov,92)&&equal(settings.headBob,.8f),
+        "presentation must not overwrite ordinary player settings");
+    const bool menuStart=mode=="menu-key"||mode=="menu-click";
+    const int menuFrame=options.demo?3:2;
+    if(menuStart && frame==menuFrame) {
+        check(flow.is(Screen::Menu)&&!presentationActive,"fixture must start in the ordinary menu");
+        if(mode=="menu-key")simulateKey(GLFW_KEY_P);
+        else {
+            int w,h;glfwGetFramebufferSize(window,&w,&h);
+            const float boxW=std::min(700.f,float(w)-40);
+            scriptedMenuClick=std::array<double,2>{(w-boxW)*.5+boxW-140,(h-550)*.5+73};
+            Input::button(window,GLFW_MOUSE_BUTTON_LEFT,GLFW_PRESS,0);
+        }
+    }
+    const int first=menuStart?menuFrame+1:1;
+    if(frame==first) {
+        check(presentationActive&&flow.gameplay()&&!input.paused&&!flow.guidePending,
+            "presentation must show the scene immediately without a menu or automatic guide");
+        check(world.level()==Level::Zero&&world.seed()==PRESENTATION_SEED&&
+            equal(player.x,CELL*.5)&&equal(player.z,CELL*.5),"presentation must use the reproducible scene");
+        check(equal(input.yaw,PRESENTATION_YAW)&&equal(input.pitch,PRESENTATION_PITCH)&&
+            equal(renderFov,PRESENTATION_FOV),"presentation must use the reproducible view");
+        check(equal(actualAOAmount,PRESENTATION_AO)&&aoPasses>0,
+            "the first presentation frame must actually render AO even when saved AO is zero");
+        probe.captured=true;
+        probe.playerX=player.x;probe.playerZ=player.z;probe.elapsed=elapsed;
+        probe.threatX=threat.x();probe.threatZ=threat.z();probe.stamina=player.stamina.value;
+        probe.bob=player.bobOffset;probe.animation=threatAnimation;
+        if(mode=="direct"||mode=="ao-on"||menuStart)verified();
+    }
+    if(probe.captured&&presentationActive) {
+        check(equal(player.x,probe.playerX)&&equal(player.z,probe.playerZ)&&equal(player.stamina.value,probe.stamina),
+            "presentation must freeze player movement and stamina");
+        check(equal(threat.x(),probe.threatX)&&equal(threat.z(),probe.threatZ)&&equal(threatAnimation,probe.animation),
+            "presentation must freeze actor motion");
+        check(equal(elapsed,probe.elapsed)&&equal(player.bobOffset,probe.bob),
+            "presentation must freeze shader animation and head bob for comparison");
+    }
+    if((mode=="ao-off"||mode=="ao-toggle")&&frame==3) {
+        probe.aoPasses=aoPasses;simulateKey(GLFW_KEY_G);
+    }
+    if((mode=="ao-off"||mode=="ao-toggle")&&frame==4) {
+        check(actualAOAmount==0&&aoPasses==probe.aoPasses,"G must disable the actual presentation AO pass");
+        if(mode=="ao-off")verified();
+    }
+    if(mode=="ao-toggle"&&frame==5)simulateKey(GLFW_KEY_G);
+    if(mode=="ao-toggle"&&frame==6) {
+        check(equal(actualAOAmount,PRESENTATION_AO)&&aoPasses>probe.aoPasses,"G must restore the presentation AO intensity");verified();
+    }
+    if(mode=="camera") {
+        if(frame==2||frame==6)simulateKey(GLFW_KEY_F4);
+        if(frame==3){check(inspectionCamera.active&&presentationActive,"F4 must enter inspection within presentation");input.setLook(0,0);}
+        if(frame==6)check(inspectionCamera.y>player.eyeHeight,"inspection must move independently during presentation");
+        if(frame==7) {
+            check(!inspectionCamera.active&&presentationActive&&equal(input.yaw,PRESENTATION_YAW)&&equal(input.pitch,PRESENTATION_PITCH),
+                "F4 return must restore the fixed shot without starting gameplay");verified();
+        }
+    }
+    if(mode=="pause") {
+        if(frame==2||frame==5||frame==6)simulateKey(GLFW_KEY_ESCAPE);
+        if(frame==3)simulateKey(GLFW_KEY_O);
+        if(frame==4)check(flow.is(Screen::Settings)&&input.paused&&presentationActive,"settings must pause but retain presentation");
+        if(frame==7){check(flow.gameplay()&&!input.paused&&presentationActive,"resume must return to the presentation");verified();}
+    }
+    if(mode=="play"&&frame==2)simulateKey(GLFW_KEY_ENTER);
+    if(mode=="play"&&frame==3) {
+        check(!presentationActive&&!inspectionCamera.active&&flow.gameplay()&&elapsed>probe.elapsed,
+            "Enter must begin normal gameplay and resume simulation");
+        check(actualAOAmount==0&&equal(renderFov,settings.fov),"normal rendering must use the retained player settings");verified();
+    }
+    if(mode=="reset"&&frame==2)simulateKey(GLFW_KEY_R);
+    if(mode=="reset"&&frame==3){check(!presentationActive&&!inspectionCamera.active,"reset must end presentation");verified();}
+    if(mode=="level") {
+        if(frame==2)simulateKey(GLFW_KEY_ESCAPE);
+        if(frame==3||frame==4||frame==6)simulateKey(GLFW_KEY_DOWN);
+        if(frame==5||frame==7)simulateKey(GLFW_KEY_ENTER);
+        if(frame==8){check(!presentationActive&&world.isFun()&&flow.gameplay(),"level selection must end presentation");verified();}
+    }
+    if(mode=="ending"&&frame==2)simulateKey(GLFW_KEY_F9);
+    if(mode=="ending"&&frame==3){check(!presentationActive&&!inspectionCamera.active&&flow.cinematic(),"ending preview must end presentation");verified();}
+}
+
+void Game::applyDemoControlsScenario() {
+    const auto& mode=options.demoControlsCheck;
+    if(mode.empty())return;
+    auto& probe=demoControlsProbe;
+    auto check=[&](bool passed,const char* message) {
+        if(!passed)throw std::runtime_error("Demo controls check ("+mode+"): "+message);
+    };
+    auto equal=[](double a,double b){return std::abs(a-b)<.00001;};
+    auto verified=[&]() {
+        if(!probe.verified){probe.verified=true;log("Demo controls verified: "+mode);}
+    };
+    if(mode.rfind("ao-",0)==0) {
+        if(frame==2) {
+            probe.aoAmount=settings.ambientOcclusion;probe.aoPasses=aoPasses;
+            if(mode!="ao-on")simulateKey(GLFW_KEY_G);
+        }
+        if(frame==3) {
+            if(mode=="ao-zero") {
+                check(probe.aoAmount==0,"fixture must begin with zero AO intensity");
+                check(equal(actualAOAmount,.65f)&&aoPasses>probe.aoPasses,"G from zero must enable the AO pass at default intensity");
+                verified();
+            } else if(mode=="ao-on") {
+                check(equal(actualAOAmount,probe.aoAmount)&&actualAOAmount>0,"baseline AO must reach the renderer");
+                verified();
+            } else {
+                check(actualAOAmount==0&&aoPasses==probe.aoPasses,"G must skip the AO pass and remove its composite contribution");
+                if(mode=="ao-off")verified();
+            }
+        }
+        if(mode=="ao-restore"&&frame==4)simulateKey(GLFW_KEY_G);
+        if(mode=="ao-restore"&&frame==5) {
+            check(equal(actualAOAmount,probe.aoAmount)&&aoPasses>probe.aoPasses,"second G must restore the previous positive intensity and render AO");
+            verified();
+        }
+        return;
+    }
+    if(mode=="camera-menu"||mode=="camera-capture") {
+        if(frame==5)simulateKey(GLFW_KEY_F4);
+        if(frame==6){check(!inspectionCamera.active,"F4 must be ignored outside live gameplay");verified();}
+        return;
+    }
+    if(mode=="camera-return"&&frame==1)
+        check(world.shiftBehind(player.x,player.z,1,0),"roundtrip fixture must include a shifted original chunk");
+    if(frame==2)simulateKey(GLFW_KEY_F4);
+    if(frame==3) {
+        check(inspectionCamera.active,"F4 must detach the inspection camera");
+        probe.captured=true;
+        probe.playerX=player.x;probe.playerZ=player.z;probe.stamina=player.stamina.value;
+        probe.yaw=inspectionCamera.playerYaw;probe.pitch=inspectionCamera.playerPitch;
+        probe.threatX=threat.x();probe.threatZ=threat.z();probe.animation=threatAnimation;
+        probe.elapsed=elapsed;probe.bob=player.bobOffset;probe.partyTravel=partygoers.travelled;
+        probe.key=world.keyCollected();probe.circuits=world.breakersPowered();probe.presents=world.presentsOpened();probe.doors=doorsUsed;
+        probe.cameraX=inspectionCamera.x;probe.cameraY=inspectionCamera.y;probe.cameraZ=inspectionCamera.z;
+        for(const auto& entry:world.chunks())probe.chunkRevisions.emplace(entry.first,entry.second.revision);
+    }
+    if(probe.captured&&inspectionCamera.active) {
+        check(equal(player.x,probe.playerX)&&equal(player.z,probe.playerZ)&&equal(player.stamina.value,probe.stamina),"inspection must preserve player position and stamina");
+        check(equal(threat.x(),probe.threatX)&&equal(threat.z(),probe.threatZ)&&equal(threatAnimation,probe.animation)&&equal(partygoers.travelled,probe.partyTravel),"inspection must freeze actor movement and animation");
+        check(world.keyCollected()==probe.key&&world.breakersPowered()==probe.circuits&&world.presentsOpened()==probe.presents&&doorsUsed==probe.doors,"inspection must preserve progression");
+        check(equal(elapsed,probe.elapsed)&&equal(player.bobOffset,probe.bob),"inspection must freeze shader time and player head bob");
+        check(world.chunks().size()<=25&&world.preparedChunks().size()<=24,"inspection streaming must remain bounded");
+    }
+    if(frame==5)input.setLook(0,0); // Different from saved player look; return must restore it.
+    if(mode=="camera-move"&&frame==360) {
+        check(inspectionCamera.y>probe.cameraY+.5f,"Space input must move the camera vertically");
+        check(std::hypot(inspectionCamera.x-probe.playerX,inspectionCamera.z-probe.playerZ)>CHUNK_SIZE,"WASD must cross a streamed chunk boundary");
+        check(!(origin==chunkAt(player.x,player.z))&&origin==chunkAt(inspectionCamera.x,inspectionCamera.z),"render origin must follow the inspection camera");
+        verified();
+    }
+    if(mode=="camera-pause") {
+        if(frame==8||frame==12)simulateKey(GLFW_KEY_ESCAPE);
+        if(frame==9) {
+            check(input.paused,"Escape must pause inspection");
+            probe.cameraX=inspectionCamera.x;probe.cameraY=inspectionCamera.y;probe.cameraZ=inspectionCamera.z;
+        }
+        if(frame>=10&&frame<=12)check(equal(inspectionCamera.x,probe.cameraX)&&equal(inspectionCamera.y,probe.cameraY)&&equal(inspectionCamera.z,probe.cameraZ),"paused inspection must ignore held movement");
+        if(frame==14){check(!input.paused&&inspectionCamera.x>probe.cameraX,"resuming must restore inspection movement");verified();}
+    }
+    if(mode=="camera-return"&&frame==438) {
+        check(std::hypot(inspectionCamera.x-probe.playerX,inspectionCamera.z-probe.playerZ)>3*CHUNK_SIZE,"roundtrip must travel beyond the original resident world");
+        simulateKey(GLFW_KEY_F4);
+    }
+    if(mode=="camera-return"&&frame==439) {
+        check(!inspectionCamera.active&&equal(player.x,probe.playerX)&&equal(player.z,probe.playerZ),"F4 return must preserve player position");
+        check(equal(input.yaw,probe.yaw)&&equal(input.pitch,probe.pitch),"F4 return must restore player look");
+        check(world.chunks().count(chunkAt(player.x,player.z))>0,"return must restore player collision chunks");
+        check(world.chunks().size()==probe.chunkRevisions.size(),"return must restore the original resident world");
+        for(const auto& entry:world.chunks()) {
+            const auto previous=probe.chunkRevisions.find(entry.first);
+            check(previous!=probe.chunkRevisions.end()&&previous->second==entry.second.revision,"return must preserve every original chunk revision, including shifted geometry");
+        }
+        verified();
+    }
+    if(mode=="camera-reset"&&frame==10)simulateKey(GLFW_KEY_R);
+    if(mode=="camera-reset"&&frame==11) {
+        check(!inspectionCamera.active&&equal(player.x,CELL*.5)&&equal(player.z,CELL*.5),"reset must leave inspection at the entrance");
+        check(equal(input.yaw,-90)&&equal(input.pitch,-3),"reset must restore the entrance look");verified();
+    }
+    if(mode=="camera-level") {
+        if(frame==10)simulateKey(GLFW_KEY_ESCAPE);
+        if(frame==11||frame==12||frame==14)simulateKey(GLFW_KEY_DOWN);
+        if(frame==13||frame==15)simulateKey(GLFW_KEY_ENTER);
+        if(frame==16){check(!inspectionCamera.active&&world.isFun()&&flow.gameplay(),"level selection must leave inspection and enter the new level");verified();}
+    }
+    if(mode=="camera-ending"&&frame==10)simulateKey(GLFW_KEY_F9);
+    if(mode=="camera-ending"&&frame==11){check(!inspectionCamera.active&&flow.cinematic(),"ending preview must leave inspection");verified();}
 }
 
 } // namespace br::app

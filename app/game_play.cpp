@@ -3,6 +3,17 @@
 namespace br::app {
 
 bool Game::updateGameplay() {
+    if (inspectionCamera.active || presentationActive) {
+        if (inspectionCamera.active) updateInspectionCamera();
+        else {
+            forward = input.forward();
+            moving = sprinting = false;
+            frameDistance = 0;
+        }
+        timing.moveMs = (glfwGetTime() - timing.moveStart) * 1000;
+        updateWorldStreaming(std::nullopt);
+        return true;
+    }
     // Preserve the frame order: doors -> player -> streaming -> interactions -> actors.
     // Shifting uses the same pre-movement threat position as door collision.
     const auto threatPosition=threat.active() ? std::optional<WorldPoint>{{threat.x(),threat.z()}} : std::nullopt;
@@ -72,11 +83,13 @@ void Game::updatePlayerMovement() {
 void Game::updateWorldStreaming(const std::optional<WorldPoint>& threatPosition) {
     const double worldStart = glfwGetTime();
     // Keep CPU and GPU working sets bounded as the player crosses chunks.
-    world.update(player.x, player.z);
-    world.prepareAhead(player.x, player.z); // One CPU mesh per frame, nearest first.
+    const double streamX = inspectionCamera.active ? inspectionCamera.x : player.x;
+    const double streamZ = inspectionCamera.active ? inspectionCamera.z : player.z;
+    world.update(streamX, streamZ);
+    world.prepareAhead(streamX, streamZ); // One CPU mesh per frame, nearest first.
     maxChunks = std::max(maxChunks, world.chunks().size());
     maxPrepared = std::max(maxPrepared, world.preparedChunks().size());
-    if (!input.paused && shifting) {
+    if (!input.paused && !inspectionCamera.active && !presentationActive && shifting) {
         shiftClock += dt;
         if (shiftClock > 14) {
             std::vector<WorldPoint> protectedParty;

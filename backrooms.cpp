@@ -68,7 +68,7 @@ int main(int argc, char** argv) {
         }
         return br::app::run(options);
     } catch (const std::exception& error) {
-        log(std::string("ERROR: ") + error.what());
+        logError(std::string("ERROR: ") + error.what());
 #ifdef _WIN32
         bool hidden = false;
         for (int i = 1; i < argc; ++i) {

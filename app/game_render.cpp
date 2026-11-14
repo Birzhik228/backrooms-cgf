@@ -27,7 +27,8 @@ bool Game::renderWorld() {
     const double setupStart = glfwGetTime();
     if (!beginWorldTarget()) return false;
     // Every pass uses the same double-precision chunk origin.
-    origin = chunkAt(player.x, player.z);
+    origin = inspectionCamera.active ? chunkAt(inspectionCamera.x, inspectionCamera.z) :
+        chunkAt(player.x, player.z);
     RenderFrame render{};
     render.originX = origin.x * CHUNK_SIZE;
     render.originZ = origin.z * CHUNK_SIZE;
@@ -95,7 +96,7 @@ void Game::uploadWorldMeshes() {
 }
 
 void Game::updateThreatMesh() {
-    if(threat.active() && (!input.paused || lastThreatMeshTime<0)) {
+    if(threat.active() && !inspectionCamera.active && !presentationActive && (!input.paused || lastThreatMeshTime<0)) {
         auto stoopFor=[](float clearance) { return clearance<2.8f ? 1.f : clearance<3.f ? .5f : 0.f; };
         // The four-legged silhouette is wider than its navigation body.
         // Probe its swept footprint as well as the ceiling so knees tuck
@@ -163,7 +164,8 @@ void Game::updateLocalMeshes(const RenderFrame& render) {
         lastPartyPose=partyPose;
     }
     residentTriangles+=partyGpu.count/3;
-    if(world.isParking() || darknessGpu.count)uploadVertices(darknessGpu,darkness.vertices(render.originX,render.originZ,player.x,player.z),GL_DYNAMIC_DRAW);
+    if(world.isParking() || darknessGpu.count)uploadVertices(darknessGpu,darkness.vertices(render.originX,render.originZ,
+        inspectionCamera.active?inspectionCamera.x:player.x,inspectionCamera.active?inspectionCamera.z:player.z),GL_DYNAMIC_DRAW);
     residentTriangles+=darknessGpu.count/3;
     if(doorVisualDirty || !(origin==doorOrigin) || doorShift!=world.shifts()) {
         uploadVertices(doorGpu,world.doorVertices(render.originX,render.originZ,presence.doorId(),presence.handleAngle()),GL_DYNAMIC_DRAW);
@@ -173,6 +175,21 @@ void Game::updateLocalMeshes(const RenderFrame& render) {
 }
 
 void Game::updateRenderCamera(RenderFrame& render) {
+    if (inspectionCamera.active || presentationActive) {
+        render.eye = inspectionCamera.active ?
+            Vec3{float(inspectionCamera.x - render.originX), inspectionCamera.y,
+                float(inspectionCamera.z - render.originZ)} :
+            Vec3{float(player.x - render.originX), player.eyeHeight, float(player.z - render.originZ)};
+        render.stableEye = render.eye;
+        cameraForward = input.forward();
+        shakeRoll = 0;
+        scareShake = {};
+        renderFov = presentationActive ? PRESENTATION_FOV : settings.fov;
+        render.view = lookAt(render.eye, cameraForward);
+        render.projection = perspective(renderFov * PI / 180, float(width) / height, .06f, SCENE_VIEW_DISTANCE);
+        render.vp = render.projection * render.view;
+        return;
+    }
     const float stride = player.crouched ? .90f : sprinting ? 1.85f : 1.50f;
     const float phase = float(std::fmod(std::max(0.0, player.walkDistance - .20), stride)) * (2 * PI / stride);
     const float weight = moving ? settings.headBob * (player.crouched ? .010f : sprinting ? .035f : .028f) : 0.f;
@@ -265,7 +282,7 @@ void Game::drawShadowGeometry(const RenderFrame& render, const Mat4& lightVP, bo
 void Game::renderShadows(const RenderFrame& render) {
     shadow.use();glEnable(GL_DEPTH_TEST);glDisable(GL_CULL_FACE);
     glEnable(GL_POLYGON_OFFSET_FILL);glPolygonOffset(1.5f,2.f);
-    if(flashlight&&!player.hiding&&!encounter.presenting()) {
+    if(flashlight&&(!player.hiding||inspectionCamera.active)&&!encounter.presenting()) {
         shadows.begin();drawShadowGeometry(render,render.flashVP,true);
     }
     int animatedShadowBudget=2;
@@ -311,10 +328,10 @@ void Game::configureWorldShader(const RenderFrame& render) {
                               float(std::fmod(std::fmod(render.originZ,180.0)+180.0,180.0))});
     scene.set("uForward", cameraForward);
     scene.set("uFlashPosition",render.flashPosition);scene.set("uFlashVP",render.flashVP);
-    scene.set("uFlashShadows",int(flashlight&&!player.hiding&&!encounter.presenting()));
+    scene.set("uFlashShadows",int(flashlight&&(!player.hiding||inspectionCamera.active)&&!encounter.presenting()));
     scene.set("uTime", float(elapsed));
-    scene.set("uFlashlight", int(flashlight && !player.hiding));
-    scene.set("uExposure", settings.brightness);
+    scene.set("uFlashlight", int(flashlight && (!player.hiding || inspectionCamera.active)));
+    scene.set("uExposure", presentationActive ? PRESENTATION_EXPOSURE : settings.brightness);
     scene.set("uScareDarken",encounter.presenting() && scareConfig.darken ? 1.f : 0.f);
     scene.set("uScareGlow",encounter.presenting() && scareConfig.glow ? 1.f : 0.f);
     scene.set("uClues", int(clues));
@@ -386,7 +403,9 @@ void Game::drawWorldObjects(const RenderFrame& render) {
         scene.set("uModel",translate(0,0,0));glBindVertexArray(mouseGpu.vao);
         glDrawArrays(GL_TRIANGLES,0,mouseGpu.count);drawnTriangles+=mouseGpu.count/3;
     }
-    uploadVertices(verityGpu,world.verityVertices(render.originX,render.originZ,player.x,player.z,float(player.walkDistance)),GL_DYNAMIC_DRAW);
+    uploadVertices(verityGpu,world.verityVertices(render.originX,render.originZ,
+        inspectionCamera.active?inspectionCamera.x:player.x,inspectionCamera.active?inspectionCamera.z:player.z,
+        float(player.walkDistance)),GL_DYNAMIC_DRAW);
     if(verityGpu.count) {
         scene.set("uModel",translate(0,0,0));glBindVertexArray(verityGpu.vao);
         glDrawArrays(GL_TRIANGLES,0,verityGpu.count);drawnTriangles+=verityGpu.count/3;
@@ -480,7 +499,9 @@ void Game::renderLens(const Mat4& projection) {
     // Half-resolution contact AO, followed by depth-aware upsampling.
     glPolygonMode(GL_FRONT_AND_BACK,GL_FILL);
     glDisable(GL_CULL_FACE);glDisable(GL_DEPTH_TEST);
-    if(settings.ambientOcclusion>0&&!encounter.presenting()&&!wireframe) {
+    actualAOAmount = activeAOAmount();
+    if(actualAOAmount>0) {
+        ++aoPasses;
         glBindFramebuffer(GL_FRAMEBUFFER,ambientTarget.fbo);
         glViewport(0,0,ambientTarget.width,ambientTarget.height);
         ao.use();ao.set("uProjection",projection);ao.set("uSize",Vec3{float(width),float(height),0});
@@ -494,8 +515,8 @@ void Game::renderLens(const Mat4& projection) {
     glDisable(GL_DEPTH_TEST);
     lens.use();
     lens.set("uTime", float(elapsed));
-    lens.set("uBlurAmount", settings.blur);
-    lens.set("uAOAmount",encounter.presenting()||wireframe?0.f:settings.ambientOcclusion);
+    lens.set("uBlurAmount", presentationActive ? 0.f : settings.blur);
+    lens.set("uAOAmount",actualAOAmount);
     lens.set("uProjection",projection);
     glActiveTexture(GL_TEXTURE1);glBindTexture(GL_TEXTURE_2D,ambientTarget.texture);
     glActiveTexture(GL_TEXTURE2);glBindTexture(GL_TEXTURE_2D,target.depth);

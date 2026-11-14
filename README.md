@@ -4,6 +4,8 @@ A first-person horror exploration game built with **C++17 and OpenGL 3.3** for t
 
 The game uses a custom renderer and gameplay code, with GLFW for windows/input and GLAD for OpenGL loading. Rooms, lighting, interactions, creature behavior and the final cinematic are handled by the project itself.
 
+Team: **Rukhanov Birzhan, Zhamenov Gani, Rinatuly Miras**. The in-game credits strip displays these names during play and in the menus.
+
 [Play](#play) · [Levels](#levels) · [Controls](#controls) · [Settings](#settings-and-configuration) · [Build](#build-from-source) · [Code](#project-structure) · [Tests](#tests-and-diagnostics)
 
 ## Features
@@ -18,6 +20,8 @@ The game uses a custom renderer and gameplay code, with GLFW for windows/input a
 ## Play
 
 The complete playable version targets **Windows** and requires a graphics driver supporting **OpenGL 3.3**.
+
+The Windows build opens a diagnostics console alongside the game, or uses the terminal that launched it. Startup messages and errors appear there immediately and are also saved to `backrooms.log`. Keep the console open while playing; closing its window also closes the game.
 
 1. Open **Backrooms.exe** in a built copy of the project.
 2. Start exploring from the main menu; the field guide explains movement and the current level's objective.
@@ -86,11 +90,28 @@ All screenshots are captured in-game.
 | M | Mute / unmute sound |
 | R | Return to the entrance; restart after defeat |
 | N, from the paused menu | Start the current level with a new seed |
+| P, from the main/pause menu | Start the fixed presentation scene |
+| Enter, during presentation | Leave the frozen demonstration and begin playing |
 | F1 | Performance diagnostics |
+| G | Toggle ambient occlusion (AO); the HUD shows its current ON/OFF state |
+| F4 | Enter/leave the independent free-fly camera during gameplay |
+| WASD + mouse, Space / Ctrl, Shift in free fly | Move/look, rise / descend, move faster |
 | F9 | Preview the ending; Space skips it |
 | F12 | Save a screenshot in `captures/` |
 
 Menus support mouse selection and arrow keys/Enter. During the ending, controls operate the cinematic; normal movement is suspended.
+
+For a graphics comparison, keep the camera still and press **G** to switch AO off and back to its previous positive **Contact Shading** intensity. If no positive intensity has been selected, enabling AO uses the default intensity. The ON/OFF label reports the effect actually applied; wireframe and capture sequences suppress AO.
+
+Press **F4** while playing to inspect the scene with a separate camera. **WASD + mouse** move and look, **Space/Ctrl** rise and descend, and **Shift** moves faster. The world streams around the camera while gameplay and actors are frozen. **Escape** pauses camera movement and opens the menu; resume before flying again. Press **F4** again to return to the player's saved position and view. Restarting or changing levels also ends free fly. The bottom control strip remains visible in the minimal HUD.
+
+For the course demonstration, click **P / Presentation** in the main or pause menu, or press **P** there. This replaces the current run with a fresh, fixed-seed Level 0 scene. Its starting view opens with the AO comparison controls and FPS visible, and the first-entry guide skipped. Gameplay remains frozen so the same view can be compared with **G**; mouse look and **F4** let you inspect the scene. **Enter** begins normal gameplay from the demo entrance. Presentation has its own clear-view settings and AO intensity; your usual rendering settings resume when it ends. This view uses the game's live renderer.
+
+To open the presentation immediately from a terminal:
+
+```powershell
+.\Backrooms.exe --presentation
+```
 
 ## Settings and configuration
 
@@ -170,6 +191,9 @@ Run these from the project root on Windows:
 ```powershell
 .\build.ps1 -Test                     # Logic, generation, audio and lifecycle tests
 .\build.ps1 -GraphicsTest             # Rendering checks; requires OpenGL 3.3
+.\tools\verify-demo-controls.ps1      # AO comparison and free-fly camera lifecycle
+.\tools\verify-presentation.ps1       # Presentation entry, settings and scene comparison
+.\tools\verify-console.ps1            # Windows console and isolated startup failures
 .\tools\verify-fun.ps1                # Full-game Fun interactions and progression
 .\tools\verify-performance.ps1 -SkipSoak  # Repeated level changes and resource checks
 ```
@@ -191,7 +215,7 @@ The report is written when the game exits. Streaming keeps a bounded set of near
 | Problem | What to check |
 | --- | --- |
 | `Backrooms.exe` is missing after cloning | Build the source first; executables are excluded from Git. |
-| The game reports missing shaders, textures or sounds | Keep runtime assets beside the executable and inspect `backrooms.log`. Restore missing repository files; rebuilding copies runtime files into the build output. |
+| The game reports missing shaders, textures or sounds | Read the diagnostics console or `backrooms.log`; shader errors identify the file and stage. Keep runtime assets beside the executable. Restore missing repository files; rebuilding copies runtime files into the build output. |
 | OpenGL initialization fails | Install a graphics driver that provides OpenGL 3.3 and use a session with access to the GPU. |
 | The build cannot find GCC or GLFW | Install matching MSYS2 packages for one toolchain. The build guide explains selecting a compiler with `BACKROOMS_CXX`. |
 | PowerShell blocks `build.ps1` | Use the included `Build.cmd` or `Run.cmd` launcher, which applies its execution policy only to the launched PowerShell process. |
