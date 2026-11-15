@@ -103,7 +103,8 @@ def main():
         require("bin/Backrooms" in package_files, "Prebuilt package executable is absent")
     license_manifest = json.loads((root / "assets/asset-license-manifest.json").read_text(encoding="utf-8-sig"))
     asset_files = check_files(root / "assets", license_manifest["files"], provenance=True)
-    actual_assets = {path.relative_to(root / "assets").as_posix() for path in (root / "assets").rglob("*") if path.is_file()}
+    actual_assets = {path.relative_to(root / "assets").as_posix() for path in (root / "assets").rglob("*")
+                     if path.is_file() and path.name != ".DS_Store" and not path.name.startswith("._")}
     require(actual_assets == asset_files | {"asset-license-manifest.json"}, "Unlisted or missing asset in the extracted package")
     print("PASS package hashes ({} files)".format(len(package_files)), flush=True)
     print("PASS asset hashes and provenance ({} files)".format(len(asset_files)), flush=True)
@@ -119,6 +120,7 @@ def main():
     else:
         executable = root / "build/macos/bin/Backrooms"
     require(executable.is_file() and os.access(executable, os.X_OK), "Build first using Build Mac.command; no executable is available")
+    runtime_dir = executable.parent if (executable.parent / "vshader_backrooms.glsl").is_file() else root
     for name in ("Run Mac.command", "Presentation Mac.command", "Build Mac.command"):
         require(os.access(root / name, os.X_OK), "Launcher executable permission is missing: " + name)
     evidence = root / "tests/artifacts/macos" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
@@ -147,7 +149,7 @@ def main():
             completed = subprocess.run(arguments, cwd=root, capture_output=True, timeout=120, check=False)
             (evidence / (name + "-stdout.txt")).write_bytes(completed.stdout)
             (evidence / (name + "-stderr.txt")).write_bytes(completed.stderr)
-            log_path = root / "backrooms.log"
+            log_path = runtime_dir / "backrooms.log"
             log = log_path.read_text(encoding="utf-8", errors="replace")
             shutil.copyfile(log_path, evidence / (name + ".log"))
             require(completed.returncode == 0, name + " exited with " + str(completed.returncode))

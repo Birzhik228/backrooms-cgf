@@ -48,7 +48,7 @@ def walk_files(directory):
         if path.is_dir():
             if path.name not in SKIP_DIRS:
                 yield from walk_files(path)
-        elif path.is_file() and path.name not in SKIP_NAMES:
+        elif path.is_file() and path.name not in SKIP_NAMES and not path.name.startswith("._"):
             yield path
 
 
