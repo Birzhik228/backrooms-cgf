@@ -1,4 +1,4 @@
-# BACKROOMS / Threshold v0.12
+# BACKROOMS 
 
 A first-person horror exploration game built with **C++17 and OpenGL 3.3** for the Computer Graphics Fundamentals project. Explore procedural Backrooms, listen for approaching creatures, manage stamina and find a way to the surface.
 
