@@ -83,6 +83,13 @@ is a WAV file. Test speakers or headphones during a visible walkthrough: hidden
 graphics checks deliberately suppress audio output. The packaged game still
 requires a working OpenGL 3.3-capable driver/context.
 
+The pinned GLFW build prefers hardware acceleration. If no accelerated pixel
+format exists, it retries with Apple's software renderer allowed while keeping
+the OpenGL core-profile requirement. The change is documented in
+`tools/patch-glfw-macos.cmake` and `THIRD_PARTY.md`. The game logs its actual
+renderer. Software-rendered CI checks establish behavior, not GPU performance;
+measure frame rate on the actual defence Mac.
+
 ## Validate the package on a Mac
 
 Python 3 is only needed for the optional verification tools. From the extracted

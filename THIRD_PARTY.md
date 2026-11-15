@@ -50,6 +50,11 @@ synthesis. No recording is claimed as a student performance.
 - **GLFW** supplies window creation and input. Copyright Marcus Geelnard and
   Camilla Lowy; zlib/libpng-style license. Notice: `docs/licenses/GLFW.txt`.
   Source: https://www.glfw.org/
+  The pinned Mac build applies a project modification in
+  `tools/patch-glfw-macos.cmake`: if accelerated NSGL pixel-format selection
+  fails, it retries with Apple's software renderer allowed, retaining the
+  requested OpenGL core profile. This is a modified GLFW build, not an upstream
+  GLFW release. Background: https://github.com/glfw/glfw/issues/2570 .
 - **GLAD 0.1.36** supplies generated OpenGL 3.3 loading code, reused from the
   provided lab support infrastructure. Upstream notices:
   `docs/licenses/GLAD.txt`. Source: https://github.com/Dav1dde/glad/tree/v0.1.36

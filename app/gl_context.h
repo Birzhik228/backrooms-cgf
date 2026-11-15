@@ -4,6 +4,7 @@
 #include <GLFW/glfw3.h>
 #include <memory>
 #include <stdexcept>
+#include <string>
 
 namespace br::app {
 
@@ -36,7 +37,12 @@ public:
         glfwWindowHint(GLFW_VISIBLE,hidden?GLFW_FALSE:GLFW_TRUE);
         glfwWindowHint(GLFW_SAMPLES,0);
         window_.reset(glfwCreateWindow(width,height,title,nullptr,nullptr));
-        if(!window_)throw std::runtime_error("Cannot create an OpenGL 3.3 core window.");
+        if(!window_) {
+            const char* description=nullptr;
+            glfwGetError(&description);
+            throw std::runtime_error(std::string("Cannot create an OpenGL 3.3 core window. ")+
+                                     (description?description:"No driver diagnostic was provided."));
+        }
         glfwMakeContextCurrent(window_.get());
         if(!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)))
             throw std::runtime_error("OpenGL loader failed.");

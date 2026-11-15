@@ -33,7 +33,9 @@ if(BACKROOMS_FETCH_MAC_DEPS)
   set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(glfw
     URL https://github.com/glfw/glfw/archive/refs/tags/3.4.tar.gz
-    URL_HASH SHA256=c038d34200234d071fae9345bc455e4a8f2f544ab60150765d7704e08f3dac01)
+    URL_HASH SHA256=c038d34200234d071fae9345bc455e4a8f2f544ab60150765d7704e08f3dac01
+    PATCH_COMMAND ${CMAKE_COMMAND} -DGLFW_SOURCE_DIR=<SOURCE_DIR>
+      -P "${PROJECT_SOURCE_DIR}/tools/patch-glfw-macos.cmake")
   FetchContent_Declare(SDL2
     URL https://www.libsdl.org/release/SDL2-2.32.10.tar.gz
     URL_HASH SHA256=5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165)

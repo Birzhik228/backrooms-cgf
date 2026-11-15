@@ -42,7 +42,9 @@ jobs:
         run: ctest --test-dir build/macos -L native --output-on-failure --output-junit native-results.xml
       - name: Graphics tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
-        run: ctest --test-dir build/macos -L graphics --output-on-failure --output-junit graphics-results.xml
+        run: |
+          system_profiler SPDisplaysDataType > build/macos/displays.txt
+          ctest --test-dir build/macos -L graphics --output-on-failure --output-junit graphics-results.xml
       - name: Check real audio devices when available
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         run: |
@@ -89,6 +91,7 @@ jobs:
             build/macos/Testing/Temporary/
             build/macos/*results.xml
             build/macos/system-audio.txt
+            build/macos/displays.txt
             build/macos/CMakeFiles/CMakeConfigureLog.yaml
             build/extracted-mac/BackroomsCGF/tests/artifacts/macos/
           if-no-files-found: ignore
