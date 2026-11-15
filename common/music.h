@@ -7,8 +7,8 @@
 namespace br {
 enum class MusicStatus { Missing, Ready, Playing, Paused, Failed };
 
-// Optional local soundtrack, decoded by the Windows multimedia driver already
-// provided by the OS. It owns no game-audio mixer and installs no codec/library.
+// Optional local soundtrack. Windows uses its multimedia driver; the SDL audio
+// backend used on macOS loads WAV and owns a separate bounded PCM output queue.
 class BackgroundMusic {
 public:
     BackgroundMusic();
@@ -16,11 +16,12 @@ public:
     BackgroundMusic(const BackgroundMusic&)=delete;
     BackgroundMusic& operator=(const BackgroundMusic&)=delete;
 
-    // Loading does not play. If the default MP3 is absent, try a WAV or M4A
-    // with the same filename stem. Missing music is a normal, silent state.
-    bool load(const std::filesystem::path& path="assets/audio/music/numbers-temporex.mp3");
+    // Loading does not play. An absent path falls back to another supported
+    // extension with the same stem. Missing music is a normal, silent state.
+    bool load(const std::filesystem::path& path="assets/audio/music/threshold-ambient.wav");
     // volume = master volume * music volume, in [0,1]. Menus and mute pause
-    // playback without rewinding. Native mode/position polling is at most 4 Hz.
+    // playback without rewinding. The SDL queue is serviced on each update;
+    // Windows native mode/position polling is at most 4 Hz.
     void update(bool paused,bool muted,float volume,float dt);
     // Release the device and file immediately, including when the game exits.
     void stop();

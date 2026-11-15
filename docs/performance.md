@@ -24,8 +24,10 @@ are saved in a new timestamped `tests/artifacts/ao-performance/` directory.
 Ordinary player settings are checked for changes. These measurements describe
 the frozen presentation scene, not every gameplay situation or another PC.
 
-See [the 14 November 2026 measured results](ao-performance-2026-11-14.md)
-and [the recorded comparison data](ao-performance-2026-11-14.json).
+See [the 15 November submission results](ao-performance-2026-11-15.md)
+and [their recorded comparison data](ao-performance-2026-11-15.json).
+The [14 November results](ao-performance-2026-11-14.md) identify the older
+binary and asset set and are retained as historical measurements.
 
 ## Capture a report
 

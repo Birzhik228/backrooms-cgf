@@ -1,0 +1,24 @@
+{
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": {
+    "author": "Backrooms CGF project with disclosed Codex assistance",
+    "title": "Original procedural music and pickup chime",
+    "generator": "tools/prepare_release_audio.py",
+    "inputs": "Oscillators and seeded noise only; no recordings or copied melody."
+  },
+  "verified": "2026-11-15",
+  "processing": "Original stereo oscillator/noise composition, 48 seconds, 2.5-second edge fades.",
+  "files": [
+    {
+      "file": "music/threshold-ambient.wav",
+      "sha256": "7c292ce902ec265a9ab7d55e4466c2098fa01f253967b0f9b7961158a7a5f651",
+      "sample_rate": 22050,
+      "channels": 2,
+      "samples": 1058400,
+      "seconds": 48.0,
+      "peak": 7864,
+      "rms": 2311.3636468161235
+    }
+  ]
+}

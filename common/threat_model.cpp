@@ -41,7 +41,7 @@ struct Reader {
     std::size_t offset=0;
     explicit Reader(const std::filesystem::path& path) {
         std::ifstream input(path,std::ios::binary|std::ios::ate);
-        if(!input)throw std::runtime_error("Aranea model is missing: "+path.string()+". Keep assets/models/aranea beside Backrooms.exe.");
+        if(!input)throw std::runtime_error("Threshold Sentinel model is missing: "+path.string()+". Keep assets/models/aranea beside Backrooms.exe.");
         const auto size=input.tellg();
         if(size<32||size>static_cast<std::streamoff>(MAX_ASSET_BYTES))fail("invalid file size");
         bytes.resize(static_cast<std::size_t>(size));
@@ -50,7 +50,7 @@ struct Reader {
         if(!input)fail("incomplete read");
     }
     [[noreturn]] static void fail(const char* reason) {
-        throw std::runtime_error(std::string("Invalid Aranea animation asset: ")+reason);
+        throw std::runtime_error(std::string("Invalid Threshold Sentinel animation asset: ")+reason);
     }
     void require(std::size_t count)const {if(count>bytes.size()-offset)fail("truncated data");}
     std::uint8_t u8(){require(1);return bytes[offset++];}

@@ -3,10 +3,13 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <fstream>
 #include <limits>
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+#include <SDL.h>
+#elif defined(_WIN32)
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -1022,8 +1025,15 @@ struct Audio::Impl {
     AudioMixer mixer;
     bool cinematic=false;
     bool paused=false;
-#ifdef _WIN32
     static constexpr std::size_t BUFFER_COUNT=4,BUFFER_FRAMES=512;
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    SDL_AudioDeviceID device=0;
+    bool audioSubsystem=false;
+    std::array<std::int16_t,BUFFER_FRAMES*2> samples{};
+    void flush() {
+        if (device) SDL_ClearQueuedAudio(device);
+    }
+#elif defined(_WIN32)
     struct Buffer {
         WAVEHDR header{};
         std::array<std::int16_t,BUFFER_FRAMES*2> samples{};
@@ -1040,7 +1050,25 @@ struct Audio::Impl {
     }
 #endif
     bool service() {
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+        if (!device) return false;
+        if (paused) return true;
+        constexpr Uint32 bufferBytes=BUFFER_FRAMES*2*sizeof(std::int16_t);
+        constexpr Uint32 maximumBytes=BUFFER_COUNT*bufferBytes;
+        Uint32 queued=SDL_GetQueuedAudioSize(device);
+        // Only this thread touches the mixer. SDL copies these buffers and
+        // consumes its queue on its own audio thread; no game callback exists.
+        // Cap both queued audio and work per update even if the device drains
+        // while we render a block.
+        for (std::size_t n=0;n<BUFFER_COUNT && queued<=maximumBytes-bufferBytes;++n) {
+            mixer.render(samples.data(),BUFFER_FRAMES);
+            if (SDL_QueueAudio(device,samples.data(),bufferBytes)<0) {
+                std::fprintf(stderr,"Sound queue failed: %s\n",SDL_GetError());
+                return false;
+            }
+            queued+=bufferBytes;
+        }
+#elif defined(_WIN32)
         if (!device) return false;
         for (std::size_t n=0;n<BUFFER_COUNT;++n) {
             auto& buffer=buffers[nextBuffer];
@@ -1057,7 +1085,9 @@ struct Audio::Impl {
 Audio::Audio():impl_(std::make_unique<Impl>()) {}
 Audio::~Audio() { stop(); }
 bool Audio::available() const {
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    return impl_->device!=0;
+#elif defined(_WIN32)
     return impl_->device!=nullptr;
 #else
     return false;
@@ -1068,17 +1098,26 @@ void Audio::setVolume(float volume) { impl_->mixer.setVolume(volume); }
 void Audio::setPaused(bool paused) {
     impl_->mixer.setPaused(paused);
     if(impl_->paused==paused)return;
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    if (impl_->device && paused) SDL_PauseAudioDevice(impl_->device,1);
+    impl_->flush();
+#elif defined(_WIN32)
     impl_->flush();
 #endif
     impl_->paused=paused;
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    if (impl_->device && !paused) SDL_PauseAudioDevice(impl_->device,0);
+#endif
 }
 void Audio::play(SoundKind kind,AudioPosition position,float gain,float transmission) {
     if (!available()) return;
     if(captureSound(kind)) {
         impl_->mixer.setPaused(false); impl_->paused=false;
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO) || defined(_WIN32)
         impl_->flush(); // Remove queued ambience before the very first scream sample.
+#endif
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+        SDL_PauseAudioDevice(impl_->device,0);
 #endif
     }
     impl_->mixer.play(kind,position,gain,transmission);
@@ -1089,12 +1128,39 @@ void Audio::playPartyStep(int actor,AudioPosition position,float gain,float tran
 }
 void Audio::reset(std::uint32_t seed) {
     cadence_.reset(); impl_->mixer.reset(seed);
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO) || defined(_WIN32)
     impl_->flush();
 #endif
 }
 void Audio::start() {
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    if (impl_->device) return;
+    SDL_SetMainReady(); // GLFW owns the application entry point, not SDL_main.
+    if (SDL_InitSubSystem(SDL_INIT_AUDIO)<0) {
+        std::fprintf(stderr,"Sound initialization failed: %s\n",SDL_GetError());
+        return;
+    }
+    // SDL subsystem references are independent of the music device. Every
+    // successful init is balanced, including device-open/queue failures.
+    impl_->audioSubsystem=true;
+    SDL_AudioSpec desired{},obtained{};
+    desired.freq=AUDIO_SAMPLE_RATE;
+    desired.format=AUDIO_S16SYS;
+    desired.channels=2;
+    desired.samples=static_cast<Uint16>(Impl::BUFFER_FRAMES);
+    desired.callback=nullptr;
+    impl_->device=SDL_OpenAudioDevice(nullptr,0,&desired,&obtained,0);
+    if (!impl_->device) {
+        std::fprintf(stderr,"Sound device could not be opened: %s\n",SDL_GetError());
+        stop(); return;
+    }
+    if (obtained.freq!=AUDIO_SAMPLE_RATE || obtained.format!=AUDIO_S16SYS || obtained.channels!=2) {
+        std::fprintf(stderr,"Sound device did not preserve the requested PCM format.\n");
+        stop(); return;
+    }
+    if (!impl_->service()) { stop(); return; }
+    SDL_PauseAudioDevice(impl_->device,impl_->paused?1:0);
+#elif defined(_WIN32)
     if (impl_->device) return;
     WAVEFORMATEX format{};
     format.wFormatTag=WAVE_FORMAT_PCM; format.nChannels=2;
@@ -1117,7 +1183,18 @@ void Audio::start() {
 #endif
 }
 void Audio::stop() {
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    if (impl_->device) {
+        SDL_PauseAudioDevice(impl_->device,1);
+        SDL_ClearQueuedAudio(impl_->device);
+        SDL_CloseAudioDevice(impl_->device);
+        impl_->device=0;
+    }
+    if (impl_->audioSubsystem) {
+        SDL_QuitSubSystem(SDL_INIT_AUDIO);
+        impl_->audioSubsystem=false;
+    }
+#elif defined(_WIN32)
     if (impl_->device) {
         waveOutReset(impl_->device);
         for (auto& buffer:impl_->buffers) {

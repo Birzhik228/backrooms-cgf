@@ -1,37 +1,85 @@
 {
-  "source": "freesound_community-indoor-footsteps-6385.mp3",
-  "sha256": "fee6076afebf6af062eec02cc7feb60a94886443d6b5c0b58460c16f14ed6c7e",
-  "sample_rate": 22050,
-  "clips": [
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": {
+    "author": "GboxMikeFozzy",
+    "title": "Footsteps",
+    "url": "https://opengameart.org/content/footsteps-0"
+  },
+  "verified": "2026-11-15",
+  "processing": "Existing CC0 processed shoe contacts, gently transient-compressed with tanh(x*4) and normalized to 0.88 peak; original OGGs and original conversion manifest remain in ../footsteps.",
+  "files": [
     {
-      "file": "step-01.wav",
-      "start_seconds": 0.1246,
-      "duration": 0.34
+      "file": "footsteps-player/step-01.wav",
+      "sha256": "8c308bc30f2a905275e8330f401218660451eac9b3ce428203376352be65c18b",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 4165,
+      "seconds": 0.18888888888888888,
+      "peak": 28835,
+      "rms": 5170.47748273985,
+      "input": "assets/audio/footsteps/step-01.wav",
+      "input_sha256": "f750457e85dc3b0d52186d0b8370b612d63eab17d4e8a3c69fac2545f4e894db"
     },
     {
-      "file": "step-02.wav",
-      "start_seconds": 0.7532,
-      "duration": 0.34
+      "file": "footsteps-player/step-02.wav",
+      "sha256": "4648addb694bfa8cc136981cf8ed774565817fb5af2c08bf877ba518305ed235",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 4492,
+      "seconds": 0.203718820861678,
+      "peak": 28835,
+      "rms": 5834.41983243977,
+      "input": "assets/audio/footsteps/step-02.wav",
+      "input_sha256": "1ed1e4aee30a053498dc05c3ff30df16caaaa61688876bbb08efe3f43d9ca071"
     },
     {
-      "file": "step-03.wav",
-      "start_seconds": 1.3718,
-      "duration": 0.34
+      "file": "footsteps-player/step-03.wav",
+      "sha256": "e4ef4d16696fd62e7197612df4e6fb7304178d5fad19baf52315f71727c53ff0",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 7755,
+      "seconds": 0.3517006802721088,
+      "peak": 28835,
+      "rms": 7685.412883068588,
+      "input": "assets/audio/footsteps/step-03.wav",
+      "input_sha256": "4ba38abf74cabc60dd6bdf3c08e7b9fdc5e66eb43b30c78230fbe700feb939c7"
     },
     {
-      "file": "step-04.wav",
-      "start_seconds": 2.0203,
-      "duration": 0.34
+      "file": "footsteps-player/step-04.wav",
+      "sha256": "a1324e20eb2ca6632c3a68299517e1d82d9dd8a710767fa7f2cfeddacebf209d",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 8114,
+      "seconds": 0.3679818594104308,
+      "peak": 28835,
+      "rms": 4951.855518904854,
+      "input": "assets/audio/footsteps/step-04.wav",
+      "input_sha256": "2432cb94e2d6cf80b3be0246f67a5b5c6462019a0abf45b4d60efa37635c35e8"
     },
     {
-      "file": "step-05.wav",
-      "start_seconds": 2.6289,
-      "duration": 0.34
+      "file": "footsteps-player/step-05.wav",
+      "sha256": "7534aeee2187cf4c2cbe12f9057791f8644c7ac1e0523b3ad28434d52ef10db3",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 7690,
+      "seconds": 0.3487528344671202,
+      "peak": 28835,
+      "rms": 8856.667094490274,
+      "input": "assets/audio/footsteps/step-05.wav",
+      "input_sha256": "4590b4e9e76e224876bda3aed073db9d1e7f61db56f4f8cccda0fc105983471b"
     },
     {
-      "file": "step-06.wav",
-      "start_seconds": 3.2974,
-      "duration": 0.2545578231292517
+      "file": "footsteps-player/step-06.wav",
+      "sha256": "27047cfd7060372434352e05ef748ffbfe80ed3b59beb822d580fe52d31a1241",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 6188,
+      "seconds": 0.2806349206349206,
+      "peak": 28835,
+      "rms": 9147.456538290275,
+      "input": "assets/audio/footsteps/step-06.wav",
+      "input_sha256": "ef528e5a2269675ddbfe1b05c647b1e790827201abba47e3d8f4b28c4422f3d3"
     }
   ]
 }

@@ -258,3 +258,47 @@ checks. Two separate captures confirmed 1280 by 720 rendering and a visible AO
 difference. Median trial-average FPS was 122.24 with AO ON and 142.80 with AO OFF
 on Intel UHD Graphics. The report retains individual trials and isolated stalls;
 these are local frozen-scene measurements, not lab-computer or full-game proof.
+
+## Asset permissions and submission packaging 15 November 2026
+
+At the user's request, Codex checked the source/license records for the model
+and audio, replaced assets whose original redistribution authority could not be
+established, and prepared tools for a clean source build and Windows submission
+ZIP. The user explicitly requested these replacements. Superseded files remain
+in ignored local backups and earlier Git history; they are excluded from the
+submission package.
+
+Codex assisted with the original procedural Threshold Sentinel geometry,
+textures and seven pose clips, and the original generated ambient music and
+pickup chime. These new generated asset payloads have scoped CC0 dedications.
+The asset source is code, not an imported/traced model or a copied melody.
+Retained third-party recordings are credited to GboxMikeFozzy, Fantozzi and
+zerokingfull under their documented CC0 terms. Asset generation and integration
+are not presented as independent student work. The team should review and be
+able to explain the generator, animation, rendering and audio integration used
+in its submission.
+
+The ZIP workflow includes an executable, source, runtime files, notices,
+SHA-256 inventories, automated checks and a repeatable AO benchmark. Launching
+the prebuilt package does not require a compiler. The professor will use another
+computer; local verification cannot establish that machine's performance. Final
+report/presentation/video files created separately by the team must match the
+replacement assets, and older recordings may need their visuals or soundtrack
+updated before submission.
+
+The replacement build passed 28 native and four OpenGL tests from a fresh source
+ZIP extraction. This includes the complete audio suite after correcting the
+replacement footsteps' crest factor without weakening its audibility checks.
+Six isolated AO trials on the resulting binary produced median average FPS of
+117.01 ON and 135.74 OFF at 1280 by 720. Exact results, variation, hardware and
+the executable hash are retained in `docs/ao-performance-2026-11-15.json`.
+
+## macOS port
+
+Codex assisted with the SDL2 queued-audio effects and WAV soundtrack backends,
+universal Apple Silicon/Intel build configuration, Mac launchers, source and
+binary packaging, and automated verification. SDL2 supplies operating-system
+audio output; the existing project mixer and custom OpenGL renderer remain in
+use. Native Mac CI and package checks are recorded separately from the Windows
+performance results. Hosted runner tests do not establish the defence machine's
+frame rate or replace a visible walkthrough and listening check.

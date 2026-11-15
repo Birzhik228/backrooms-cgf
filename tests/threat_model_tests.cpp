@@ -14,44 +14,43 @@
 
 using namespace br;
 static void check(bool v,const char* message){if(!v)throw std::runtime_error(message);}
-constexpr std::size_t SOURCE_VERTICES=11657,SOURCE_TRIANGLES=15220;
+constexpr std::size_t SOURCE_VERTICES=4214,SOURCE_TRIANGLES=8120;
 struct Bounds {float minY=100,maxY=-100,minX=100,maxX=-100,minZ=100,maxZ=-100;};
 struct SourceVertex {std::uint8_t head;std::array<std::uint8_t,4> feet;float u,v;};
 static std::vector<SourceVertex> expandedSource;
 static std::array<std::size_t,SOURCE_VERTICES> sourceToExpanded;
-// These are the two complete orbital rim meshes in the supplied GLB, recorded
-// by the baker in aranea-manifest.json. Average each source vertex once: the
-// render mesh repeats corners, which otherwise biases the anatomical center.
-static Vertex socketMean(const std::vector<Vertex>& mesh,std::size_t first) {
-    constexpr std::size_t count=187;
+// These are the two complete generated sensor bezels, recorded by the
+// procedural generator in aranea-manifest.json. Average each vertex once:
+// the render mesh repeats corners, which otherwise biases the sensor center.
+static Vertex landmarkMean(const std::vector<Vertex>& mesh,std::size_t first,std::size_t count) {
     Vertex mean{};
     for(std::size_t source=first;source<first+count;++source) {
         const auto expanded=sourceToExpanded[source];
         check(expanded<mesh.size()&&expandedSource[expanded].head==255,
-              "Orbital landmarks belong to the animated skull");
+              "Face landmarks belong to the animated mask");
         const auto& v=mesh[expanded];mean.x+=v.x;mean.y+=v.y;mean.z+=v.z;
     }
     mean.x/=count;mean.y/=count;mean.z/=count;return mean;
 }
 static std::array<Vertex,2> eyeSockets(const std::vector<Vertex>& mesh) {
-    return {{socketMean(mesh,2167),socketMean(mesh,7084)}};
+    return {{landmarkMean(mesh,1802,72),landmarkMean(mesh,2050,72)}};
 }
 static Bounds validate(const std::vector<Vertex>& mesh,bool locomotion=true) {
-    check(mesh.size()==SOURCE_TRIANGLES*3,"All 15,220 triangles of the supplied Aranea mesh are retained");
+    check(mesh.size()==SOURCE_TRIANGLES*3,"All 8,120 triangles of the generated Sentinel mesh are retained");
     Bounds b;
     std::array<std::size_t,3> materials{};
     for(std::size_t i=0;i<mesh.size();++i) {
         const auto& v=mesh[i];
         for(float x:{v.x,v.y,v.z,v.nx,v.ny,v.nz,v.u,v.v,v.material})check(std::isfinite(x),"Finite vertex fields");
         check(std::abs(v.nx*v.nx+v.ny*v.ny+v.nz*v.nz-1)<.00001f,"Blended normals are normalized");
-        check(v.material==20||v.material==21||v.material==22,"Original gray, white and black material assignments");
+        check(v.material==20||v.material==21||v.material==22,"Generated shell, ceramic and sensor material assignments");
         ++materials[static_cast<std::size_t>(v.material)-20];
-        check(v.u==expandedSource[i].u&&v.v==expandedSource[i].v,"Animation preserves the original per-vertex texture coordinates");
+        check(v.u==expandedSource[i].u&&v.v==expandedSource[i].v,"Animation preserves the generated per-vertex texture coordinates");
         b.minY=std::min(b.minY,v.y);b.maxY=std::max(b.maxY,v.y);
         b.minX=std::min(b.minX,v.x);b.maxX=std::max(b.maxX,v.x);
         b.minZ=std::min(b.minZ,v.z);b.maxZ=std::max(b.maxZ,v.z);
     }
-    check(std::all_of(materials.begin(),materials.end(),[](std::size_t n){return n>0;}),"Every original material survives the import");
+    check(std::all_of(materials.begin(),materials.end(),[](std::size_t n){return n>0;}),"Every generated material is rendered");
     if(locomotion) {
         check(b.minY>=.0119f&&b.minY<.025f,"At least one planted foot keeps the spider grounded");
         check(b.maxY<2.7f,"Locomotion remains below the model height budget");
@@ -107,7 +106,7 @@ int main() {
     sourceToExpanded.fill(std::numeric_limits<std::size_t>::max());
     for(std::size_t triangle=0;triangle<sourceTriangles;++triangle)for(int corner=0;corner<3;++corner) {
         const auto source=readU32(topologyStart+triangle*16+corner*4);
-        check(source<sourceVertices,"Expanded topology references a valid supplied vertex");
+        check(source<sourceVertices,"Expanded topology references a valid generated vertex");
         const auto at=maskStart+source*13;
         SourceVertex v{};v.head=static_cast<std::uint8_t>(bytes[at]);
         for(std::size_t foot=0;foot<4;++foot)v.feet[foot]=static_cast<std::uint8_t>(bytes[at+1+foot]);
@@ -119,12 +118,12 @@ int main() {
     const auto neutralEyes=eyeSockets(neutral);
     check(neutralEyes[0].x<-.08f&&neutralEyes[1].x>.08f&&
           std::abs(neutralEyes[0].x+neutralEyes[1].x)<.001f,
-          "The neutral skull is centered on the movement axis, not offset sideways");
+          "The neutral mask is centered on the movement axis, not offset sideways");
     check(std::abs(neutralEyes[1].y-neutralEyes[0].y)<.001f&&
           std::abs(neutralEyes[1].z-neutralEyes[0].z)<.001f&&neutralEyes[0].z<-.7f,
-          "The actual baked orbital rims are level and face -Z, with no source-pose yaw bias");
+          "The actual generated sensor bezels are level and face -Z, with no rest-pose yaw bias");
     check(neutralBounds.maxY>1.9f&&neutralBounds.maxX-neutralBounds.minX>2.2f&&neutralBounds.maxZ-neutralBounds.minZ>2.5f,
-          "The wide four-legged source silhouette is retained");
+          "The wide four-legged generated silhouette is retained");
     float fullHeight=0,halfHeight=0;
     for(int i=0;i<64;++i)for(float speed:{0.f,.3f,1.1f,2.2f,3.3f}) {
         const float phase=i/64.f;
@@ -210,12 +209,17 @@ int main() {
         check(std::abs((eyes[0].x+eyes[1].x)*.5f)<.001f&&
               std::abs((eyes[0].y+eyes[1].y)*.5f-THREAT_EYE_HEIGHT)<.001f&&
               std::abs((eyes[0].z+eyes[1].z)*.5f)<.001f,
-              "Capture keeps the actual orbital midpoint at the camera-facing eye anchor");
+              "Capture keeps the actual sensor midpoint at the camera-facing eye anchor");
         check(eyes[1].x-eyes[0].x>.17f&&std::abs(eyes[1].z-eyes[0].z)<.009f,
               "Capture head jitter preserves a frontal face instead of turning to profile");
     }
     const auto captureStart=threatModelVertices(0,0,true,.02f),captureLunge=threatModelVertices(0,0,true,.7f);
-    check(delta(captureStart,captureLunge,1)>.04f,"The capture head and jaw move despite their stabilized eye anchor");
+    // A fixed weighted mean across all face triangles is sensitive to sensor
+    // tessellation. Probe the actual generated hinge plate instead: its center
+    // must travel visibly while the independently checked eye anchor stays put.
+    const auto jawStart=landmarkMean(captureStart,2340,10),jawLunge=landmarkMean(captureLunge,2340,10);
+    check(std::hypot(jawLunge.y-jawStart.y,jawLunge.z-jawStart.z)>.20f,
+          "Capture opens the generated lower face plate by more than 20 cm with a stable eye anchor");
     for(std::size_t foot=0;foot<2;++foot) {
         const auto a=footMean(captureStart,foot),b=footMean(captureLunge,foot);
         check(b.y-a.y>.5f&&b.z-a.z<-.2f,"Capture raises both front legs and reaches toward the player");
@@ -327,6 +331,6 @@ int main() {
     corrupt([&](std::string& s){for(std::size_t i=0;i<6;++i)s[framesStart+8+6+i]=0;});
     write(bytes+"trailing");rejects(bad);
     std::filesystem::remove(bad);
-    std::cout<<"Aranea model tests passed: 15220 supplied triangles, four articulated feet, sequential walk and diagonal run, planted contacts, forward-facing orbital landmarks, anchored capture, independent head, preserved UVs, full stoop "
+    std::cout<<"Sentinel model tests passed: 8120 generated triangles, four articulated feet, sequential walk and diagonal run, planted contacts, forward-facing sensor landmarks, anchored capture, independent head, preserved UVs, full stoop "
              <<fullHeight<<"m, half stoop "<<halfHeight<<"m; malformed asset validation passed.\n";
 }

@@ -1,0 +1,17 @@
+Audio license scope
+
+The newly synthesized threshold-ambient.wav composition and pickup.wav chime
+are dedicated to CC0 1.0 Universal by the Backrooms CGF project contributors,
+with Codex assistance disclosed in the project documentation.
+
+CC0 summary: https://creativecommons.org/publicdomain/zero/1.0/
+CC0 legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Retained third-party recordings and their derivatives keep their authorship:
+GboxMikeFozzy (shoe footsteps), Fantozzi (sand contacts), and zerokingfull
+(Monster Roar 02). Their source pages expressly identify CC0. The manifest.json
+source registry provides each URL and each payload's source and SHA-256.
+
+This file does not assert a new license for any historical removed media or
+for other project code, models, names, trademarks or recordings outside this
+audio directory.

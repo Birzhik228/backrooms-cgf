@@ -8,8 +8,8 @@
 
 namespace br {
 
-// User-supplied Aranea Membri mesh, articulated offline in metres/Y-up/-Z front.
-inline constexpr float THREAT_MODEL_HEIGHT = 2.40f;
+// Original procedural Threshold Sentinel, articulated in metres/Y-up/-Z front.
+inline constexpr float THREAT_MODEL_HEIGHT = 2.42f;
 // Cinematic clip is stabilized around this eye anchor (local X=Z=0).
 inline constexpr float THREAT_EYE_HEIGHT = 1.75f;
 inline constexpr int THREAT_BODY_MATERIAL = 20;

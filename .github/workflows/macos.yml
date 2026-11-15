@@ -1,0 +1,83 @@
+name: Mac universal package
+
+on:
+  push:
+    branches: ['codex/macos-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configure universal native build
+        run: >-
+          cmake -S . -B build/macos
+          -DCMAKE_BUILD_TYPE=Release
+          '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+          -DBACKROOMS_FETCH_MAC_DEPS=ON
+          -DBUILD_TESTING=ON
+          -DBACKROOMS_GRAPHICS_TESTS=ON
+      - name: Build game and tests
+        run: cmake --build build/macos --parallel 3
+      - name: Native tests and audio lifecycle
+        env:
+          SDL_AUDIODRIVER: dummy
+        run: ctest --test-dir build/macos -L native --output-on-failure --output-junit native-results.xml
+      - name: Graphics tests
+        run: ctest --test-dir build/macos -L graphics --output-on-failure --output-junit graphics-results.xml
+      - name: Check both architectures and sign locally
+        run: |
+          lipo -verify_arch arm64 x86_64 build/macos/bin/Backrooms
+          otool -L build/macos/bin/Backrooms
+          codesign --force --sign - build/macos/bin/Backrooms
+          codesign --verify --strict build/macos/bin/Backrooms
+      - name: Package complete project and universal game
+        run: |
+          mkdir -p docs/evidence/macos
+          cp build/macos/native-results.xml docs/evidence/macos/native-${{ matrix.runner }}.xml
+          cp build/macos/graphics-results.xml docs/evidence/macos/graphics-${{ matrix.runner }}.xml
+          python3 -c 'import json,os,platform; from pathlib import Path; Path("docs/evidence/macos/build-info.json").write_text(json.dumps({"commit":os.environ["GITHUB_SHA"],"machine":platform.machine(),"os":platform.platform(),"architectures":["arm64","x86_64"],"audioTestDriver":"dummy"},indent=2)+"\n")'
+          python3 tools/package-macos.py --executable build/macos/bin/Backrooms --output dist/BackroomsCGF-Mac-Full-Project.zip
+      - name: Extract and test exact ZIP
+        env:
+          SDL_AUDIODRIVER: dummy
+        run: |
+          mkdir -p build/extracted-mac
+          ditto -x -k dist/BackroomsCGF-Mac-Full-Project.zip build/extracted-mac
+          python3 build/extracted-mac/BackroomsCGF/tools/verify-macos.py --root build/extracted-mac/BackroomsCGF
+          cd build/extracted-mac/BackroomsCGF
+          PATH=/usr/bin:/bin:/usr/sbin:/sbin ./"Run Mac.command" --hidden --presentation --frames 8 --width 1280 --height 720
+          PATH=/usr/bin:/bin:/usr/sbin:/sbin ./"Presentation Mac.command" --hidden --frames 8 --width 1280 --height 720
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mac-universal-${{ matrix.runner }}
+          path: dist/BackroomsCGF-Mac-Full-Project.*
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mac-verification-${{ matrix.runner }}
+          path: |
+            build/macos/Testing/Temporary/
+            build/macos/*results.xml
+            build/macos/CMakeFiles/CMakeConfigureLog.yaml
+            build/extracted-mac/BackroomsCGF/tests/artifacts/macos/
+          if-no-files-found: ignore
+          retention-days: 14

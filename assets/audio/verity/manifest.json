@@ -1,0 +1,24 @@
+{
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": {
+    "author": "Backrooms CGF project with disclosed Codex assistance",
+    "title": "Original procedural music and pickup chime",
+    "generator": "tools/prepare_release_audio.py",
+    "inputs": "Oscillators and seeded noise only; no recordings or copied melody."
+  },
+  "verified": "2026-11-15",
+  "processing": "Original two-second synthesized three-tone pickup chime, no voice or song sample.",
+  "files": [
+    {
+      "file": "verity/pickup.wav",
+      "sha256": "82d5ccb28d56eb076b7f895e2a5283d70c877bd7fd0310a948abb9973e7a91f6",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 44100,
+      "seconds": 2.0,
+      "peak": 22282,
+      "rms": 5736.5477956176655
+    }
+  ]
+}

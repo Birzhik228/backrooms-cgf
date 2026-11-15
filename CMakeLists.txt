@@ -8,10 +8,42 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 include(CTest)
 option(BACKROOMS_GRAPHICS_TESTS "Build tests that need a working OpenGL 3.3 context" OFF)
 option(BACKROOMS_STATIC_MINGW "Link the Windows GLFW and compiler runtimes statically" ON)
+option(BACKROOMS_USE_SDL_AUDIO "Use portable SDL2 queued audio (default on macOS)" ${APPLE})
+option(BACKROOMS_FETCH_MAC_DEPS "Build pinned static GLFW/SDL2 for a self-contained Mac package" OFF)
 
 find_package(OpenGL REQUIRED)
-find_package(glfw3 3.3 REQUIRED)
 find_package(Threads REQUIRED)
+if(BACKROOMS_FETCH_MAC_DEPS)
+  if(NOT APPLE)
+    message(FATAL_ERROR "BACKROOMS_FETCH_MAC_DEPS requires a native macOS build environment")
+  endif()
+  include(FetchContent)
+  if(POLICY CMP0135)
+    cmake_policy(SET CMP0135 NEW)
+  endif()
+  set(BUILD_SHARED_LIBS OFF CACHE BOOL "Static packaged dependencies" FORCE)
+  set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+  set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+  set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
+  set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+  set(SDL_STATIC ON CACHE BOOL "" FORCE)
+  set(SDL_TEST OFF CACHE BOOL "" FORCE)
+  set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+  set(SDL_INSTALL OFF CACHE BOOL "" FORCE)
+  FetchContent_Declare(glfw
+    URL https://github.com/glfw/glfw/archive/refs/tags/3.4.tar.gz
+    URL_HASH SHA256=c038d34200234d071fae9345bc455e4a8f2f544ab60150765d7704e08f3dac01)
+  FetchContent_Declare(SDL2
+    URL https://www.libsdl.org/release/SDL2-2.32.10.tar.gz
+    URL_HASH SHA256=5f5993c530f084535c65a6879e9b26ad441169b3e25d789d83287040a9ca5165)
+  FetchContent_MakeAvailable(glfw SDL2)
+else()
+  find_package(glfw3 3.3 REQUIRED)
+  if(BACKROOMS_USE_SDL_AUDIO)
+    find_package(SDL2 2.0.4 CONFIG REQUIRED)
+  endif()
+endif()
 
 # Compiler settings and reusable libraries are shared by the game and tests.
 add_library(backrooms_options INTERFACE)
@@ -51,7 +83,17 @@ backrooms_library(backrooms_model common/threat_model.cpp)
 backrooms_library(backrooms_audio common/audio.cpp)
 target_link_libraries(backrooms_audio PUBLIC Threads::Threads)
 backrooms_library(backrooms_music common/music.cpp)
-if(WIN32)
+if(BACKROOMS_USE_SDL_AUDIO)
+  if(TARGET SDL2::SDL2-static)
+    set(BACKROOMS_SDL_TARGET SDL2::SDL2-static)
+  else()
+    set(BACKROOMS_SDL_TARGET SDL2::SDL2)
+  endif()
+  foreach(audio_target backrooms_audio backrooms_music)
+    target_compile_definitions(${audio_target} PRIVATE BACKROOMS_USE_SDL_AUDIO SDL_MAIN_HANDLED)
+    target_link_libraries(${audio_target} PUBLIC ${BACKROOMS_SDL_TARGET})
+  endforeach()
+elseif(WIN32)
   target_link_libraries(backrooms_audio PUBLIC winmm)
   target_link_libraries(backrooms_music PUBLIC winmm)
 endif()
@@ -86,6 +128,9 @@ add_custom_target(backrooms_runtime
   COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Backrooms>"
   COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/assets/audio" "$<TARGET_FILE_DIR:Backrooms>/assets/audio"
   COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/assets/models" "$<TARGET_FILE_DIR:Backrooms>/assets/models"
+  COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/docs/licenses" "$<TARGET_FILE_DIR:Backrooms>/docs/licenses"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_SOURCE_DIR}/THIRD_PARTY.md" "$<TARGET_FILE_DIR:Backrooms>/THIRD_PARTY.md"
+  COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PROJECT_SOURCE_DIR}/assets/asset-license-manifest.json" "$<TARGET_FILE_DIR:Backrooms>/assets/asset-license-manifest.json"
   VERBATIM)
 foreach(runtime_file IN LISTS BACKROOMS_RUNTIME_FILES)
   add_custom_command(TARGET backrooms_runtime POST_BUILD
@@ -149,11 +194,14 @@ if(BUILD_TESTING)
   backrooms_test(threat_model_tests threat_model_invariants LIBRARIES backrooms_model)
   backrooms_test(encounter_tests encounter_invariants)
   backrooms_test(audio_tests audio_invariants LIBRARIES backrooms_audio)
+  if(BACKROOMS_USE_SDL_AUDIO)
+    backrooms_test(sdl_audio_tests sdl_audio_lifecycle LIBRARIES backrooms_audio)
+  endif()
   backrooms_test(ending_tests ending_timeline)
   backrooms_test(ending_audio_tests ending_audio LIBRARIES backrooms_audio)
-  if(WIN32)
-    # This suite deliberately uses the real Windows audio device. Keep it in
-    # local native checks; headless hosted CI can explicitly exclude its label.
+  if(WIN32 OR BACKROOMS_USE_SDL_AUDIO)
+    # Windows uses its native device; SDL builds can use SDL_AUDIODRIVER=dummy
+    # for lifecycle tests on hosted runners without an audio endpoint.
     backrooms_test(music_tests music_lifecycle LABEL "native;audio-device" LIBRARIES backrooms_music)
   endif()
 

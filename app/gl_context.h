@@ -27,6 +27,12 @@ public:
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR,3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR,3);
         glfwWindowHint(GLFW_OPENGL_PROFILE,GLFW_OPENGL_CORE_PROFILE);
+#ifdef __APPLE__
+        // Required by GLFW 3.3 on macOS; GLFW 3.4+ supplies this automatically.
+        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT,GLFW_TRUE);
+        // UI hit testing and --width/--height use one coordinate per render pixel.
+        glfwWindowHint(GLFW_COCOA_RETINA_FRAMEBUFFER,GLFW_FALSE);
+#endif
         glfwWindowHint(GLFW_VISIBLE,hidden?GLFW_FALSE:GLFW_TRUE);
         glfwWindowHint(GLFW_SAMPLES,0);
         window_.reset(glfwCreateWindow(width,height,title,nullptr,nullptr));

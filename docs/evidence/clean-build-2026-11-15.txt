@@ -1,0 +1,254 @@
+-- The C compiler identification is GNU 16.2.0
+-- The CXX compiler identification is GNU 16.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/msys64/mingw64/bin/gcc.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/msys64/mingw64/bin/g++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found OpenGL: opengl32
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Configuring done (16.6s)
+-- Generating done (4.4s)
+-- Build files have been written to: C:/Users/Adina/Desktop/Backrooms CGF Project/build/submission-clean-12d73691/BackroomsCGF/build/windows-release
+[  2%] Building CXX object CMakeFiles/backrooms_audio.dir/common/audio.cpp.obj
+[  5%] Building CXX object CMakeFiles/backrooms_world.dir/world.cpp.obj
+[  5%] Built target backrooms_runtime
+[  7%] Building C object CMakeFiles/backrooms_gl_loader.dir/common/glad.c.obj
+[ 10%] Linking C static library libbackrooms_gl_loader.a
+[ 10%] Built target backrooms_gl_loader
+[ 12%] Building CXX object CMakeFiles/backrooms_model.dir/common/threat_model.cpp.obj
+[ 15%] Linking CXX static library libbackrooms_world.a
+[ 15%] Built target backrooms_world
+[ 17%] Building CXX object CMakeFiles/backrooms_music.dir/common/music.cpp.obj
+[ 20%] Linking CXX static library libbackrooms_audio.a
+[ 20%] Built target backrooms_audio
+[ 23%] Linking CXX static library libbackrooms_model.a
+[ 25%] Building CXX object CMakeFiles/backrooms_shaders.dir/common/Shader.cpp.obj
+[ 25%] Built target backrooms_model
+[ 28%] Building CXX object CMakeFiles/backrooms_threat.dir/common/threat.cpp.obj
+[ 30%] Linking CXX static library libbackrooms_shaders.a
+[ 30%] Built target backrooms_shaders
+[ 33%] Building CXX object CMakeFiles/backrooms_render.dir/common/ui.cpp.obj
+[ 35%] Linking CXX static library libbackrooms_music.a
+[ 35%] Built target backrooms_music
+[ 38%] Building CXX object CMakeFiles/backrooms_render.dir/common/textures.cpp.obj
+[ 41%] Linking CXX static library libbackrooms_threat.a
+[ 41%] Built target backrooms_threat
+[ 43%] Linking CXX static library libbackrooms_render.a
+[ 43%] Built target backrooms_render
+[ 46%] Building CXX object CMakeFiles/backrooms_app_support.dir/app/render_resources.cpp.obj
+[ 48%] Building CXX object CMakeFiles/backrooms_app_support.dir/app/diagnostics.cpp.obj
+[ 51%] Linking CXX static library libbackrooms_app_support.a
+[ 51%] Built target backrooms_app_support
+[ 53%] Building CXX object CMakeFiles/Backrooms.dir/backrooms.cpp.obj
+[ 56%] Building CXX object CMakeFiles/Backrooms.dir/app/game.cpp.obj
+[ 58%] Building CXX object CMakeFiles/Backrooms.dir/app/game_audio.cpp.obj
+[ 61%] Building CXX object CMakeFiles/Backrooms.dir/app/game_camera.cpp.obj
+[ 64%] Building CXX object CMakeFiles/Backrooms.dir/app/game_ending.cpp.obj
+[ 66%] Building CXX object CMakeFiles/Backrooms.dir/app/game_hud.cpp.obj
+[ 69%] Building CXX object CMakeFiles/Backrooms.dir/app/game_interactions.cpp.obj
+[ 71%] Building CXX object CMakeFiles/Backrooms.dir/app/game_loop.cpp.obj
+[ 74%] Building CXX object CMakeFiles/Backrooms.dir/app/game_menu.cpp.obj
+[ 76%] Building CXX object CMakeFiles/Backrooms.dir/app/game_play.cpp.obj
+[ 79%] Building CXX object CMakeFiles/Backrooms.dir/app/game_presentation.cpp.obj
+[ 82%] Building CXX object CMakeFiles/Backrooms.dir/app/game_render.cpp.obj
+[ 84%] Building CXX object CMakeFiles/Backrooms.dir/app/game_scenarios.cpp.obj
+[ 87%] Building CXX object CMakeFiles/Backrooms.dir/app/game_session.cpp.obj
+[ 89%] Building CXX object CMakeFiles/Backrooms.dir/app/input.cpp.obj
+[ 92%] Building CXX object CMakeFiles/Backrooms.dir/app/minimap.cpp.obj
+[ 94%] Building CXX object CMakeFiles/Backrooms.dir/app/options.cpp.obj
+[ 97%] Building CXX object CMakeFiles/Backrooms.dir/app/performance.cpp.obj
+[100%] Linking CXX executable bin\Backrooms.exe
+[100%] Built target Backrooms
+[100%] Built target backrooms_deploy
+[  3%] Built target backrooms_music
+[  6%] Built target backrooms_world
+[  7%] Building CXX object CMakeFiles/flow_tests.dir/tests/flow_tests.cpp.obj
+[  9%] Building CXX object CMakeFiles/options_tests.dir/tests/options_tests.cpp.obj
+[ 10%] Building CXX object CMakeFiles/performance_tests.dir/tests/performance_tests.cpp.obj
+[ 12%] Linking CXX executable bin\flow_tests.exe
+[ 13%] Linking CXX executable bin\performance_tests.exe
+[ 15%] Building CXX object CMakeFiles/options_tests.dir/app/options.cpp.obj
+[ 15%] Built target flow_tests
+[ 15%] Built target performance_tests
+[ 18%] Built target backrooms_gl_loader
+[ 21%] Built target backrooms_threat
+[ 23%] Building CXX object CMakeFiles/atmosphere_tests.dir/tests/atmosphere_tests.cpp.obj
+[ 24%] Building CXX object CMakeFiles/level0_landmark_tests.dir/tests/level0_landmark_tests.cpp.obj
+[ 26%] Linking CXX executable bin\options_tests.exe
+[ 26%] Built target options_tests
+[ 27%] Linking CXX executable bin\level0_landmark_tests.exe
+[ 29%] Building CXX object CMakeFiles/partygoer_tests.dir/tests/partygoer_tests.cpp.obj
+[ 30%] Linking CXX executable bin\atmosphere_tests.exe
+[ 30%] Built target level0_landmark_tests
+[ 30%] Built target atmosphere_tests
+[ 32%] Building CXX object CMakeFiles/parking_tests.dir/tests/parking_tests.cpp.obj
+[ 33%] Building CXX object CMakeFiles/fun_tests.dir/tests/fun_tests.cpp.obj
+[ 35%] Linking CXX executable bin\partygoer_tests.exe
+[ 36%] Linking CXX executable bin\fun_tests.exe
+[ 36%] Built target partygoer_tests
+[ 38%] Building CXX object CMakeFiles/fun_detail_tests.dir/tests/fun_detail_tests.cpp.obj
+[ 40%] Linking CXX executable bin\parking_tests.exe
+[ 40%] Built target fun_tests
+[ 43%] Built target backrooms_audio
+[ 44%] Building CXX object CMakeFiles/parking_detail_tests.dir/tests/parking_detail_tests.cpp.obj
+[ 44%] Built target parking_tests
+[ 46%] Building CXX object CMakeFiles/streaming_tests.dir/tests/streaming_tests.cpp.obj
+[ 47%] Linking CXX executable bin\fun_detail_tests.exe
+[ 49%] Linking CXX executable bin\parking_detail_tests.exe
+[ 49%] Built target fun_detail_tests
+[ 50%] Building CXX object CMakeFiles/world_tests.dir/tests/world_tests.cpp.obj
+[ 50%] Built target parking_detail_tests
+[ 52%] Linking CXX executable bin\streaming_tests.exe
+[ 53%] Building CXX object CMakeFiles/movement_tests.dir/tests/movement_tests.cpp.obj
+[ 53%] Built target streaming_tests
+[ 55%] Building CXX object CMakeFiles/ending_audio_tests.dir/tests/ending_audio_tests.cpp.obj
+[ 56%] Linking CXX executable bin\movement_tests.exe
+[ 58%] Linking CXX executable bin\ending_audio_tests.exe
+[ 58%] Built target movement_tests
+[ 60%] Building CXX object CMakeFiles/progression_tests.dir/tests/progression_tests.cpp.obj
+[ 60%] Built target ending_audio_tests
+[ 63%] Built target backrooms_model
+[ 64%] Building CXX object CMakeFiles/encounter_tests.dir/tests/encounter_tests.cpp.obj
+[ 66%] Linking CXX executable bin\world_tests.exe
+[ 66%] Built target world_tests
+[ 67%] Linking CXX executable bin\progression_tests.exe
+[ 69%] Linking CXX executable bin\encounter_tests.exe
+[ 70%] Building CXX object CMakeFiles/parking_audio_tests.dir/tests/parking_audio_tests.cpp.obj
+[ 70%] Built target progression_tests
+[ 70%] Built target encounter_tests
+[ 72%] Building CXX object CMakeFiles/audio_tests.dir/tests/audio_tests.cpp.obj
+[ 73%] Building CXX object CMakeFiles/ending_tests.dir/tests/ending_tests.cpp.obj
+[ 75%] Linking CXX executable bin\ending_tests.exe
+[ 75%] Built target ending_tests
+[ 76%] Linking CXX executable bin\parking_audio_tests.exe
+[ 78%] Building CXX object CMakeFiles/threat_tests.dir/tests/threat_tests.cpp.obj
+[ 78%] Built target parking_audio_tests
+[ 80%] Building CXX object CMakeFiles/music_tests.dir/tests/music_tests.cpp.obj
+[ 81%] Linking CXX executable bin\music_tests.exe
+[ 83%] Linking CXX executable bin\threat_tests.exe
+[ 83%] Built target music_tests
+[ 84%] Building CXX object CMakeFiles/presence_tests.dir/tests/presence_tests.cpp.obj
+[ 84%] Built target threat_tests
+[ 86%] Building CXX object CMakeFiles/gl_resource_tests.dir/tests/gl_resource_tests.cpp.obj
+[ 87%] Linking CXX executable bin\audio_tests.exe
+[ 89%] Linking CXX executable bin\gl_resource_tests.exe
+[ 89%] Built target audio_tests
+[ 90%] Building CXX object CMakeFiles/balance_tests.dir/tests/balance_tests.cpp.obj
+[ 90%] Built target gl_resource_tests
+[ 92%] Building CXX object CMakeFiles/fun_audio_tests.dir/tests/fun_audio_tests.cpp.obj
+[ 93%] Linking CXX executable bin\presence_tests.exe
+[ 93%] Built target presence_tests
+[ 95%] Building CXX object CMakeFiles/threat_model_tests.dir/tests/threat_model_tests.cpp.obj
+[ 96%] Linking CXX executable bin\fun_audio_tests.exe
+[ 98%] Linking CXX executable bin\balance_tests.exe
+[ 98%] Built target fun_audio_tests
+[100%] Linking CXX executable bin\threat_model_tests.exe
+[100%] Built target balance_tests
+[100%] Built target threat_model_tests
+[100%] Built target native_tests
+[ 11%] Built target backrooms_gl_loader
+[ 22%] Built target backrooms_shaders
+[ 38%] Built target backrooms_render
+[ 44%] Building CXX object CMakeFiles/lens_noise_tests.dir/tests/lens_noise_tests.cpp.obj
+[ 50%] Building CXX object CMakeFiles/graphics_tests.dir/tests/graphics_tests.cpp.obj
+[ 55%] Building CXX object CMakeFiles/ending_lighting_tests.dir/tests/ending_lighting_tests.cpp.obj
+[ 61%] Linking CXX executable bin\lens_noise_tests.exe
+[ 66%] Linking CXX executable bin\graphics_tests.exe
+[ 66%] Built target lens_noise_tests
+[ 83%] Built target backrooms_app_support
+[ 83%] Built target graphics_tests
+[ 88%] Building CXX object CMakeFiles/gl_lifetime_tests.dir/tests/gl_lifetime_tests.cpp.obj
+[ 94%] Linking CXX executable bin\ending_lighting_tests.exe
+[ 94%] Built target ending_lighting_tests
+[100%] Linking CXX executable bin\gl_lifetime_tests.exe
+[100%] Built target gl_lifetime_tests
+[100%] Built target graphics_tests_build
+Test project C:/Users/Adina/Desktop/Backrooms CGF Project/build/submission-clean-12d73691/BackroomsCGF/build/windows-release
+      Start  1: application_flow
+ 1/28 Test  #1: application_flow .................   Passed    0.30 sec
+      Start  2: diagnostic_options
+ 2/28 Test  #2: diagnostic_options ...............   Passed    0.40 sec
+      Start  3: balance_configuration
+ 3/28 Test  #3: balance_configuration ............   Passed    0.47 sec
+      Start  4: balance_invalid_startup
+ 4/28 Test  #4: balance_invalid_startup ..........   Passed    0.07 sec
+      Start  5: balance_missing_startup
+ 5/28 Test  #5: balance_missing_startup ..........   Passed    0.05 sec
+      Start  6: performance_statistics
+ 6/28 Test  #6: performance_statistics ...........   Passed    0.37 sec
+      Start  7: graphics_resource_ownership
+ 7/28 Test  #7: graphics_resource_ownership ......   Passed    0.40 sec
+      Start  8: level0_landmark_invariants
+ 8/28 Test  #8: level0_landmark_invariants .......   Passed    1.93 sec
+      Start  9: presence_invariants
+ 9/28 Test  #9: presence_invariants ..............   Passed    0.56 sec
+      Start 10: atmosphere_invariants
+10/28 Test #10: atmosphere_invariants ............   Passed    0.51 sec
+      Start 11: parking_invariants
+11/28 Test #11: parking_invariants ...............   Passed    1.98 sec
+      Start 12: parking_detail_invariants
+12/28 Test #12: parking_detail_invariants ........   Passed    0.80 sec
+      Start 13: partygoer_invariants
+13/28 Test #13: partygoer_invariants .............   Passed    0.54 sec
+      Start 14: fun_invariants
+14/28 Test #14: fun_invariants ...................   Passed    5.69 sec
+      Start 15: fun_detail_invariants
+15/28 Test #15: fun_detail_invariants ............   Passed    0.80 sec
+      Start 16: fun_audio_invariants
+16/28 Test #16: fun_audio_invariants .............   Passed    7.85 sec
+      Start 17: parking_audio_invariants
+17/28 Test #17: parking_audio_invariants .........   Passed    6.97 sec
+      Start 18: progression_invariants
+18/28 Test #18: progression_invariants ...........   Passed    0.93 sec
+      Start 19: world_invariants
+19/28 Test #19: world_invariants .................   Passed    1.04 sec
+      Start 20: streaming_invariants
+20/28 Test #20: streaming_invariants .............   Passed    0.71 sec
+      Start 21: movement_invariants
+21/28 Test #21: movement_invariants ..............   Passed    0.61 sec
+      Start 22: threat_invariants
+22/28 Test #22: threat_invariants ................   Passed    0.96 sec
+      Start 23: threat_model_invariants
+23/28 Test #23: threat_model_invariants ..........   Passed    3.09 sec
+      Start 24: encounter_invariants
+24/28 Test #24: encounter_invariants .............   Passed    0.47 sec
+      Start 25: audio_invariants
+25/28 Test #25: audio_invariants .................   Passed  276.94 sec
+      Start 26: ending_timeline
+26/28 Test #26: ending_timeline ..................   Passed    1.69 sec
+      Start 27: ending_audio
+27/28 Test #27: ending_audio .....................   Passed    7.84 sec
+      Start 28: music_lifecycle
+28/28 Test #28: music_lifecycle ..................   Passed    5.61 sec
+
+100% tests passed out of 28
+
+Label Time Summary:
+audio-device    =   5.61 sec*proc (1 test)
+native          = 329.58 sec*proc (28 tests)
+
+Total Test time (real) = 329.72 sec
+Test project C:/Users/Adina/Desktop/Backrooms CGF Project/build/submission-clean-12d73691/BackroomsCGF/build/windows-release
+    Start 29: graphics_occlusion
+1/4 Test #29: graphics_occlusion ...............   Passed    2.34 sec
+    Start 30: lens_noise
+2/4 Test #30: lens_noise .......................   Passed    2.53 sec
+    Start 31: ending_sunlight
+3/4 Test #31: ending_sunlight ..................   Passed    2.42 sec
+    Start 32: graphics_resource_lifetime
+4/4 Test #32: graphics_resource_lifetime .......   Passed    1.42 sec
+
+100% tests passed out of 4
+
+Label Time Summary:
+graphics    =   8.71 sec*proc (4 tests)
+
+Total Test time (real) =   8.75 sec

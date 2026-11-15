@@ -81,7 +81,7 @@ void Game::initialize() {
         const auto initialModel=threatModelVertices(0,0,false);
         uploadVertices(threatGpu,initialModel,GL_DYNAMIC_DRAW);
         threatHeadLocal=headCenter(initialModel);
-        log("Loaded Aranea model: "+std::to_string(initialModel.size()/3)+" triangles.");
+        log("Loaded Threshold Sentinel model: "+std::to_string(initialModel.size()/3)+" triangles.");
     }
     if(musicLoaded) log("Background music loaded.");
     else if(!music.error().empty()) log("Background music unavailable: "+music.error());

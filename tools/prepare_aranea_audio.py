@@ -1,4 +1,4 @@
-"""Rebuild Aranea's soil contacts and calls from the retained source recordings.
+"""Rebuild creature contacts and calls using only the retained CC0 recordings.
 
 Offline dependency: NumPy. Runtime uses only the resulting PCM16 WAV files.
 """
@@ -100,17 +100,18 @@ def make_steps(running):
     return result
 
 
-def make_calls(reference, notice):
+def make_calls(notice):
     result = []
     scream = band(read(ROOT / 'assets/audio/jumpscare/scream.wav'), 90, 6200)
     for variant in range(4):
         duration = (1.84 if notice else 1.54) + .025 * variant
         count = round(duration * RATE)
-        source = reference[round((.015 + .022*variant) * RATE):]
-        factor = (.98 if notice else .79) + .025*variant
-        reference_voice = band(pitched(source, factor, count), 110, 3900)
-        attack_voice = pitched(scream, (1.12 if notice else .91) + .02*variant, count)
-        voice = (.78 if notice else .54)*attack_voice + .38*reference_voice
+        # Both layers come from zerokingfull's CC0 Monster Roar 02 recording.
+        # No YouTube excerpt, commercial recording or reference imitation.
+        source = scream[round((.015 + .022*variant) * RATE):]
+        attack_voice = pitched(source, (1.12 if notice else .91) + .02*variant, count)
+        body_voice = band(pitched(source, (.72 if notice else .61) + .018*variant, count), 75, 2200)
+        voice = .80*attack_voice + .28*body_voice
         voice /= max(np.max(np.abs(voice)), 1e-6)
         # A clear vocal attack carries over distant footsteps/music. Gentle
         # compression retains its quieter throat body; no change to capture PCM.
@@ -123,21 +124,9 @@ def make_calls(reference, notice):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--reference', type=Path, help='Optional decoded mono 22050 Hz reference, used to refresh retained excerpts')
-    args = parser.parse_args()
-    if args.reference:
-        source = read(args.reference)
-        for name, begin, end in [('running', .55, 3.95), ('roar', 39.6, 42.45)]:
-            # Preserve exact excerpt PCM, without the output bank's peak bound.
-            part = np.rint(source[round(begin*RATE):round(end*RATE)] * 32768).astype('<i2')
-            target = BANK / f'source/{name}-reference.wav'
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with wave.open(str(target), 'wb') as stream:
-                stream.setparams((1, 2, RATE, 0, 'NONE', 'not compressed'))
-                stream.writeframes(part.tobytes())
-    roar = read(BANK / 'source/roar-reference.wav')
+    parser.parse_args()
     clips = {'walk': make_steps(False), 'run': make_steps(True),
-             'notice': make_calls(roar, True), 'roar': make_calls(roar, False)}
+             'notice': make_calls(True), 'roar': make_calls(False)}
     files = []
     for kind, bank in clips.items():
         for index, clip in enumerate(bank):
@@ -154,19 +143,19 @@ def main():
     add(6.3, clips['notice'][0], .9)
     add(9.5, clips['roar'][1], .85)
     write(BANK/'preview.wav', preview)
-    manifest = {'sample_rate': RATE, 'format': 'mono PCM16', 'reference': {
-        'url': 'https://www.youtube.com/watch?v=wzUCsTD23rg',
-        'title': 'Aranea Membri Sounds (Backrooms Entity)', 'uploader': 'Slappy The Dummy',
-        'description_credit': '@frag2', 'license': 'Not stated in retrieved metadata',
-        'excerpts_seconds': {'running': [.55, 3.95], 'roar': [39.6, 42.45]}},
+    manifest = {'sample_rate': RATE, 'format': 'mono PCM16', 'call_source': {
+        'url': 'https://freesound.org/people/zerokingfull/sounds/347410/',
+        'title': 'Monster Roar 02', 'author': 'zerokingfull',
+        'license': 'CC0-1.0', 'license_url': 'https://creativecommons.org/publicdomain/zero/1.0/',
+        'verified': '2026-11-15'},
         'soil_source': {'author': 'Fantozzi', 'license': 'CC0-1.0',
             'url': 'https://opengameart.org/content/fantozzis-footsteps-grasssand-stone',
             'original_pack': 'https://www.freesound.org/people/Fantozzi/packs/10338/',
             'selection': 'SandL1, SandR1, SandL2, SandR2 only; stone clips are not used'},
-        'processing': 'Soft sand/soil pressure and grit, lowered pitch and softened onset; no hard clank or duplicated toe impact. Calls combine reference roar with supplied ZeroKingFull scream, vocal EQ and gentle compression.',
+        'processing': 'Soft sand contacts from CC0 Fantozzi recordings. Calls use only the CC0 zerokingfull capture WAV: separate pitch layers, vocal EQ, gentle compression and edge fades.',
         'inputs': [{'file': str(p.relative_to(ROOT)).replace('\\', '/'),
                     'sha256': hashlib.sha256(p.read_bytes()).hexdigest()}
-                   for p in [BANK/'source/roar-reference.wav', ROOT/'assets/audio/jumpscare/scream.wav',
+                   for p in [ROOT/'assets/audio/jumpscare/monster-roar-02.ogg', ROOT/'assets/audio/jumpscare/scream.wav',
                              *sorted((BANK/'source/soil').glob('Fantozzi-*'))]],
         'files': files, 'preview_timeline': {'walk': [.35, 3.4], 'run': [4, 5.67], 'notice': [6.3, 8.14], 'roar': [9.5, 11.065]}}
     (BANK/'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n', encoding='utf-8')

@@ -41,6 +41,23 @@ Close the game before replacing its executable. Release intermediates go into
 under `bin/` and CMake's `backrooms_deploy` target copies it to the root, where
 `Run.cmd` launches it. Settings are not part of the runtime-copy target.
 
+`Run.cmd` launches a supplied executable directly and only invokes the build
+wrapper if it is absent. Use `build.ps1` or `Build.cmd` explicitly after editing
+source. `Presentation.cmd` launches the fixed demonstration. The submission ZIP
+contains the Windows executable, so the professor does not need a compiler to
+run it. Extract the entire folder first; see `README_FIRST.txt`.
+
+`tools/package-submission.ps1` creates a new timestamped ZIP with source, assets,
+software notices and a SHA-256 manifest. `-SourceOnly` makes the source snapshot
+used for a clean extraction/build. `-Executable PATH` selects a freshly built
+binary. Optional `-Deliverables PATH1,PATH2` includes final report/presentation
+files. Local backups, old captures, Git history and build caches are excluded.
+
+From an extracted package, `Lab Check.cmd` verifies file integrity, exercises
+12 runtime cases and records the AO benchmark without installing build tools.
+The asset audit and current generator READMEs describe the original Threshold
+Sentinel and CC0/original audio used by the submission.
+
 The MinGW configuration explicitly selects `libglfw3.a` instead of the GLFW
 package's DLL import target and statically links GCC's runtime. A player still
 needs Windows and a compatible graphics driver, but does not need MSYS2 on PATH.

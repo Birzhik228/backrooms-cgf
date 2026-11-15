@@ -56,12 +56,14 @@ foreach($taskCase in $taskCases) {
     $taskStderr=Join-Path $taskCaseDir 'stderr.txt'
     $taskProcess=Start-Process -FilePath $taskCaseExe -WorkingDirectory $taskCaseDir -ArgumentList $taskCase.args `
         -WindowStyle Hidden -RedirectStandardOutput $taskStdout -RedirectStandardError $taskStderr -PassThru
+    $taskProcessHandle=$taskProcess.Handle
     if(!$taskProcess.WaitForExit(60000)) {
         $taskProcess.Kill()
         throw "Console verification timed out: $($taskCase.name)"
     }
     # Wait for redirected output handlers to finish draining after process exit.
     $taskProcess.WaitForExit()
+    $taskProcess.Refresh()
     $taskOut=[IO.File]::ReadAllText($taskStdout)
     $taskErr=[IO.File]::ReadAllText($taskStderr)
     $taskLog=[IO.File]::ReadAllText((Join-Path $taskCaseDir 'backrooms.log'))

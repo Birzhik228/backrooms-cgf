@@ -31,7 +31,7 @@ foreach($taskCase in $taskCases) {
  $taskProcess=Start-Process -FilePath (Join-Path $taskRoot 'Backrooms.exe') -WorkingDirectory $taskRoot -ArgumentList $taskArgs -WindowStyle Hidden -Wait -PassThru
  $taskLog=[string](Get-Content -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Raw)
  Copy-Item -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Destination (Join-Path $taskEvidence ($taskCase.name+'.log'))
- if($taskProcess.ExitCode -ne 0 -or !$taskLog.Contains('GL errors: 0') -or !$taskLog.Contains($taskCase.expected) -or !$taskLog.Contains('Loaded Aranea model: 15220 triangles.')){throw "Failed $($taskCase.name): $taskLog"}
+ if($taskProcess.ExitCode -ne 0 -or !$taskLog.Contains('GL errors: 0') -or !$taskLog.Contains($taskCase.expected) -or !$taskLog.Contains('Loaded Threshold Sentinel model: 8120 triangles.')){throw "Failed $($taskCase.name): $taskLog"}
  if($taskCase.name -in @('walking','chasing')) {
   if($taskLog -notmatch 'Creature footfalls: ([0-9]+)' -or [int]$Matches[1] -lt 2){throw "No repeated foot plants in $($taskCase.name): $taskLog"}
  }

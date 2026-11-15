@@ -1,0 +1,6 @@
+*.command text eol=lf
+*.sh text eol=lf
+# Asset provenance inventories hash the exact source bytes on every platform.
+assets/** -text whitespace=cr-at-eol
+# Keep upstream license notices byte-for-byte, including their whitespace.
+docs/licenses/SDL2-LICENSE.txt -text whitespace=-blank-at-eol,-blank-at-eof

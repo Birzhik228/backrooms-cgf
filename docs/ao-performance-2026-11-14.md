@@ -1,5 +1,9 @@
 # Ambient occlusion performance at 1280 x 720
 
+Historical measurement: this report identifies the 14 November binary and
+preceding asset set. The 15 November submission replaces the creature and some
+audio; use that package's own benchmark results for current-build claims.
+
 Measured locally on 14 November 2026 using the current Windows Release build.
 The median of three trial averages was **122.24 FPS with AO ON** and
 **142.80 FPS with AO OFF**. Disabling AO increased this median by **16.81%**.

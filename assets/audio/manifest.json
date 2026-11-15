@@ -1,0 +1,604 @@
+{
+  "schema": 1,
+  "verified": "2026-11-15",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "sources": {
+    "gbox": {
+      "author": "GboxMikeFozzy",
+      "title": "Footsteps",
+      "url": "https://opengameart.org/content/footsteps-0"
+    },
+    "sand": {
+      "author": "Fantozzi",
+      "title": "Grass, Sand, Stone footsteps",
+      "url": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone"
+    },
+    "roar": {
+      "author": "zerokingfull",
+      "title": "Monster Roar 02",
+      "url": "https://freesound.org/people/zerokingfull/sounds/347410/"
+    },
+    "original": {
+      "author": "Backrooms CGF project with disclosed Codex assistance",
+      "title": "Original procedural music and pickup chime",
+      "generator": "tools/prepare_release_audio.py",
+      "inputs": "Oscillators and seeded noise only; no recordings or copied melody."
+    }
+  },
+  "files": [
+    {
+      "file": "aranea/notice-01.wav",
+      "bytes": 81188,
+      "sha256": "dddff60a8480166dd82402d1db13a215d201315a4a8b1f235ebfe1b87e2ac856",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/notice-02.wav",
+      "bytes": 82290,
+      "sha256": "f74402d262a799abb048562af01f47cbb4460998f715c7d3afefbc2eda4a9020",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/notice-03.wav",
+      "bytes": 83392,
+      "sha256": "edef98e4e680bfd72a3f3780b1025113c765f4089f64f8640885be14d23558ad",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/notice-04.wav",
+      "bytes": 84496,
+      "sha256": "cee2f31bf060d5a33bb6a84e6432a7b7172e44e877e508d12b5d21086427c544",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/preview.wav",
+      "bytes": 595394,
+      "sha256": "2fa21a10b341cd8535938e408eff043311931444aea3fd5afe68f68290c9bb0a",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand",
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/roar-01.wav",
+      "bytes": 67958,
+      "sha256": "3f35924036cf6794ece94c3684adb13307251bdcad51ee2de7bb971f73086e04",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/roar-02.wav",
+      "bytes": 69060,
+      "sha256": "ea7a72b012aa9d037b79cb6a48c570b03dcfb2e1773c9b5621ddcd58699a11ae",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/roar-03.wav",
+      "bytes": 70164,
+      "sha256": "f879591de13f997900a1867427414a2ba59064e51811465f39f499f987e567a9",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/roar-04.wav",
+      "bytes": 71266,
+      "sha256": "399384283a627af036a843d36240cfe6bc574a73ffc76d44dfa5645194854235",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "aranea/run-01.wav",
+      "bytes": 15038,
+      "sha256": "61b9f412faad9a867a9864c18260f21025744a9d2a6891596c80b9289db62de3",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/run-02.wav",
+      "bytes": 15390,
+      "sha256": "d27100bf22d0697d1b3eab88956ee16b8cccae3fdec7c8dd35b324947de7f6df",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/run-03.wav",
+      "bytes": 15744,
+      "sha256": "4d75f3da9d207e774277d937ae28763af992d72d6da7814a5770210d30990490",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/run-04.wav",
+      "bytes": 16096,
+      "sha256": "365ab0c74d32b5f95a61e1fbfc719e4854703e0f3882b0525e60166d4585681e",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandL1.flac",
+      "bytes": 40317,
+      "sha256": "93a2630579a82507e3c6ceab9b012f71a50cf8922f4beadb14057dcc0636b099",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandL1.wav",
+      "bytes": 19612,
+      "sha256": "2a55676d6cf46c4af3303903d0397ae746679331916e8e7e214e2b162fcc817e",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandL2.flac",
+      "bytes": 30870,
+      "sha256": "9bb57478cc96e1410cae27d926aa8d77d5f2d368d9776822f63cf0b37c6d2faf",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandL2.wav",
+      "bytes": 14190,
+      "sha256": "9ee69650ef5cb51dd3bd4111274d756d2f4ab7bfeabe8b3c46cce3d627d16e59",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandR1.flac",
+      "bytes": 36934,
+      "sha256": "3514d12f3369297233e915814364ed02902003d4103b010371c2ac15c2aa48fe",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandR1.wav",
+      "bytes": 17990,
+      "sha256": "10a70db61d11fe733f7efbacb8c3038a7cbc40a459833175b7c2d7471ff87f7f",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandR2.flac",
+      "bytes": 30328,
+      "sha256": "0356f659313887f01a9f21fd5bedf57a77073d0d74d57b5621279ee453a80f3c",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/source/soil/Fantozzi-SandR2.wav",
+      "bytes": 15098,
+      "sha256": "5ae09a7f4ff896ea438da9febb34babbcbff796d49f3f15fef8de65be133b816",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/walk-01.wav",
+      "bytes": 18124,
+      "sha256": "5b48339b4575bbd2d2adb2a32b702aad8dca3798f6eb3850c03d59150a6528ea",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/walk-02.wav",
+      "bytes": 18478,
+      "sha256": "519bdbb85e5e2dc0fb299a27838c483d35794b8f7e6c6b96eea7513139248123",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/walk-03.wav",
+      "bytes": 18830,
+      "sha256": "c669fd4ef5b003c60320f5a6b81734bac00b6b54aaf7ca0364c5fcbc1974320e",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "aranea/walk-04.wav",
+      "bytes": 19184,
+      "sha256": "e9e0faadf79638e0574b982279491c2a86c0500db695a6b69a0aa93915dea3fc",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "footsteps/source/01-footstep_0.ogg",
+      "bytes": 9715,
+      "sha256": "33c9bef5e8aeb1069455699a34a0c5e1ef1787fd3f61594b0859d7e6bb9f9dec",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/source/02-footstep.ogg",
+      "bytes": 10531,
+      "sha256": "f05396c807eb8eaecffb2a1ead611ec971c5a7914d1d081c91d7796e852692a2",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/source/03-footstep.ogg",
+      "bytes": 14136,
+      "sha256": "9817cc93897ed1de5da87675b26be4196bfda3daa6f1de9dc4398a68d250cdb9",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/source/04-footstep.ogg",
+      "bytes": 13771,
+      "sha256": "b373ff981e44d6f7ba2291225a4803078771029615ed81606136fdb9599906d5",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/source/05-footstep.ogg",
+      "bytes": 13595,
+      "sha256": "f1b4893dd3cebe23438567a0dcaf047848a52b594e7eb03e5c212d99e83d2298",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/source/06-footstep.ogg",
+      "bytes": 11329,
+      "sha256": "39147cc1b98abb4b5378ad07b15d50d18f2aa0f0fd2f5514f078c1e574d14773",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/step-01.wav",
+      "bytes": 8374,
+      "sha256": "f750457e85dc3b0d52186d0b8370b612d63eab17d4e8a3c69fac2545f4e894db",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/step-02.wav",
+      "bytes": 9028,
+      "sha256": "1ed1e4aee30a053498dc05c3ff30df16caaaa61688876bbb08efe3f43d9ca071",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/step-03.wav",
+      "bytes": 15554,
+      "sha256": "4ba38abf74cabc60dd6bdf3c08e7b9fdc5e66eb43b30c78230fbe700feb939c7",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/step-04.wav",
+      "bytes": 16272,
+      "sha256": "2432cb94e2d6cf80b3be0246f67a5b5c6462019a0abf45b4d60efa37635c35e8",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/step-05.wav",
+      "bytes": 15424,
+      "sha256": "4590b4e9e76e224876bda3aed073db9d1e7f61db56f4f8cccda0fc105983471b",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps/step-06.wav",
+      "bytes": 12420,
+      "sha256": "ef528e5a2269675ddbfe1b05c647b1e790827201abba47e3d8f4b28c4422f3d3",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps-monster/step-01.wav",
+      "bytes": 15038,
+      "sha256": "61b9f412faad9a867a9864c18260f21025744a9d2a6891596c80b9289db62de3",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "footsteps-monster/step-02.wav",
+      "bytes": 15390,
+      "sha256": "d27100bf22d0697d1b3eab88956ee16b8cccae3fdec7c8dd35b324947de7f6df",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "footsteps-monster/step-03.wav",
+      "bytes": 15744,
+      "sha256": "4d75f3da9d207e774277d937ae28763af992d72d6da7814a5770210d30990490",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "footsteps-monster/step-04.wav",
+      "bytes": 16096,
+      "sha256": "365ab0c74d32b5f95a61e1fbfc719e4854703e0f3882b0525e60166d4585681e",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "sand"
+      ]
+    },
+    {
+      "file": "footsteps-player/step-01.wav",
+      "bytes": 8374,
+      "sha256": "8c308bc30f2a905275e8330f401218660451eac9b3ce428203376352be65c18b",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps-player/step-02.wav",
+      "bytes": 9028,
+      "sha256": "4648addb694bfa8cc136981cf8ed774565817fb5af2c08bf877ba518305ed235",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps-player/step-03.wav",
+      "bytes": 15554,
+      "sha256": "e4ef4d16696fd62e7197612df4e6fb7304178d5fad19baf52315f71727c53ff0",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps-player/step-04.wav",
+      "bytes": 16272,
+      "sha256": "a1324e20eb2ca6632c3a68299517e1d82d9dd8a710767fa7f2cfeddacebf209d",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps-player/step-05.wav",
+      "bytes": 15424,
+      "sha256": "7534aeee2187cf4c2cbe12f9057791f8644c7ac1e0523b3ad28434d52ef10db3",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "footsteps-player/step-06.wav",
+      "bytes": 12420,
+      "sha256": "27047cfd7060372434352e05ef748ffbfe80ed3b59beb822d580fe52d31a1241",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "gbox"
+      ]
+    },
+    {
+      "file": "jumpscare/monster-roar-02.ogg",
+      "bytes": 201814,
+      "sha256": "512158b2c19311cebdbfaf8756d12acad6e8660b941da428987edc4b0d69bcda",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "jumpscare/scream.wav",
+      "bytes": 86074,
+      "sha256": "97378ea03c1174c8f1e6c5289f2992375ca3e0dcacc757521ebff5d7e5bb660b",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "music/threshold-ambient.wav",
+      "bytes": 4233644,
+      "sha256": "7c292ce902ec265a9ab7d55e4466c2098fa01f253967b0f9b7961158a7a5f651",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original synthesis",
+      "sources": [
+        "original"
+      ]
+    },
+    {
+      "file": "partygoer/jumpscare.wav",
+      "bytes": 88244,
+      "sha256": "88db21c0af26a782a812cc086b58421ea77766a6a755edcf2ad491be3b857522",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "derived recording",
+      "sources": [
+        "roar"
+      ]
+    },
+    {
+      "file": "verity/pickup.wav",
+      "bytes": 88244,
+      "sha256": "82d5ccb28d56eb076b7f895e2a5283d70c877bd7fd0310a948abb9973e7a91f6",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "kind": "original synthesis",
+      "sources": [
+        "original"
+      ]
+    }
+  ],
+  "note": "CC0 only. Original synthesis dedication covers new music and chime; recordings retain named source authors."
+}

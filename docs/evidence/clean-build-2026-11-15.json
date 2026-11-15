@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "date": "2026-11-15",
+  "sourceZipSha256": "fafd1e6625c9c87a4d95c6ede46b2bdd6bb5f40a809796c04fe3ecc26a07e91c",
+  "executableSha256": "48CAFA6D541B3D2C4D6EE5F52C049BBA1B9D5A12C8B62D9530E30CE460508303",
+  "nativeTests": {
+    "passed": 28,
+    "failed": 0,
+    "seconds": 329.72
+  },
+  "graphicsTests": {
+    "passed": 4,
+    "failed": 0,
+    "seconds": 8.75
+  },
+  "benchmarkTrials": 6,
+  "benchmarkReport": "docs/ao-performance-2026-11-15.json",
+  "nativeDllImports": [
+    "GDI32.dll",
+    "KERNEL32.dll",
+    "msvcrt.dll",
+    "SHELL32.dll",
+    "USER32.dll",
+    "WINMM.dll"
+  ],
+  "note": "Clean extraction/build evidence; final ZIP verification is recorded beside the archive after extraction. This is the local computer, not the professor computer."
+}

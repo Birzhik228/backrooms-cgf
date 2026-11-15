@@ -5,6 +5,7 @@
 /Backrooms
 /backrooms.log
 /build/
+/dist/
 /captures/
 /tests/*.exe
 /tests/artifacts/

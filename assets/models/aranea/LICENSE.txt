@@ -1,0 +1,18 @@
+Threshold Sentinel generated assets
+
+Generated for the Backrooms CGF project on 15 November 2026 with Codex
+assistance, using tools/generate_sentinel.py. No third-party mesh, image,
+animation or source recording is incorporated into these payloads.
+
+The project dedicates the new generated aranea.brm, creature-color.rgb and
+creature-normal.rgb payloads to the public domain under CC0 1.0 Universal.
+To the extent copyright or related rights apply, the CC0 dedication applies.
+
+CC0 1.0 Universal:
+https://creativecommons.org/publicdomain/zero/1.0/
+https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+This notice does not grant rights in the former imported Aranea model, its
+textures, historical screenshots, or other third-party content. Those assets
+are not part of this replacement asset set. Project source code and software
+dependencies retain their own terms and notices.

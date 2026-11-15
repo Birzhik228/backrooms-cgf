@@ -1,9 +1,15 @@
 #include "music.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstring>
 #include <cwctype>
+#include <limits>
 #include <system_error>
-#ifdef _WIN32
+#include <vector>
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+#include <SDL.h>
+#elif defined(_WIN32)
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
@@ -20,7 +26,76 @@ struct BackgroundMusic::Impl {
     std::uint32_t position=0,duration=0,loops=0;
     int appliedVolume=-1;
     bool started=false;
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    static constexpr int sampleRate=22050;
+    static constexpr std::size_t channels=2,chunkFrames=512,queueChunks=4;
+    static constexpr std::size_t frameBytes=channels*sizeof(std::int16_t);
+    SDL_AudioDeviceID device=0;
+    bool audioInitialized=false;
+    std::vector<std::int16_t> samples;
+    std::uint64_t submittedFrames=0;
+
+    void closeDevice() {
+        if(device) {
+            SDL_CloseAudioDevice(device);
+            device=0;
+        }
+        if(audioInitialized) {
+            // SDL counts subsystem initializations. Closing the soundtrack must
+            // not shut down the independently owned effects output device.
+            SDL_QuitSubSystem(SDL_INIT_AUDIO);
+            audioInitialized=false;
+        }
+        samples.clear();
+        submittedFrames=0;
+    }
+    bool fail(const char* operation) {
+        message=std::string(operation)+": "+SDL_GetError();
+        closeDevice();
+        state=MusicStatus::Failed;
+        return false;
+    }
+    std::uint64_t cachePosition() {
+        const auto queued=static_cast<std::uint64_t>(SDL_GetQueuedAudioSize(device)/frameBytes);
+        const auto delivered=submittedFrames-std::min(submittedFrames,queued);
+        const auto trackFrames=samples.size()/channels;
+        if(trackFrames) {
+            position=static_cast<std::uint32_t>((delivered%trackFrames)*1000/sampleRate);
+            loops=static_cast<std::uint32_t>(std::min<std::uint64_t>(delivered/trackFrames,
+                std::numeric_limits<std::uint32_t>::max()));
+        }
+        // This is the position delivered to the OS, within one device buffer
+        // of the audible position, not a claim of hardware sample accuracy.
+        return delivered;
+    }
+    void pauseAndDiscardPending() {
+        SDL_PauseAudioDevice(device,1);
+        submittedFrames=cachePosition();
+        SDL_ClearQueuedAudio(device);
+    }
+    bool fillQueue(int level) {
+        const auto trackFrames=samples.size()/channels;
+        if(!device || !trackFrames)return false;
+        std::array<std::int16_t,chunkFrames*channels> chunk{};
+        auto queued=SDL_GetQueuedAudioSize(device);
+        constexpr auto bytes=static_cast<Uint32>(chunkFrames*frameBytes);
+        constexpr auto targetBytes=static_cast<Uint32>(queueChunks*chunkFrames*frameBytes);
+        // At most four chunks per update, even if the device drains while we
+        // are filling it. Music memory and per-frame work are both bounded.
+        for(std::size_t count=0;count<queueChunks && queued<=targetBytes-bytes;++count) {
+            for(std::size_t frame=0;frame<chunkFrames;++frame) {
+                const auto source=static_cast<std::size_t>((submittedFrames+frame)%trackFrames)*channels;
+                for(std::size_t channel=0;channel<channels;++channel)
+                    chunk[frame*channels+channel]=static_cast<std::int16_t>(
+                        static_cast<int>(samples[source+channel])*level/1000);
+            }
+            if(SDL_QueueAudio(device,chunk.data(),bytes)<0)return fail("Music queue failed");
+            submittedFrames+=chunkFrames;
+            queued+=bytes;
+        }
+        return true;
+    }
+#elif defined(_WIN32)
     MCIDEVICEID device=0;
 
     void closeDevice() {
@@ -109,7 +184,12 @@ bool BackgroundMusic::load(const std::filesystem::path& requested) {
     std::error_code fsError;
     if (!std::filesystem::is_regular_file(path,fsError)) {
         bool found=false;
-        for (const auto* extension:{L".mp3",L".wav",L".m4a"}) {
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+        const wchar_t* extensions[]={L".wav"};
+#else
+        const wchar_t* extensions[]={L".mp3",L".wav",L".m4a"};
+#endif
+        for (const auto* extension:extensions) {
             auto candidate=requested;
             candidate.replace_extension(extension);
             if (candidate==requested) continue;
@@ -128,7 +208,68 @@ bool BackgroundMusic::load(const std::filesystem::path& requested) {
         data.state=MusicStatus::Failed;
         return false;
     }
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    if(extension!=L".wav") {
+        data.message="The Mac soundtrack backend needs a WAV file; the packaged soundtrack is WAV.";
+        data.state=MusicStatus::Failed;
+        return false;
+    }
+    constexpr std::size_t maxPcmBytes=256u*1024u*1024u;
+    const auto fileBytes=std::filesystem::file_size(path,fsError);
+    if(fsError || fileBytes>maxPcmBytes) {
+        data.message="The soundtrack could not be read or exceeds the 256 MiB audio limit.";
+        data.state=MusicStatus::Failed;
+        return false;
+    }
+    SDL_AudioSpec source{};
+    Uint8* raw=nullptr;
+    Uint32 rawBytes=0;
+    const auto filename=path.u8string();
+    if(!SDL_LoadWAV(filename.c_str(),&source,&raw,&rawBytes))return data.fail("Music WAV load failed");
+    const std::unique_ptr<Uint8,decltype(&SDL_FreeWAV)> rawOwner(raw,SDL_FreeWAV);
+    if(!rawBytes || rawBytes>maxPcmBytes) {
+        data.message="The WAV soundtrack has no samples or exceeds the audio limit.";
+        data.state=MusicStatus::Failed;
+        return false;
+    }
+    SDL_AudioCVT conversion{};
+    const int conversionNeeded=SDL_BuildAudioCVT(&conversion,source.format,source.channels,source.freq,
+        AUDIO_S16SYS,static_cast<Uint8>(Impl::channels),Impl::sampleRate);
+    if(conversionNeeded<0)return data.fail("Music format conversion failed");
+    if(conversion.len_mult<=0 || static_cast<std::size_t>(rawBytes)>maxPcmBytes/static_cast<std::size_t>(conversion.len_mult)) {
+        data.message="The converted soundtrack exceeds the audio limit.";
+        data.state=MusicStatus::Failed;
+        return false;
+    }
+    std::vector<Uint8> converted(static_cast<std::size_t>(rawBytes)*static_cast<std::size_t>(conversion.len_mult));
+    std::memcpy(converted.data(),raw,rawBytes);
+    conversion.buf=converted.data();
+    conversion.len=static_cast<int>(rawBytes);
+    if(conversionNeeded && SDL_ConvertAudio(&conversion)<0)return data.fail("Music sample conversion failed");
+    const auto outputBytes=conversionNeeded?static_cast<std::size_t>(conversion.len_cvt):static_cast<std::size_t>(rawBytes);
+    if(!outputBytes || outputBytes%Impl::frameBytes || outputBytes>converted.size()) {
+        data.message="The WAV soundtrack does not contain complete stereo frames.";
+        data.state=MusicStatus::Failed;
+        return false;
+    }
+    data.samples.resize(outputBytes/sizeof(std::int16_t));
+    std::memcpy(data.samples.data(),converted.data(),outputBytes);
+    data.duration=static_cast<std::uint32_t>((data.samples.size()/Impl::channels)*1000/Impl::sampleRate);
+    // GLFW owns the application entry point; no SDL_main wrapper is used.
+    SDL_SetMainReady();
+    if(SDL_InitSubSystem(SDL_INIT_AUDIO)<0)return data.fail("Music audio initialization failed");
+    data.audioInitialized=true;
+    SDL_AudioSpec desired{};
+    desired.freq=Impl::sampleRate;
+    desired.format=AUDIO_S16SYS;
+    desired.channels=static_cast<Uint8>(Impl::channels);
+    desired.samples=static_cast<Uint16>(Impl::chunkFrames);
+    // No callback: only the game thread reads track data and queues PCM.
+    data.device=SDL_OpenAudioDevice(nullptr,0,&desired,nullptr,0);
+    if(!data.device)return data.fail("Music output device could not be opened");
+    data.state=MusicStatus::Ready; // Newly opened SDL devices are paused.
+    return true;
+#elif defined(_WIN32)
     const auto absolute=std::filesystem::absolute(path,fsError);
     if (fsError) {
         data.message="The local music path could not be resolved.";
@@ -171,7 +312,30 @@ bool BackgroundMusic::load(const std::filesystem::path& requested) {
 
 void BackgroundMusic::update(bool paused,bool muted,float volume,float dt) {
     if (!available()) return;
-#ifdef _WIN32
+#if defined(BACKROOMS_USE_SDL_AUDIO)
+    (void)dt;
+    auto& data=*impl_;
+    if(!std::isfinite(volume))volume=0;
+    const int level=static_cast<int>(std::lround(std::clamp(volume,0.0f,1.0f)*1000));
+    if(paused || muted || level==0) {
+        if(data.state==MusicStatus::Playing) {
+            data.pauseAndDiscardPending();
+            data.state=MusicStatus::Paused;
+        }
+        return;
+    }
+    const bool resume=data.state!=MusicStatus::Playing;
+    const bool changeVolume=level!=data.appliedVolume;
+    if(changeVolume) {
+        data.pauseAndDiscardPending();
+        data.appliedVolume=level;
+    }
+    if(!data.fillQueue(level))return;
+    if(resume || changeVolume)SDL_PauseAudioDevice(data.device,0);
+    data.started=true;
+    data.state=MusicStatus::Playing;
+    data.cachePosition();
+#elif defined(_WIN32)
     auto& data=*impl_;
     if (!std::isfinite(volume)) volume=0;
     const int level=static_cast<int>(std::lround(std::clamp(volume,0.0f,1.0f)*1000));

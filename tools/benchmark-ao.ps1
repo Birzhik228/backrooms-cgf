@@ -25,6 +25,12 @@ function Settings-Hash {
 Assert-Benchmark (Test-Path -LiteralPath $taskExe) 'Build Backrooms.exe first.'
 Assert-Benchmark (@(Get-Process -Name Backrooms -ErrorAction SilentlyContinue).Count -eq 0) 'Close the running game before benchmarking.'
 $taskSettingsBefore=Settings-Hash
+$taskGitCommit='Not available in extracted submission; identify this build by executable SHA-256.'
+$taskSourceStatus=@()
+if((Test-Path -LiteralPath (Join-Path $taskRoot '.git')) -and (Get-Command git -ErrorAction SilentlyContinue)) {
+    $taskGitCommit=(& git -C $taskRoot rev-parse HEAD | Out-String).Trim()
+    $taskSourceStatus=@(& git -C $taskRoot status --short)
+}
 $taskHardware=[ordered]@{
     cpu=Get-CimInstance Win32_Processor | Select-Object Name,NumberOfCores,NumberOfLogicalProcessors
     computer=Get-CimInstance Win32_ComputerSystem | Select-Object Manufacturer,Model,TotalPhysicalMemory
@@ -35,8 +41,8 @@ $taskHardware=[ordered]@{
 }
 $taskMetadata=[ordered]@{
     startedAt=(Get-Date).ToString('o');executableSha256=(Get-FileHash -LiteralPath $taskExe -Algorithm SHA256).Hash
-    gitCommit=(& git -C $taskRoot rev-parse HEAD | Out-String).Trim()
-    sourceStatus=@(& git -C $taskRoot status --short)
+    gitCommit=$taskGitCommit
+    sourceStatus=$taskSourceStatus
     hardware=$taskHardware;width=1280;height=720;seed=12071998
     scene='Frozen Level 0 presentation entrance';camera=@{x=3.75;z=3.75;yaw=-90;pitch=-5;fov=78}
     presentation=@{aoOn=0.85;aoOff=0;exposure=1.1;blur=0}
@@ -67,12 +73,16 @@ for($taskRep=1;$taskRep -le $Repetitions;++$taskRep) {
         $taskProcess=Start-Process -FilePath $taskExe -WorkingDirectory $taskRoot -ArgumentList $taskArgs -WindowStyle Hidden -PassThru `
             -RedirectStandardOutput (Join-Path $taskEvidence ($taskName+'-stdout.txt')) `
             -RedirectStandardError (Join-Path $taskEvidence ($taskName+'-stderr.txt'))
+        # Retain the handle for reliable redirected ExitCode on PowerShell 5.1.
+        $taskProcessHandle=$taskProcess.Handle
         while(!$taskProcess.WaitForExit(1000)) {
             if($taskWatch.Elapsed.TotalSeconds -gt $WarmupSeconds+$MeasureSeconds+90) {
                 $taskProcess.Kill();$taskProcess.WaitForExit()
                 throw "Timed out: $taskName"
             }
         }
+        $taskProcess.WaitForExit()
+        $taskProcess.Refresh()
         $taskWatch.Stop()
         $taskLog=Get-Content -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Raw
         Copy-Item -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Destination (Join-Path $taskEvidence ($taskName+'.log'))

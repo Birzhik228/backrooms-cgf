@@ -38,7 +38,7 @@ uniform sampler2D uCreatureColor;
 uniform sampler2D uCreatureNormal;
 
 // Color images and room material RGB values are display-space colors. The
-// creature's imported glTF factors are already linear. All illumination is
+// creature's project-authored material factors are already linear. All illumination is
 // linear, with a single tone map and gamma conversion below.
 vec3 linearColor(vec3 c) { return pow(max(c, vec3(0.0)), vec3(2.2)); }
 
@@ -388,19 +388,19 @@ void main() {
         emission=vec3(.10,.063,.009);
         specularStrength=.65;shininess=70.0;
     } else if (material >= 20 && material <= 22) {
-        // All three source materials share sRGB carpet and linear normal
-        // images. glTF base factors are already LINEAR and are not decoded.
-        // Original mesh UVs preserve its carpet weave across articulated legs.
-        vec3 factor = material == 20 ? vec3(0.520995677, 0.502886593, 0.491020888)
-                    : material == 21 ? vec3(0.921582043, 0.854992807, 0.806952477)
-                                     : vec3(0.00972121768, 0.00856812485, 0.00856812485);
+        // Original procedural Sentinel materials: oxidized shell, pale ceramic
+        // and dark sockets, sharing generated color and normal texture caches.
+        // These authored base factors are linear and are not decoded again.
+        vec3 factor = material == 20 ? vec3(0.48, 0.42, 0.32)
+                    : material == 21 ? vec3(0.90, 0.82, 0.63)
+                                     : vec3(0.018, 0.022, 0.025);
         albedo = linearColor(texture(uCreatureColor, vUV).rgb) * factor;
         normal = mappedNormal(geometricNormal, vUV,
                               texture(uCreatureNormal, vUV).rgb, 0.635);
         specularStrength = 0.012;
         shininess = 12.0;
         // The face receives scene lighting, with a brief fill at capture.
-        // No persistent Smiler eye/teeth emission remains on this new model.
+        // The ceramic face stays non-emissive outside the capture fill.
         if (material == 21) emission = albedo * (0.30 * uScareGlow);
     }
 

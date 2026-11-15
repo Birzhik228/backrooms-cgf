@@ -1,27 +1,53 @@
 {
-  "source": "universfield-heavy-walking-footsteps-352771.mp3",
-  "sha256": "8cc37d615c330686bc8e1b1c1c25212a2d721aebe62d62661d55a5748f899e06",
-  "sample_rate": 22050,
-  "clips": [
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": {
+    "author": "Fantozzi",
+    "title": "Grass, Sand, Stone footsteps",
+    "url": "https://opengameart.org/content/fantozzis-footsteps-grasssand-stone"
+  },
+  "verified": "2026-11-15",
+  "processing": "Fantozzi CC0 sand contacts, pitch/spectral filtering through prepare_aranea_audio.make_steps(True).",
+  "files": [
     {
-      "file": "step-01.wav",
-      "start_seconds": 0.1346,
-      "duration": 0.42997732426303853
+      "file": "footsteps-monster/step-01.wav",
+      "sha256": "61b9f412faad9a867a9864c18260f21025744a9d2a6891596c80b9289db62de3",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 7497,
+      "seconds": 0.34,
+      "peak": 18677,
+      "rms": 3002.8142592003205
     },
     {
-      "file": "step-02.wav",
-      "start_seconds": 1.0924,
-      "duration": 0.42997732426303853
+      "file": "footsteps-monster/step-02.wav",
+      "sha256": "d27100bf22d0697d1b3eab88956ee16b8cccae3fdec7c8dd35b324947de7f6df",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 7673,
+      "seconds": 0.34798185941043086,
+      "peak": 18677,
+      "rms": 3374.5842496437153
     },
     {
-      "file": "step-03.wav",
-      "start_seconds": 2.15,
-      "duration": 0.42997732426303853
+      "file": "footsteps-monster/step-03.wav",
+      "sha256": "4d75f3da9d207e774277d937ae28763af992d72d6da7814a5770210d30990490",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 7850,
+      "seconds": 0.35600907029478457,
+      "peak": 18677,
+      "rms": 2696.7810040767204
     },
     {
-      "file": "step-04.wav",
-      "start_seconds": 4.1455,
-      "duration": 0.42997732426303853
+      "file": "footsteps-monster/step-04.wav",
+      "sha256": "365ab0c74d32b5f95a61e1fbfc719e4854703e0f3882b0525e60166d4585681e",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 8026,
+      "seconds": 0.3639909297052154,
+      "peak": 18677,
+      "rms": 3698.614218855524
     }
   ]
 }

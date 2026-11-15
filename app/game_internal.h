@@ -237,7 +237,7 @@ private:
     ChunkCoord doorOrigin{};
     std::size_t doorShift=0;
     BackgroundMusic music;
-    const bool musicLoaded = music.load(options.musicFile.empty() ? std::filesystem::path("assets/audio/music/numbers-temporex.mp3") : std::filesystem::path(options.musicFile));
+    const bool musicLoaded = music.load(options.musicFile.empty() ? std::filesystem::path("assets/audio/music/threshold-ambient.wav") : std::filesystem::path(options.musicFile));
     bool musicErrorReported=!music.error().empty();
     Audio audio;
     bool muted = options.hidden, flashlight = !options.noFlashlight, clues = !options.noClues;

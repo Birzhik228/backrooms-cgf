@@ -30,7 +30,7 @@ bool loadMonsterFootsteps(const std::string& directory="assets/audio/footsteps-m
 // A partial/invalid bank clears the override and restores the legacy sounds.
 bool loadAraneaSamples(const std::string& directory="assets/audio/aranea");
 std::size_t recordedFootstepCount();
-// Preload user-supplied roar before constructing the mixer.
+// Preload the licensed/generated pickup and capture cues before the mixer.
 bool loadVerityPickupSample(const std::string& path="assets/audio/verity/pickup.wav");
 bool loadPartygoerJumpscareSample(const std::string& path="assets/audio/partygoer/jumpscare.wav");
 bool loadJumpscareSample(const std::string& path="assets/audio/jumpscare/scream.wav");
@@ -87,7 +87,7 @@ struct StereoGain { float left=0,right=0; };
 StereoGain positionalGains(const AudioScene& scene,AudioPosition source,
                            float nearDistance=2,float farDistance=48);
 
-// The same bounded, cached stereo mixer drives waveOut and offline tests.
+// The same bounded, cached stereo mixer drives waveOut, SDL and offline tests.
 // Ambience and threat cues are synthesized once, never in the render loop.
 // Threat cues are positional except the capture sting, which is centered and
 // replaces other one-shots. All cues obey master volume and pause/mute.
@@ -111,7 +111,8 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-// Polled waveOut buffers: audio has no callbacks or worker threads.
+// Polled waveOut buffers (Windows) or bounded SDL queues (macOS). The game's
+// mixer has no audio callbacks or worker threads; SDL owns its output thread.
 // Start/stop implement the M-key mute, and unavailable audio is harmless.
 class Audio {
 public:

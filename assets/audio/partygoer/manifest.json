@@ -1,0 +1,23 @@
+{
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source": {
+    "author": "zerokingfull",
+    "title": "Monster Roar 02",
+    "url": "https://freesound.org/people/zerokingfull/sounds/347410/"
+  },
+  "verified": "2026-11-15",
+  "processing": "Two filtered/pitched layers of the CC0 scream with bounded gain and fades.",
+  "files": [
+    {
+      "file": "partygoer/jumpscare.wav",
+      "sha256": "88db21c0af26a782a812cc086b58421ea77766a6a755edcf2ad491be3b857522",
+      "sample_rate": 22050,
+      "channels": 1,
+      "samples": 44100,
+      "seconds": 2.0,
+      "peak": 26214,
+      "rms": 8076.73478483183
+    }
+  ]
+}

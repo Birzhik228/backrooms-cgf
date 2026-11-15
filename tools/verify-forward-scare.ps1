@@ -71,7 +71,7 @@ foreach($taskCase in $taskCases) {
     $taskLog=Get-Content -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Raw
     Copy-Item -LiteralPath (Join-Path $taskRoot 'backrooms.log') -Destination (Join-Path $taskEvidence ($taskCase.name+'.log'))
     Assert-Check ($taskProcess.ExitCode -eq 0 -and $taskLog.Contains('GL errors: 0') -and
-        $taskLog.Contains('Loaded Aranea model: 15220 triangles.') -and $taskLog.Contains($taskCase.expected)) "Failed $($taskCase.name): $taskLog"
+        $taskLog.Contains('Loaded Threshold Sentinel model: 8120 triangles.') -and $taskLog.Contains($taskCase.expected)) "Failed $($taskCase.name): $taskLog"
     $taskRows=@(Import-Csv -LiteralPath (Join-Path $taskRoot "$taskStem.csv"))
     Assert-Check ($taskRows.Count -eq $taskCase.frames) "$($taskCase.name): incomplete frame profile"
     $taskMeasurements=[ordered]@{}

@@ -29,7 +29,7 @@ std::vector<unsigned char> readCreatureTexture(const std::filesystem::path& path
     const auto fail = [&path](const char* reason) -> void {
         throw std::runtime_error("Cannot load creature texture " + path.generic_string()
             + ": " + reason + ". Restore assets/models/aranea/*.rgb or regenerate them "
-              "with python tools/prepare_aranea_textures.py.");
+              "with python tools/generate_sentinel.py.");
     };
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) fail("file is missing or unreadable");

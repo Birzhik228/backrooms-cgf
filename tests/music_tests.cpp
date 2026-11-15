@@ -16,7 +16,8 @@ struct TemporaryMusic {
     std::filesystem::path path;
     TemporaryMusic() {
         const auto stamp=std::chrono::steady_clock::now().time_since_epoch().count();
-        path=std::filesystem::temp_directory_path()/(L"Backrooms music \u0442\u0435\u0441\u0442 "+std::to_wstring(stamp)+L".wav");
+        path=std::filesystem::temp_directory_path()/std::filesystem::u8path(
+            u8"Backrooms music \u0442\u0435\u0441\u0442 "+std::to_string(stamp)+".wav");
     }
     ~TemporaryMusic() { std::error_code error; std::filesystem::remove(path,error); }
 };
