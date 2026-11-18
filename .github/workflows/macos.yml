@@ -19,7 +19,7 @@ jobs:
       matrix:
         runner: [macos-15, macos-15-intel]
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -62,6 +62,7 @@ jobs:
           codesign --force --sign - build/macos/bin/Backrooms
           codesign --verify --strict build/macos/bin/Backrooms
       - name: Package complete project and universal game
+        id: package
         run: |
           mkdir -p docs/evidence/macos
           cp build/macos/native-results.xml docs/evidence/macos/native-${{ matrix.runner }}.xml
@@ -75,11 +76,12 @@ jobs:
         run: |
           mkdir -p build/extracted-mac
           ditto -x -k dist/BackroomsCGF-Mac-Full-Project.zip build/extracted-mac
-          python3 build/extracted-mac/BackroomsCGF/tools/verify-macos.py --root build/extracted-mac/BackroomsCGF
+          python3 build/extracted-mac/BackroomsCGF/tools/verify-macos.py --root build/extracted-mac/BackroomsCGF --case-timeout 1200
           cd build/extracted-mac/BackroomsCGF
           PATH=/usr/bin:/bin:/usr/sbin:/sbin ./"Run Mac.command" --hidden --presentation --frames 8 --width 1280 --height 720
           PATH=/usr/bin:/bin:/usr/sbin:/sbin ./"Presentation Mac.command" --hidden --frames 8 --width 1280 --height 720
       - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         with:
           name: mac-universal-${{ matrix.runner }}
           path: dist/BackroomsCGF-Mac-Full-Project.*

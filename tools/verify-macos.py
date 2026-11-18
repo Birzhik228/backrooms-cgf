@@ -85,7 +85,10 @@ def main():
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parent.parent)
     parser.add_argument("--executable", type=Path, help="Override packaged bin/Backrooms, for source-build verification")
     parser.add_argument("--manifest-only", action="store_true", help="Validate packaged files on any OS without running the game")
+    parser.add_argument("--case-timeout", type=int, default=120,
+                        help="Seconds allowed per scenario (default 120; increase for software-rendered CI)")
     args = parser.parse_args()
+    require(1 <= args.case_timeout <= 3600, "Case timeout must be 1..3600 seconds")
     root = args.root.expanduser().resolve()
     manifest_path = root / "package-manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
@@ -146,7 +149,7 @@ def main():
         print("RUN " + name, flush=True)
         started = time.monotonic()
         try:
-            completed = subprocess.run(arguments, cwd=root, capture_output=True, timeout=120, check=False)
+            completed = subprocess.run(arguments, cwd=root, capture_output=True, timeout=args.case_timeout, check=False)
             (evidence / (name + "-stdout.txt")).write_bytes(completed.stdout)
             (evidence / (name + "-stderr.txt")).write_bytes(completed.stderr)
             log_path = runtime_dir / "backrooms.log"
