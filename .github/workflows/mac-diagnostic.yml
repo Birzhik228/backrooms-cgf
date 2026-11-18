@@ -1,0 +1,50 @@
+name: Mac startup diagnostic
+
+on:
+  push:
+    branches: ['codex/mac-diagnostic-*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  startup:
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Build universal game only
+        run: |
+          cmake -S . -B build/macos -DCMAKE_BUILD_TYPE=Release '-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64' -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DBACKROOMS_FETCH_MAC_DEPS=ON -DBUILD_TESTING=OFF
+          cmake --build build/macos --target Backrooms --parallel 3
+          lipo build/macos/bin/Backrooms -verify_arch arm64 x86_64
+          codesign --force --sign - build/macos/bin/Backrooms
+          codesign --verify --strict build/macos/bin/Backrooms
+      - name: Preserve diagnostic package
+        run: |
+          mkdir -p docs/evidence/macos
+          python3 -c 'import json,os,platform; from pathlib import Path; Path("docs/evidence/macos/build-info.json").write_text(json.dumps({"commit":os.environ["GITHUB_SHA"],"machine":platform.machine(),"os":platform.platform(),"architectures":["arm64","x86_64"],"verificationStatus":"diagnostic build; full suite not run in this job"},indent=2)+"\n")'
+          python3 tools/package-macos.py --executable build/macos/bin/Backrooms --output dist/BackroomsCGF-Mac-Full-Project.zip
+      - uses: actions/upload-artifact@v7
+        with:
+          name: mac-diagnostic-universal
+          path: dist/BackroomsCGF-Mac-Full-Project.*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Sample exact-package startup
+        env:
+          SDL_AUDIODRIVER: dummy
+        run: |
+          mkdir -p build/extracted-mac
+          ditto -x -k dist/BackroomsCGF-Mac-Full-Project.zip build/extracted-mac
+          python3 tools/probe-macos-startup.py --root build/extracted-mac/BackroomsCGF --timeout 600
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mac-startup-diagnostics
+          path: build/extracted-mac/BackroomsCGF/tests/artifacts/mac-startup/
+          if-no-files-found: ignore
+          retention-days: 14
