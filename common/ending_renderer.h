@@ -399,7 +399,14 @@ void main(){vec4 world=uModel*vec4(aPosition,1);p=world.xyz;n=transpose(inverse(
 in vec3 p,n,color;in vec2 uv;in vec4 sunPosition0,sunPosition1;flat in int material;out vec4 frag;
 uniform vec3 uEye,uTint,uSunDirection;uniform float uTime,uExposure,uCabin,uLobby;uniform int uSurface,uSunShadows;
 uniform sampler2D uStaticSun0,uMovingSun0,uStaticSun1,uMovingSun1;
-float hash(vec2 v){return fract(sin(dot(v,vec2(127.1,311.7)))*43758.5453);}
+// Integer mixing avoids amplifying small sine/JIT rounding differences into
+// different material textures after recreating the program on software GL.
+float hashBits(uvec2 pixel,uint salt){
+ uint h=pixel.x*0x9e3779b9u^pixel.y*0x85ebca6bu^salt;
+ h^=h>>16u;h*=0x7feb352du;h^=h>>15u;h*=0x846ca68bu;h^=h>>16u;
+ return float(h>>8u)*(1.0/16777216.0);
+}
+float hash(vec2 v){return hashBits(uvec2(ivec2(v)),0x68bc21ebu);}
 float noise(vec2 v){vec2 i=floor(v),f=fract(v);f=f*f*(3-2*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
 vec3 point(vec3 pos,vec3 tint,float power,vec3 normal){vec3 d=pos-p;float r=dot(d,d);return tint*power*(.18+.82*max(0,dot(normal,normalize(d))))/(1+r*.42);}
 float sunMap(sampler2D fixedMap,sampler2D movingMap,vec3 q,float bias){
@@ -467,7 +474,8 @@ void main(){
  float distance=length(uEye-p);bool outside=uSurface==1&&p.z< -10.68;
  rgb=mix(rgb,outside?vec3(.66,.76,.83):vec3(.025,.024,.014),1-exp(-max(distance-(outside?32:11),0)*(outside?.009:.032)));
  rgb=vec3(1)-exp(-rgb*uExposure*1.25);rgb=pow(max(rgb,vec3(0)),vec3(.82));
- rgb+=(hash(gl_FragCoord.xy+vec2(fract(uTime*.71)*100,fract(uTime*.43)*100))-.5)*.008;
+ uint grainFrame=uint(mod(floor(max(uTime,0.0)*24.0),16777216.0));
+ rgb+=(hashBits(uvec2(gl_FragCoord.xy),grainFrame*0xc2b2ae35u)-.5)*.008;
  frag=vec4(rgb,1);}
 )GLSL";
         shader_=Shader(vertex,fragment,true);

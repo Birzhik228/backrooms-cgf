@@ -43,11 +43,12 @@ static void requireSameImage(const std::vector<float>& a, const std::vector<floa
         maximum=std::max(maximum,delta);mean+=delta;
     }
     mean/=a.size();
-    std::cout<<label<<": maximum difference="<<maximum<<", mean difference="<<mean<<'\n';
+    std::cout<<std::scientific<<std::setprecision(9)<<label<<": maximum difference="<<maximum
+             <<", mean difference="<<mean<<'\n'<<std::fixed<<std::setprecision(6);
     // Software OpenGL can change floating-point evaluation after shader JIT
     // warm-up. This is far below one 8-bit display step and below the smallest
     // visible grain change; a changed noise seed still fails by a wide margin.
-    require(maximum==0,label+": exact image repeatability diagnostic");
+    require(maximum<=0.0000005&&mean<=0.0000001,label+": image changed beyond float rounding");
 }
 struct Statistics {
     double mean=0, deviation=0, maxCorrelation=0, columnBand=0, rowBand=0;

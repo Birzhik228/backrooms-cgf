@@ -26,9 +26,8 @@ static void requireSameImage(const Pixels& a,const Pixels& b,const std::string& 
     }
     mean/=a.size();
     std::cout<<label<<": maximum channel difference="<<maximum<<", mean difference="<<mean<<'\n';
-    // Fresh software shader compilation may round at an 8-bit boundary.
-    // Permit only one quantization step, affecting at most 5% of channels.
-    // Geometry, moving shadows and exposure differences remain failures.
+    // Keep this comparison exact: material noise must be stable even after
+    // the renderer's shader programs and resources are recreated.
     require(maximum==0,label+": exact image repeatability diagnostic");
 }
 static void checkGL(const std::string& label){
@@ -156,7 +155,10 @@ int main(int argc,char** argv){
                  <<" ms/frame at "<<width<<'x'<<height<<" (local GPU diagnostic, no pass threshold).\n";
         renderer.destroy();checkGL("Destroy sunlight resources");
         renderer.destroy();checkGL("Destroy twice");
-        requireSameImage(render(renderer,32.f),reference,"Recreated city renderer");
+        const auto recreated=render(renderer,32.f);
+        saveBMP(evidence/"recreate-reference.bmp",reference);
+        saveBMP(evidence/"recreate-result.bmp",recreated);
+        requireSameImage(recreated,reference,"Recreated city renderer");
         renderer.destroy();checkGL("Final destroy");
         glfwDestroyWindow(window);window=nullptr;glfwTerminate();
         std::cout<<"PASS: daylight occlusion, moving and paused shadows, cached static geometry, replay/recreate and GL errors 0.\n";

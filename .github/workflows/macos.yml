@@ -95,6 +95,7 @@ jobs:
             build/macos/system-audio.txt
             build/macos/displays.txt
             build/macos/CMakeFiles/CMakeConfigureLog.yaml
+            tests/artifacts/ending-sun/*.bmp
             build/extracted-mac/BackroomsCGF/tests/artifacts/macos/
           if-no-files-found: ignore
           retention-days: 14
