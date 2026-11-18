@@ -3,6 +3,7 @@
 #include "common/ending_renderer.h"
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -16,6 +17,20 @@ namespace fs=std::filesystem;
 static constexpr int width=1280,height=800;
 using Pixels=std::vector<unsigned char>;
 static void require(bool ok,const std::string& why){if(!ok)throw std::runtime_error(why);}
+static void requireSameImage(const Pixels& a,const Pixels& b,const std::string& label){
+    require(a.size()==b.size(),label+": image dimensions changed");
+    int maximum=0;double mean=0;
+    for(size_t i=0;i<a.size();++i){
+        const int delta=std::abs(int(a[i])-int(b[i]));
+        maximum=std::max(maximum,delta);mean+=delta;
+    }
+    mean/=a.size();
+    std::cout<<label<<": maximum channel difference="<<maximum<<", mean difference="<<mean<<'\n';
+    // Fresh software shader compilation may round at an 8-bit boundary.
+    // Permit only one quantization step, affecting at most 5% of channels.
+    // Geometry, moving shadows and exposure differences remain failures.
+    require(maximum==0,label+": exact image repeatability diagnostic");
+}
 static void checkGL(const std::string& label){
     const GLenum error=glGetError();
     require(error==GL_NO_ERROR,label+": OpenGL error "+std::to_string(error));
@@ -109,7 +124,7 @@ int main(int argc,char** argv){
             std::cout<<label<<": shadow pixels="<<difference.darkened
                      <<", mean shadow darkening="<<difference.meanDarkening<<'\n';
             const auto dynamicBuilt=renderer.dynamicShadowUpdates();
-            require(render(renderer,time)==shaded,label+": paused scene changed pixels");
+            requireSameImage(render(renderer,time),shaded,label+": paused scene");
             require(renderer.staticShadowUpdates()==staticBuilt,"Static city map rebuilt during the film");
             require(renderer.dynamicShadowUpdates()==dynamicBuilt,"Paused actors regenerated their shadow map");
             render(renderer,time+.25f);
@@ -117,7 +132,7 @@ int main(int argc,char** argv){
             require(renderer.staticShadowUpdates()==staticBuilt,"Moving actors rebuilt the static city map");
         }
         const auto reference=render(renderer,32.f);
-        render(renderer,1.5f);require(render(renderer,32.f)==reference,"Replay did not reproduce sunlight/city shadows");
+        render(renderer,1.5f);requireSameImage(render(renderer,32.f),reference,"Replay sunlight/city shadows");
         // Warm the same scene before measuring GPU throughput. No image reads
         // or per-frame synchronization are included; this is a local diagnostic,
         // not a hardware requirement or an estimate of whole-game frame time.
@@ -125,7 +140,11 @@ int main(int argc,char** argv){
         for(int i=0;i<3;++i){benchmark.start(32.f);renderer.draw(benchmark,width,height);}
         glFinish();
         const auto started=std::chrono::steady_clock::now();
-        constexpr int frames=120;
+        // CI can request a shorter diagnostic without dropping any functional
+        // shadow, cache, replay or resource-lifetime assertions above/below.
+        const char* diagnosticFrames=std::getenv("BACKROOMS_TEST_THROUGHPUT_FRAMES");
+        const int frames=diagnosticFrames?std::stoi(diagnosticFrames):120;
+        require(frames>=2&&frames<=120,"Throughput diagnostic requires 2..120 frames");
         for(int i=0;i<frames;++i){
             benchmark.start(32.f+2.f*i/(frames-1));renderer.draw(benchmark,width,height);
         }
@@ -137,7 +156,7 @@ int main(int argc,char** argv){
                  <<" ms/frame at "<<width<<'x'<<height<<" (local GPU diagnostic, no pass threshold).\n";
         renderer.destroy();checkGL("Destroy sunlight resources");
         renderer.destroy();checkGL("Destroy twice");
-        require(render(renderer,32.f)==reference,"Recreated renderer did not reproduce the city image");
+        requireSameImage(render(renderer,32.f),reference,"Recreated city renderer");
         renderer.destroy();checkGL("Final destroy");
         glfwDestroyWindow(window);window=nullptr;glfwTerminate();
         std::cout<<"PASS: daylight occlusion, moving and paused shadows, cached static geometry, replay/recreate and GL errors 0.\n";

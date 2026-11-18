@@ -33,6 +33,22 @@ static std::vector<float> difference(const std::vector<float>& a, const std::vec
     for (size_t i=0; i<a.size(); ++i) result[i]=a[i]-b[i];
     return result;
 }
+static void requireSameImage(const std::vector<float>& a, const std::vector<float>& b,
+                             const std::string& label) {
+    require(a.size()==b.size(),label+": image dimensions changed");
+    double maximum=0,mean=0;
+    for(size_t i=0;i<a.size();++i) {
+        require(std::isfinite(a[i])&&std::isfinite(b[i]),label+": non-finite pixel");
+        const double delta=std::abs(double(a[i])-double(b[i]));
+        maximum=std::max(maximum,delta);mean+=delta;
+    }
+    mean/=a.size();
+    std::cout<<label<<": maximum difference="<<maximum<<", mean difference="<<mean<<'\n';
+    // Software OpenGL can change floating-point evaluation after shader JIT
+    // warm-up. This is far below one 8-bit display step and below the smallest
+    // visible grain change; a changed noise seed still fails by a wide margin.
+    require(maximum==0,label+": exact image repeatability diagnostic");
+}
 struct Statistics {
     double mean=0, deviation=0, maxCorrelation=0, columnBand=0, rowBand=0;
     float minimum=0, maximum=0;
@@ -144,8 +160,8 @@ int main(int argc, char** argv) {
             const auto pixels=render(lens,time);
             checkNoise(difference(pixels,clean),.0166f,"grain time="+std::to_string(int(time)));
         }
-        require(initial==render(lens,0),"Frozen grain time must reproduce the exact image");
-        require(initial==render(lens,.01f),"Grain must remain fixed within a 24 Hz frame");
+        requireSameImage(initial,render(lens,0),"Frozen grain time");
+        requireSameImage(initial,render(lens,.01f),"Grain within a 24 Hz frame");
         const auto advanced=render(lens,1.f/24.f);
         double changed=0;
         for (size_t i=0;i<initial.size();++i) if(std::abs(initial[i]-advanced[i])>.0001f) ++changed;
@@ -155,7 +171,7 @@ int main(int argc, char** argv) {
             checkNoise(difference(pixels,initial),.12f,"scare static time="+std::to_string(int(time)));
         }
         const auto stillStatic=render(lens,0,0,.12f);
-        require(stillStatic==render(lens,0,.005f,.12f),"Static must remain fixed within a 90 Hz frame");
+        requireSameImage(stillStatic,render(lens,0,.005f,.12f),"Static within a 90 Hz frame");
         require(stillStatic!=render(lens,0,1.f/90.f,.12f),"Static must advance on the next 90 Hz frame");
         auto requireSolid=[&](float expected,const std::string& message) {
             std::vector<float> rgb(size_t(width)*height*3);

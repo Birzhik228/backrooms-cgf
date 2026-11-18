@@ -42,6 +42,8 @@ jobs:
         run: ctest --test-dir build/macos -L native --output-on-failure --output-junit native-results.xml
       - name: Graphics tests
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        env:
+          BACKROOMS_TEST_THROUGHPUT_FRAMES: 10
         run: |
           system_profiler SPDisplaysDataType > build/macos/displays.txt
           ctest --test-dir build/macos -L graphics --output-on-failure --output-junit graphics-results.xml
@@ -55,7 +57,7 @@ jobs:
           if [ "$result" -ne 0 ] && [ "$result" -ne 77 ]; then exit "$result"; fi
       - name: Check both architectures and sign locally
         run: |
-          lipo -verify_arch arm64 x86_64 build/macos/bin/Backrooms
+          lipo build/macos/bin/Backrooms -verify_arch arm64 x86_64
           otool -L build/macos/bin/Backrooms
           codesign --force --sign - build/macos/bin/Backrooms
           codesign --verify --strict build/macos/bin/Backrooms
